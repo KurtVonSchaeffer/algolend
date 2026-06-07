@@ -1,0 +1,475 @@
+/* =================================================================
+   Zwane Financial Portal — Premium Design System v4
+   UI/UX Pro Max · IBM Plex Sans · Fintech Bento Grid
+   Brand: var(--color-primary, #E7762E) orange · #0F172A dark · #FAFAFA bg
+   ================================================================= */
+
+/* ── 1. FONTS ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
+:root {
+  --ds-font:        'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ds-orange:      var(--color-primary, #E7762E);
+
+  --ds-shadow-sm:   0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.07);
+  --ds-shadow-md:   0 2px 4px rgba(0,0,0,0.05), 0 8px 20px rgba(0,0,0,0.08), 0 20px 40px rgba(0,0,0,0.05);
+  --ds-shadow-lg:   0 4px 8px rgba(0,0,0,0.06), 0 12px 28px rgba(0,0,0,0.11), 0 32px 56px rgba(0,0,0,0.07);
+  --ds-shadow-orange: 0 4px 16px rgba(var(--color-primary-rgb, 231 118 46)/0.32), 0 8px 32px rgba(var(--color-primary-rgb, 231 118 46)/0.16);
+
+  --ds-ease:        cubic-bezier(0.22, 1, 0.36, 1);
+  --ds-spring:      cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── 2. GLOBAL FONT — never touch <i>/<svg> (Font Awesome) ─── */
+body, h1, h2, h3, h4, h5, h6,
+p, span, div, section, article, header, footer, aside, main,
+button, input, select, textarea, label,
+a, li, ul, ol, td, th, caption {
+  font-family: var(--ds-font) !important;
+}
+
+/* ── 3. BACKGROUND — Radial mesh gradient ────────────────────── */
+body {
+  background-color: #FDF9F6 !important;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 10% 0%,  rgba(var(--color-primary-rgb, 231 118 46)/0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 100%, rgba(var(--color-primary-rgb, 231 118 46)/0.04) 0%, transparent 55%) !important;
+  background-attachment: fixed !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+
+/* ── 4. NAVBAR — Premium frosted glass ───────────────────────── */
+.navbar-desktop .navbar,
+header.navbar-desktop {
+  background: rgba(255,255,255,0.88) !important;
+  backdrop-filter: blur(24px) saturate(2) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(2) !important;
+  border-bottom: 1px solid rgba(var(--color-primary-rgb, 231 118 46)/0.12) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.8), 0 4px 24px rgba(0,0,0,0.06) !important;
+}
+
+/* ── 5. SIDEBAR — Clean white with coloured nav pills ────────── */
+.sidebar {
+  background: #ffffff !important;
+  border-right: 1px solid rgba(0,0,0,0.06) !important;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.04) !important;
+}
+
+/* Active nav pill — full rounded highlight */
+.nav-link.active {
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb, 231 118 46)/0.12), rgba(var(--color-primary-rgb, 231 118 46)/0.06)) !important;
+  color: var(--color-primary, #E7762E) !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  border-left: none !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--color-primary-rgb, 231 118 46)/0.18) !important;
+}
+
+.nav-link:not(.active):hover {
+  background: rgba(0,0,0,0.04) !important;
+  border-radius: 12px !important;
+}
+
+/* Sidebar icon colours per page */
+.nav-link[data-page="dashboard"]    .nav-icon { color: var(--color-primary, #E7762E) !important; }
+.nav-link[data-page="apply-loan"]   .nav-icon { color: #10b981 !important; }
+.nav-link[data-page="loan-calculator"] .nav-icon { color: #3b82f6 !important; }
+.nav-link[data-page="transcripts"]  .nav-icon { color: #8b5cf6 !important; }
+.nav-link[data-page="documents"]    .nav-icon { color: #f59e0b !important; }
+.nav-link[data-page="support"]      .nav-icon { color: #ec4899 !important; }
+.nav-link[data-page="profile"]      .nav-icon { color: #06b6d4 !important; }
+
+/* Keep active icon orange */
+.nav-link.active .nav-icon { color: var(--color-primary, #E7762E) !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   6. CARDS — Staggered entrance + premium surfaces
+   ══════════════════════════════════════════════════════════════ */
+
+#main-content .card,
+.card,
+#main-content .action-card,
+.action-card,
+#main-content .loan-card,
+.loan-card,
+.minimalist-score-card,
+.modern-list-item,
+.calc-card,
+#calcCard {
+  background: #ffffff !important;
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.04),
+    0 6px 20px rgba(0,0,0,0.07),
+    0 0 0 1px rgba(0,0,0,0.04) !important;
+  border: none !important;
+  transition:
+    transform 0.25s var(--ds-ease),
+    box-shadow 0.25s var(--ds-ease) !important;
+}
+
+/* Subtle warm glow orb top-right */
+#main-content .card,
+.card,
+.loan-card,
+.modern-list-item {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+#main-content .card::before,
+.card::before,
+.loan-card::before {
+  content: '' !important;
+  position: absolute !important;
+  top: -50px !important;
+  right: -50px !important;
+  width: 130px !important;
+  height: 130px !important;
+  background: radial-gradient(circle, rgba(var(--color-primary-rgb, 231 118 46)/0.10) 0%, transparent 70%) !important;
+  pointer-events: none !important;
+  transition: transform 0.4s var(--ds-ease), opacity 0.4s ease !important;
+  z-index: 0 !important;
+}
+
+/* Card content sits above orb */
+#main-content .card > *,
+.card > *,
+.loan-card > *,
+.modern-list-item > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Hover: float + deepen + expand orb */
+#main-content .card:hover,
+.card:hover,
+#main-content .action-card:hover,
+.action-card:hover,
+#main-content .loan-card:hover,
+.loan-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.05),
+    0 14px 36px rgba(0,0,0,0.10),
+    0 0 0 1px rgba(var(--color-primary-rgb, 231 118 46)/0.12),
+    0 0 48px rgba(var(--color-primary-rgb, 231 118 46)/0.06) !important;
+}
+
+#main-content .card:hover::before,
+.card:hover::before {
+  transform: scale(1.5) !important;
+  opacity: 1.3 !important;
+}
+
+/* ── Staggered entrance animation ───────────────────────────── */
+.ds-metric-card {
+  justify-content: flex-start !important;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: dsCardEntrance 0.5s var(--ds-ease) forwards;
+}
+
+.ds-metric-card:nth-child(1) { animation-delay: 0.05s; }
+.ds-metric-card:nth-child(2) { animation-delay: 0.12s; }
+.ds-metric-card:nth-child(3) { animation-delay: 0.19s; }
+.ds-metric-card:nth-child(4) { animation-delay: 0.26s; }
+.credit-score-card.ds-metric-card { animation-delay: 0.33s; }
+
+@keyframes dsCardEntrance {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Card header row — label left, icon right ────────────────── */
+.ds-card-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 14px !important;
+  width: 100% !important;
+}
+
+.ds-card-header .card-label {
+  margin-bottom: 0 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: #8E8E93 !important;
+}
+
+/* Coloured icon badge */
+.card-icon-badge {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 11px !important;
+  background: var(--badge-bg, rgba(var(--color-primary-rgb, 231 118 46)/0.10)) !important;
+  color: var(--badge-color, var(--color-primary, #E7762E)) !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 15px !important;
+  flex-shrink: 0 !important;
+  transition: transform 0.2s var(--ds-spring), box-shadow 0.2s var(--ds-ease) !important;
+}
+
+.card:hover .card-icon-badge {
+  transform: scale(1.10) rotate(-6deg) !important;
+  box-shadow: 0 4px 14px var(--badge-bg, rgba(var(--color-primary-rgb, 231 118 46)/0.25)) !important;
+}
+
+/* Card value — tighter, more financial */
+#main-content .card-value,
+.card-value {
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.04em !important;
+  color: #0F172A !important;
+  margin-bottom: 6px !important;
+  line-height: 1.1 !important;
+}
+
+/* Chart + misc cards */
+#main-content .chart-card,
+.chart-card,
+#main-content .transactions-section,
+#main-content .applications-section {
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04) !important;
+  border: none !important;
+}
+
+/* ── 7. GREETING — Bigger, bolder welcome ────────────────────── */
+.greeting-line {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: var(--color-primary, #E7762E) !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  margin: 0 0 6px !important;
+}
+
+.dashboard-header h1 {
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.04em !important;
+  color: #0F172A !important;
+  line-height: 1.1 !important;
+}
+
+/* ── 8. HERO SNAP-CARDS (mobile) ─────────────────────────────── */
+.snap-card {
+  background: linear-gradient(135deg, var(--color-primary, #E7762E) 0%, color-mix(in srgb, var(--color-primary, #E7762E) 80%, #fff) 45%, color-mix(in srgb, var(--color-primary, #E7762E) 70%, #fff) 100%) !important;
+  border: none !important;
+  box-shadow:
+    0 4px 16px rgba(var(--color-primary-rgb, 231 118 46)/0.40),
+    0 12px 40px rgba(var(--color-primary-rgb, 231 118 46)/0.20),
+    inset 0 1px 0 rgba(255,255,255,0.25) !important;
+  overflow: hidden !important;
+}
+
+/* Shine sweep */
+.snap-card::before {
+  content: '' !important;
+  position: absolute !important;
+  top: -60% !important;
+  left: -60% !important;
+  width: 60% !important;
+  height: 200% !important;
+  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%) !important;
+  transform: skewX(-15deg) !important;
+  animation: snapCardShine 4s ease-in-out infinite !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+@keyframes snapCardShine {
+  0%   { left: -60%; opacity: 0; }
+  10%  { opacity: 1; }
+  40%  { left: 130%; opacity: 1; }
+  41%  { opacity: 0; }
+  100% { left: 130%; opacity: 0; }
+}
+
+.snap-card > * { position: relative !important; z-index: 2 !important; }
+.snap-card .card-label  { color: rgba(255,255,255,0.78) !important; font-size: 12px !important; font-weight: 600 !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; }
+.snap-card .card-value  { color: #fff !important; font-weight: 700 !important; text-shadow: 0 2px 12px rgba(0,0,0,0.18) !important; }
+.snap-card .card-detail { color: rgba(255,255,255,0.68) !important; }
+.snap-card .hide-eye-btn { background: rgba(255,255,255,0.22) !important; backdrop-filter: blur(8px) !important; border: 1px solid rgba(255,255,255,0.35) !important; color: white !important; }
+
+/* ── 9. QUICK ACTION CIRCLES ─────────────────────────────────── */
+.action-icon-circle {
+  box-shadow: var(--ds-shadow-sm) !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
+  transition: transform 0.18s var(--ds-spring), box-shadow 0.18s var(--ds-ease) !important;
+}
+
+.action-btn-item:hover .action-icon-circle {
+  transform: translateY(-5px) scale(1.07) !important;
+  box-shadow: var(--ds-shadow-orange) !important;
+}
+
+.action-btn-item:active .action-icon-circle {
+  transform: scale(0.90) !important;
+}
+
+/* ── 10. HEADING SHIMMER ──────────────────────────────────────── */
+.main-title,
+.minimal-header h1,
+.notifications-header h1,
+.transcripts-header h1 {
+  background: linear-gradient(110deg, #0F172A 0%, #0F172A 35%, var(--color-primary, #E7762E) 50%, #0F172A 65%, #0F172A 100%) !important;
+  background-size: 300% 100% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  animation: dsShimmer 5s ease-in-out infinite !important;
+}
+
+@keyframes dsShimmer {
+  0%, 100% { background-position: 100% 0; }
+  50%       { background-position:   0% 0; }
+}
+
+/* ── 11. PRIMARY BUTTONS ──────────────────────────────────────── */
+.action-btn.primary,
+#refreshTranscriptsBtn,
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary, #E7762E) 0%, color-mix(in srgb, var(--color-primary, #E7762E) 80%, #fff) 100%) !important;
+  box-shadow: var(--ds-shadow-orange) !important;
+  border: none !important;
+  font-weight: 600 !important;
+  transition: transform 0.18s var(--ds-ease), box-shadow 0.18s var(--ds-ease) !important;
+}
+
+.action-btn.primary:hover,
+#refreshTranscriptsBtn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 28px rgba(var(--color-primary-rgb, 231 118 46)/0.45), 0 16px 48px rgba(var(--color-primary-rgb, 231 118 46)/0.20) !important;
+}
+
+/* ── 12. SECTION HEADERS ──────────────────────────────────────── */
+.section-title,
+.section-header h2,
+.section-header h3,
+.section-title-bar h2 {
+  padding-left: 12px !important;
+  border-left: 3px solid var(--color-primary, #E7762E) !important;
+}
+
+/* ── 13. MOBILE BOTTOM NAV ───────────────────────────────────── */
+.navbar-mobile,
+[class*="mobile-nav"],
+[class*="bottom-nav"] {
+  background: rgba(15,23,42,0.96) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-top: 1px solid rgba(var(--color-primary-rgb, 231 118 46)/0.20) !important;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.15) !important;
+}
+
+/* ── 14. NOTIFICATION ITEMS ──────────────────────────────────── */
+.notif-item {
+  background: #ffffff !important;
+  box-shadow: var(--ds-shadow-sm) !important;
+  border: 1px solid rgba(0,0,0,0.05) !important;
+}
+
+.notif-item:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--ds-shadow-md) !important;
+}
+
+.notif-filter-btn.active { box-shadow: var(--ds-shadow-orange) !important; }
+
+/* ── 15. FORM INPUTS ──────────────────────────────────────────── */
+input[type="text"], input[type="email"], input[type="tel"],
+input[type="number"], input[type="password"], select, textarea {
+  border: 1.5px solid rgba(15,23,42,0.12) !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  transition: border-color 0.15s var(--ds-ease), box-shadow 0.15s var(--ds-ease) !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--color-primary, #E7762E) !important;
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb, 231 118 46)/0.15) !important;
+  outline: none !important;
+}
+
+input[type="range"] { accent-color: var(--color-primary, #E7762E); }
+
+/* ── 16. MODALS ───────────────────────────────────────────────── */
+.modern-modal-panel {
+  background: #ffffff !important;
+  box-shadow: var(--ds-shadow-lg) !important;
+  border: 1px solid rgba(0,0,0,0.06) !important;
+}
+
+.modern-modal-close:hover {
+  background: var(--color-primary, #E7762E) !important;
+  color: white !important;
+  transform: scale(1.08) rotate(5deg) !important;
+}
+
+/* ── 17. METRIC TILES (Transcripts) ─────────────────────────── */
+.metric-tile {
+  background: #fafafa !important;
+  border: 1px solid rgba(0,0,0,0.05) !important;
+  transition: transform 0.2s var(--ds-ease), box-shadow 0.2s ease !important;
+}
+
+.metric-tile:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: var(--ds-shadow-sm) !important;
+}
+
+/* ── 18. SUPPORT + FAQ ───────────────────────────────────────── */
+.why-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.05) !important;
+  transition: transform 0.2s var(--ds-ease), box-shadow 0.2s ease !important;
+}
+.why-card:hover { transform: translateY(-3px) !important; box-shadow: var(--ds-shadow-md) !important; }
+
+.faq-item { background: #fafafa !important; border: 1px solid rgba(0,0,0,0.04) !important; }
+.faq-item.active { background: #ffffff !important; border-color: rgba(var(--color-primary-rgb, 231 118 46)/0.18) !important; box-shadow: var(--ds-shadow-sm) !important; }
+
+.code-of-conduct { background: linear-gradient(145deg, #fff8f3 0%, #fff1e6 100%) !important; border: 1px solid rgba(var(--color-primary-rgb, 231 118 46)/0.15) !important; }
+
+/* ── 19. LOAN DETAILS ────────────────────────────────────────── */
+.modern-item-grid,
+.loan-details-grid,
+#main-content .loan-details-grid {
+  background: #f8f8f8 !important;
+  border-radius: 12px !important;
+}
+
+/* ── 20. CAROUSEL DOTS ───────────────────────────────────────── */
+.dot       { background: rgba(var(--color-primary-rgb, 231 118 46)/0.22) !important; }
+.dot.active { background: var(--color-primary, #E7762E) !important; }
+
+/* ── 21. SCROLLBAR ───────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 5px; height: 5px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: rgba(var(--color-primary-rgb, 231 118 46)/0.28); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(var(--color-primary-rgb, 231 118 46)/0.55); }
+
+/* ── 22. SKELETON — Warm shimmer ─────────────────────────────── */
+.sk, [class*="skeleton"], .notif-skeleton {
+  background: linear-gradient(105deg, #f0e8e0 0%, #f0e8e0 35%, #e6dcd4 50%, #f0e8e0 65%, #f0e8e0 100%) !important;
+  background-size: 300% 100% !important;
+}
+
+/* ── 23. FOCUS RING ──────────────────────────────────────────── */
+button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 2.5px solid var(--color-primary, #E7762E) !important;
+  outline-offset: 3px !important;
+  border-radius: 6px !important;
+}
+
+/* ── 24. REDUCE MOTION ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

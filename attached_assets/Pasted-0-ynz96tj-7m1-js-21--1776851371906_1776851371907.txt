@@ -1,0 +1,187 @@
+0~ynz96tj.7m1.js:21 
+      /////////////////////
+   ///////////////////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////        Curious and driven?
+  ///////////////@@@@@@@///////        Work with us!
+  ///////////////@@@@@@@///////
+  ///////////////@@@@@@@///////        https://join.replit.com/hack.with.us
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@#//////////////
+   ///////////////////////////
+      /////////////////////
+      
+0~ynz96tj.7m1.js:21 Download the Apollo DevTools for a better development experience: https://chrome.google.com/webstore/detail/apollo-client-developer-t/jdkknkkbebbapilgoeccciglkfbmbnfm
+0~ynz96tj.7m1.js:21 [LaunchDarkly] LaunchDarkly client initialized
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'ambient-light-sensor'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'battery'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'execution-while-not-rendered'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'execution-while-out-of-viewport'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'layout-animations'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'legacy-image-formats'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'navigation-override'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'oversized-images'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'publickey-credentials'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'speaker-selection'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'unoptimized-images'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'unsized-media'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Unrecognized feature: 'pointer-lock'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Allow attribute will take precedence over 'allowfullscreen'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Allow attribute will take precedence over 'allowpaymentrequest'.
+C @ 0i8wy8tbht2ow.js:2
+MyMintAdmin-1:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+gravatar.com/avatar/c1ac7f72505675160a705250d71272f2?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+dotdevproxy.janeway.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+dotdevproxy.janeway.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+dotdevproxy.janeway.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+dotdevproxy.picard.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+dotdevproxy.picard.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+dotdevproxy.picard.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+/public/sounds/Achievement_Bell_Replit.wav:1  Failed to load resource: net::ERR_CACHE_OPERATION_NOT_SUPPORTED
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+gravatar.com/avatar/8b777aaf19a0cbeaf68bfab87a9a19f4?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/8b777aaf19a0cbeaf68bfab87a9a19f4?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+0~ynz96tj.7m1.js:21 Missing field 'thinkingEnabled' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'enableAutomatedTesting' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'enableAutoCheckpointing' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'autoApprovePlan' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'webSearchEnabled' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'imageGenerationEnabled' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'autonomyLevel' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'maxAutonomyEnabled' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+gravatar.com/avatar/8b777aaf19a0cbeaf68bfab87a9a19f4?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/8b777aaf19a0cbeaf68bfab87a9a19f4?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+stallwart.build.js:1 stallwart: failed ping 1
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'ambient-light-sensor'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'battery'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'execution-while-not-rendered'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'execution-while-out-of-viewport'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'layout-animations'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'legacy-image-formats'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'navigation-override'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'oversized-images'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'publickey-credentials'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'speaker-selection'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'unoptimized-images'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'unsized-media'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Allow attribute will take precedence over 'allowfullscreen'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+injected.js:37 Session: [object Object]
+injected.js:37 Session Error: null
+injected.js:37 Profile: [object Object]
+injected.js:37 Profile Error: null
+injected.js:37 Admin user detected, redirecting to dashboard...
+injected.js:37 ✅ Admin session validated
+gravatar.com/avatar/8b777aaf19a0cbeaf68bfab87a9a19f4?d=404:1  Failed to load resource: the server responded with a status of 404 ()

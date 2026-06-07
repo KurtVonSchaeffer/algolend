@@ -1,0 +1,808 @@
+/* Credit Check Modal Styles */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 10000;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.modal-overlay.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-container {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #1a1a1a;
+  font-size: 1.5rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #666;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+}
+
+.modal-close:hover {
+  color: var(--color-primary);
+}
+
+.modal-body {
+  padding: 30px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.form-column h3 {
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+  font-size: 1.1rem;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.required {
+  color: red;
+  margin-left: 2px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: all 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.1);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.consent-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.consent-status-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.credit-consent-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 11000;
+  padding: 16px;
+}
+
+.credit-consent-overlay.hidden {
+  display: none;
+}
+
+.credit-consent-card {
+  width: 100%;
+  max-width: 760px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  padding: 24px;
+}
+
+.credit-consent-card h3 {
+  margin: 0 0 14px;
+  color: #111827;
+  font-size: 1.2rem;
+}
+
+.credit-consent-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.credit-consent-copy p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: #4b5563;
+}
+
+.credit-consent-confirm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 2px 0 18px;
+  padding: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.credit-consent-confirm-row input[type="checkbox"] {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.credit-consent-confirm-row span {
+  color: #111827;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.credit-consent-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.consent-label input[type="checkbox"] {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.loading-spinner {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.loading-spinner i {
+  color: var(--color-primary);
+  margin-bottom: 20px;
+}
+
+.loading-spinner p {
+  font-size: 1.1rem;
+  color: #555;
+}
+
+.result-container {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.result-container i {
+  margin-bottom: 20px;
+}
+
+.result-container h3 {
+  margin: 20px 0;
+  color: #1a1a1a;
+}
+
+.score-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 30px 0;
+  padding: 30px;
+  background: linear-gradient(135deg, var(--color-primary), #ff6b00);
+  border-radius: 12px;
+  color: white;
+}
+
+.score-label {
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+  opacity: 0.9;
+}
+
+.score-value {
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  padding: 20px 30px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.btn-secondary {
+  padding: 12px 30px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #555;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.btn-secondary:hover {
+  background: #f5f5f5;
+}
+
+.btn-primary {
+  padding: 12px 30px;
+  border: none;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.btn-primary:hover {
+  background: #e67700;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgb(var(--color-primary-rgb) / 0.3);
+}
+
+.btn-primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Engine-style circular Run Credit Check button */
+#run-credit-check-btn {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  min-width: 130px;
+  min-height: 130px;
+  border-radius: 999px;
+  padding: 12px;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.15;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 42%, #fff3e6 0%, #ffd8b0 42%, #ffb066 70%, #f48a1f 100%);
+  color: #4a2200;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 0 0 5px rgba(231, 118, 46, 0.18),
+    0 10px 24px rgba(231, 118, 46, 0.35),
+    inset 0 6px 14px rgba(255, 255, 255, 0.55),
+    inset 0 -8px 14px rgba(164, 73, 0, 0.25);
+  overflow: hidden;
+}
+
+@keyframes enginePulseRing {
+  0% {
+    box-shadow:
+      0 0 0 5px rgba(231, 118, 46, 0.16),
+      0 10px 24px rgba(231, 118, 46, 0.35),
+      inset 0 6px 14px rgba(255, 255, 255, 0.55),
+      inset 0 -8px 14px rgba(164, 73, 0, 0.25);
+  }
+  50% {
+    box-shadow:
+      0 0 0 9px rgba(231, 118, 46, 0.10),
+      0 12px 28px rgba(231, 118, 46, 0.42),
+      inset 0 6px 14px rgba(255, 255, 255, 0.60),
+      inset 0 -8px 14px rgba(164, 73, 0, 0.28);
+  }
+  100% {
+    box-shadow:
+      0 0 0 5px rgba(231, 118, 46, 0.16),
+      0 10px 24px rgba(231, 118, 46, 0.35),
+      inset 0 6px 14px rgba(255, 255, 255, 0.55),
+      inset 0 -8px 14px rgba(164, 73, 0, 0.25);
+  }
+}
+
+#run-credit-check-btn:not(:disabled) {
+  animation: enginePulseRing 2.2s ease-in-out infinite;
+}
+
+#run-credit-check-btn::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 999px;
+  border: 2px dashed rgba(255, 255, 255, 0.65);
+  pointer-events: none;
+}
+
+#run-credit-check-btn::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.95);
+  pointer-events: none;
+}
+
+#run-credit-check-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.03);
+  background:
+    radial-gradient(circle at 50% 42%, #fff8ef 0%, #ffe5c6 42%, #ffc27f 70%, #f08b2d 100%);
+  box-shadow:
+    0 0 0 6px rgba(231, 118, 46, 0.22),
+    0 14px 30px rgba(231, 118, 46, 0.42),
+    inset 0 8px 16px rgba(255, 255, 255, 0.6),
+    inset 0 -8px 14px rgba(164, 73, 0, 0.28);
+}
+
+/* If button becomes disabled with long status text, switch to normal readable shape */
+#run-credit-check-btn:disabled {
+  width: auto;
+  height: auto;
+  min-width: 220px;
+  min-height: 46px;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  color: #f9fafb;
+  background: #9ca3af;
+  border: 1px solid #9ca3af;
+  box-shadow: none;
+  animation: none;
+}
+
+#run-credit-check-btn:disabled::before,
+#run-credit-check-btn:disabled::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #run-credit-check-btn:not(:disabled) {
+    animation: none;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .modal-container {
+    max-width: 100%;
+    margin: 10px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .credit-consent-card {
+    padding: 18px;
+  }
+
+  .credit-consent-actions {
+    flex-direction: column-reverse;
+  }
+
+  .credit-consent-actions .btn-primary,
+  .credit-consent-actions .btn-secondary {
+    width: 100%;
+  }
+
+  #run-credit-check-btn {
+    width: 112px;
+    height: 112px;
+    min-width: 112px;
+    min-height: 112px;
+    font-size: 0.72rem;
+  }
+}
+
+/* =====================================================
+   START CREDIT CHECK  — circular dark blue page button
+   (apply-loan-2 right-section)
+   ===================================================== */
+.credit-circle-outer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 2.5rem 0;
+}
+
+#start-credit-check-btn {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  border: none;
+  background: #0f2d5e;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  line-height: 1.35;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow:
+    0 0 0 6px rgba(15, 45, 94, 0.22),
+    0 0 0 14px rgba(15, 45, 94, 0.10),
+    0 8px 28px rgba(0, 0, 0, 0.38);
+  animation: ccPulse 2.4s ease-in-out infinite;
+}
+
+#start-credit-check-btn:hover:not(:disabled) {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 8px rgba(15, 45, 94, 0.28),
+    0 0 0 20px rgba(15, 45, 94, 0.12),
+    0 12px 36px rgba(0, 0, 0, 0.45);
+}
+
+#start-credit-check-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+#start-credit-check-btn:disabled {
+  cursor: not-allowed;
+  animation: none;
+  opacity: 0.75;
+}
+
+#start-credit-check-btn.is-loading {
+  background: #1a3d6b;
+  animation: none;
+  box-shadow:
+    0 0 0 6px rgba(26, 61, 107, 0.2),
+    0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+#start-credit-check-btn.is-done {
+  background: #1b5e20;
+  animation: none;
+  box-shadow:
+    0 0 0 6px rgba(27, 94, 32, 0.22),
+    0 8px 28px rgba(0, 0, 0, 0.25);
+}
+
+.scc-label {
+  text-align: center;
+  pointer-events: none;
+  line-height: 1.4;
+}
+
+@keyframes ccPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 6px rgba(15, 45, 94, 0.22),
+      0 0 0 14px rgba(15, 45, 94, 0.10),
+      0 8px 28px rgba(0, 0, 0, 0.38);
+  }
+  50% {
+    box-shadow:
+      0 0 0 12px rgba(15, 45, 94, 0.26),
+      0 0 0 24px rgba(15, 45, 94, 0.11),
+      0 10px 34px rgba(0, 0, 0, 0.42);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #start-credit-check-btn {
+    animation: none;
+  }
+}
+
+@media (max-width: 480px) {
+  #start-credit-check-btn {
+    width: 130px;
+    height: 130px;
+    font-size: 0.72rem;
+  }
+}
+
+/* =====================================================
+   CREDIT RESULT POPUP
+   (shown after silent background credit check)
+   ===================================================== */
+.credit-result-popup {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 10, 25, 0.64);
+  z-index: 9900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  animation: crFadeIn 0.22s ease;
+}
+
+@keyframes crFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.cr-card {
+  background: #ffffff;
+  border-radius: 22px;
+  max-width: 380px;
+  width: 92%;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255,255,255,0.06);
+  animation: crSlideUp 0.4s cubic-bezier(0.34, 1.42, 0.64, 1);
+}
+
+@keyframes crSlideUp {
+  from { transform: translateY(52px) scale(0.96); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+
+/* Coloured banner at the top of the card */
+.cr-banner {
+  width: 100%;
+  height: 108px;
+  background: linear-gradient(135deg, #0f2d5e 0%, #1a4d9e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.cr-banner.risk-low    { background: linear-gradient(135deg, #14532d 0%, #22c55e 100%); }
+.cr-banner.risk-medium { background: linear-gradient(135deg, #78350f 0%, #f59e0b 100%); }
+.cr-banner.risk-high   { background: linear-gradient(135deg, #7f1d1d 0%, #ef4444 100%); }
+
+.cr-banner-icon {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  color: #ffffff;
+}
+
+/* Close button — sits in the banner */
+.cr-close {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #ffffff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  transition: background 0.2s;
+  line-height: 1;
+}
+
+.cr-close:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Body section below the banner */
+.cr-body {
+  padding: 1.6rem 1.75rem 2rem;
+}
+
+.cr-subtitle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #9ca3af;
+  margin: 0 0 0.2rem;
+}
+
+.cr-headline {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 1.4rem;
+}
+
+/* Score ring */
+.cr-score-ring {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 5px solid #0f2d5e;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.1rem;
+  box-shadow: 0 4px 18px rgba(15, 45, 94, 0.18);
+}
+
+.cr-score-ring.risk-low    { border-color: #22c55e; box-shadow: 0 4px 18px rgba(34, 197, 94, 0.22); }
+.cr-score-ring.risk-medium { border-color: #f59e0b; box-shadow: 0 4px 18px rgba(245, 158, 11, 0.22); }
+.cr-score-ring.risk-high   { border-color: #ef4444; box-shadow: 0 4px 18px rgba(239, 68, 68, 0.22); }
+
+.cr-score-number {
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: #0f2d5e;
+  line-height: 1;
+  display: block;
+}
+
+.cr-score-ring.risk-low    .cr-score-number { color: #15803d; }
+.cr-score-ring.risk-medium .cr-score-number { color: #92400e; }
+.cr-score-ring.risk-high   .cr-score-number { color: #b91c1c; }
+
+.cr-score-unit {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  font-weight: 600;
+  margin-top: 0.1rem;
+}
+
+/* Risk badge pill */
+.cr-risk-badge {
+  display: inline-block;
+  padding: 0.28rem 1.1rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.55rem;
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+.cr-risk-badge.risk-low    { background: #dcfce7; color: #15803d; }
+.cr-risk-badge.risk-medium { background: #fef3c7; color: #92400e; }
+.cr-risk-badge.risk-high   { background: #fee2e2; color: #b91c1c; }
+
+/* Short description under badge */
+.cr-risk-desc {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0 0 1.3rem;
+  line-height: 1.5;
+  min-height: 1.2em;
+}
+
+.cr-divider {
+  height: 1px;
+  background: #f3f4f6;
+  margin: 0 0 1.3rem;
+}
+
+.cr-continue-btn {
+  width: 100%;
+  padding: 0.9rem 1.5rem;
+  background: #0f2d5e;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 14px rgba(15, 45, 94, 0.28);
+  letter-spacing: 0.02em;
+}
+
+.cr-continue-btn:hover {
+  background: #1a3d6b;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(15, 45, 94, 0.36);
+}
+
+.cr-continue-btn:active {
+  transform: translateY(0);
+}

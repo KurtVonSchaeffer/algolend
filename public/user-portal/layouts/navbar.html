@@ -1,0 +1,198 @@
+<header class="navbar-desktop">
+    <nav class="navbar">
+        <div class="navbar-container">
+            <button class="navbar-icon-btn mobile-nav-burger" id="desktopSidebarToggle" aria-label="Toggle menu">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <line x1="4" y1="6" x2="20" y2="6"></line>
+                    <line x1="4" y1="12" x2="20" y2="12"></line>
+                    <line x1="4" y1="18" x2="20" y2="18"></line>
+                </svg>
+            </button>
+
+            <div class="navbar-logo">
+                <img src="/shared/algolend-logo.svg" alt="Logo" data-brand-logo style="height:40px;width:auto;object-fit:contain;max-width:160px;">
+            </div>
+
+            <div class="navbar-search" role="search">
+                <input
+                    type="text"
+                    class="search-input"
+                    id="desktopSearchInput"
+                    placeholder="Search modules, pages..."
+                    autocomplete="off"
+                >
+                <button class="search-submit" id="desktopSearchButton" type="button" aria-label="Run search">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+                        <circle cx="8" cy="8" r="6"></circle>
+                        <path d="M12 12l5 5"></path>
+                    </svg>
+                </button>
+                <div class="search-dropdown hidden" id="desktopSearchResults" role="listbox"></div>
+            </div>
+
+            <div class="navbar-right">
+                <div class="notification-dropdown-container">
+                    <button class="navbar-icon-btn notification-btn" title="Notifications">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span class="notification-badge" style="display: none;">0</span>
+                    </button>
+                    <div class="notification-dropdown">
+                        <div class="notification-dropdown-header">
+                            <h3 class="notification-title">Notifications</h3>
+                            <button class="mark-all-read-btn" title="Mark all as read">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="notification-dropdown-divider"></div>
+                        <div class="notification-dropdown-body"></div>
+                        <div class="notification-dropdown-divider"></div>
+                        <div class="notification-dropdown-footer">
+                            <button class="notification-footer-btn">View All Notifications</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="account-dropdown-container">
+                    <button class="navbar-icon-btn account-btn" title="Account" id="desktopAccountToggle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="8" r="4"></circle>
+                            <path d="M12 14c-6 0-8 3-8 3v3h16v-3s-2-3-8-3z"></path>
+                        </svg>
+                    </button>
+                    <div class="account-dropdown" id="desktopAccountDropdown">
+                        <div class="dropdown-header">
+                            <div class="user-avatar" id="desktopUserAvatar"><span id="desktopUserInitials">U</span></div>
+                            <div class="user-info">
+                                <div class="user-name" id="desktopUserName">Loading...</div>
+                                <div class="user-email" id="desktopUserEmail">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-body">
+                            <button class="dropdown-item" onclick="loadPage('profile')">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                                <span>My Profile</span>
+                            </button>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-footer">
+                            <button class="dropdown-item logout-btn" id="desktopLogoutBtn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                    <polyline points="16 17 21 12 16 7"></polyline>
+                                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                                </svg>
+                                <span>Logout</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+</header>
+
+<header class="navbar-mobile">
+    <nav class="navbar" id="mobileNavbar">
+        <div class="navbar-container">
+            <div class="navbar-logo">
+                <img src="/shared/algolend-logo.svg" alt="Logo" data-brand-logo style="height:40px;width:auto;object-fit:contain;max-width:140px;">
+            </div>
+
+            <div class="navbar-search" role="search">
+                <button class="search-submit" id="mobileSearchTrigger" type="button" aria-label="Open search">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor">
+                        <circle cx="8" cy="8" r="6"></circle>
+                        <path d="M12 12l5 5"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="navbar-right">
+                <div class="notification-dropdown-container">
+                    <button class="navbar-icon-btn notification-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span class="notification-badge" style="display: none;">0</span>
+                    </button>
+                    <div class="notification-dropdown">
+                        <div class="notification-dropdown-header">
+                            <h3 class="notification-title">Notifications</h3>
+                            <button class="mark-all-read-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="notification-dropdown-body"></div>
+                        <div class="notification-dropdown-footer">
+                            <button class="notification-footer-btn">View All</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="account-dropdown-container">
+                    <button class="navbar-icon-btn account-btn" id="mobileAccountToggle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="8" r="4"></circle>
+                            <path d="M12 14c-6 0-8 3-8 3v3h16v-3s-2-3-8-3z"></path>
+                        </svg>
+                    </button>
+                    <div class="account-dropdown" id="mobileAccountDropdown">
+                        <div class="dropdown-header">
+                            <div class="user-avatar"><span>U</span></div>
+                            <div class="user-info">
+                                <div class="user-name">Loading...</div>
+                                <div class="user-email">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-body">
+                            <button class="dropdown-item" onclick="loadPage('profile')">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                                <span>My Profile</span>
+                            </button>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <div class="dropdown-footer">
+                            <button class="dropdown-item logout-btn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                    <polyline points="16 17 21 12 16 7"></polyline>
+                                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                                </svg>
+                                <span>Logout</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="searchOverlay" class="search-overlay">
+        <div class="search-overlay-header">
+            <button class="navbar-icon-btn" id="closeSearch">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div class="overlay-search-wrapper">
+                <input type="text" class="mobile-search-input" placeholder="Search modules, pages..." id="mobileSearchInput">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
+        </div>
+        <div class="search-results-container"></div>
+    </div>
+</header>

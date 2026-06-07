@@ -1,0 +1,738 @@
+/* Import base styles from apply-loan.css */
+@import url('./apply-loan.css');
+
+/* Modal styling */
+.loan-modal-content {
+  max-width: 900px !important;
+  width: 90% !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  padding: 2rem !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) #e5e7eb;
+  background: #ffffff !important;
+  color: #1f2937;
+}
+
+/* Webkit scrollbar for modal */
+.loan-modal-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.loan-modal-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 5px;
+}
+
+.loan-modal-content::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 5px;
+}
+
+.loan-modal-content::-webkit-scrollbar-thumb:hover {
+  background: #ffad33;
+}
+
+/* Content inside modal */
+.loan-modal-content .content-full {
+  width: 100%;
+  padding: 0;
+  max-width: 100%;
+}
+
+/* Loan Selection Card */
+.loan-selection-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+  padding: 2.5rem;
+  animation: slideUp 0.5s ease-out;
+  border: 1px solid #e5e7eb;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.card-header h2 {
+  font-size: 2rem;
+  color: #111827;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-weight: 700;
+}
+
+.card-header h2 i {
+  color: var(--color-primary);
+}
+
+.card-header p {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+/* Configuration Section */
+.loan-config-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+  margin-bottom: 3rem;
+}
+
+.config-group {
+  background: #f9fafb;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s;
+}
+
+.config-group:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  background: #ffffff;
+}
+
+.config-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.85rem;
+}
+
+.config-label i {
+  color: var(--color-primary);
+  font-size: 1rem;
+}
+
+/* Amount Display */
+.amount-display {
+  text-align: center;
+  font-size: 3rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 1.5rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.amount-display .currency {
+  font-size: 2rem;
+  margin-right: 0.25rem;
+  color: var(--color-primary);
+}
+
+/* Loan Slider */
+.loan-slider {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  outline: none;
+  transition: all 0.2s;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.loan-slider:hover {
+  background: #d1d5db;
+}
+
+.loan-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  border: 3px solid #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgb(var(--color-primary-rgb) / 0.25);
+}
+
+.loan-slider::-webkit-slider-thumb:hover {
+  background: #ffad33;
+  transform: scale(1.1);
+}
+
+.loan-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  border: 3px solid #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgb(var(--color-primary-rgb) / 0.25);
+}
+
+.loan-slider::-moz-range-thumb:hover {
+  background: #ffad33;
+  transform: scale(1.1);
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Period Selector */
+.period-selector {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.period-btn {
+  padding: 1rem;
+  border: 2px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.period-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.period-btn.active {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
+  box-shadow: 0 6px 16px rgb(var(--color-primary-rgb) / 0.35);
+}
+
+/* Date Input */
+.date-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.date-input {
+  width: 100%;
+  padding: 1rem;
+  padding-right: 3rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: #ffffff;
+  color: #111827;
+  transition: all 0.2s;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.2);
+}
+
+.date-input-icon {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-primary);
+  font-size: 1.1rem;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.date-input:focus + .date-input-icon,
+.date-input-wrapper:hover .date-input-icon {
+  color: var(--color-secondary);
+}
+
+/* Hide native indicator but keep it clickable */
+.date-input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.date-input::-webkit-inner-spin-button,
+.date-input::-webkit-clear-button {
+  display: none;
+}
+
+.helper-text {
+  display: block;
+  margin-top: 0.5rem;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.error-message {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.error-message.show {
+  display: flex;
+}
+
+/* Loan Summary */
+.loan-summary {
+  background: #f9fafb;
+  padding: 2rem;
+  border-radius: 12px;
+  margin-bottom: 3rem;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+}
+
+.loan-summary h3 {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #111827;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.summary-item {
+  background: #ffffff;
+  padding: 1.25rem;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.summary-item:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
+}
+
+.summary-item.highlight {
+  background: #fef3c7;
+  border: 2px solid var(--color-primary);
+}
+
+.summary-label {
+  display: block;
+  font-size: 0.9rem;
+  color: #4b5563;
+  margin-bottom: 0.5rem;
+}
+
+.summary-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Signature Section */
+.signature-section {
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.signature-section h3 {
+  font-size: 1.2rem;
+  color: #111827;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.signature-section h3 i {
+  color: var(--color-primary);
+}
+
+.signature-disclaimer {
+  color: #6b7280;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.signature-canvas-container {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.signature-canvas {
+  width: 100%;
+  height: 200px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: crosshair;
+  transition: border-color 0.2s;
+}
+
+.signature-canvas:hover {
+  border-color: var(--color-primary);
+}
+
+.clear-signature-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 0.5rem 1rem;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #1f2937;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+}
+
+.clear-signature-btn:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgb(var(--color-primary-rgb) / 0.3);
+}
+
+/* Terms Checkbox */
+.terms-checkbox {
+  margin-top: 1.5rem;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #374151;
+  gap: 0.75rem;
+}
+
+.checkbox-container input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.checkbox-label {
+  line-height: 1.5;
+}
+
+.link {
+  color: var(--color-primary);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.link:hover {
+  color: #ffad33;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.btn-secondary,
+.btn-primary {
+  flex: 1;
+  padding: 1.25rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border: none;
+}
+
+.btn-secondary {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.btn-secondary:hover {
+  background: #f9fafb;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  color: #fff;
+  border: none;
+  box-shadow: 0 6px 20px rgb(var(--color-primary-rgb) / 0.35);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-primary-hover, var(--color-primary)), var(--color-secondary));
+  box-shadow: 0 8px 24px rgb(var(--color-primary-rgb) / 0.45);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .content-full {
+    padding: 0 1rem;
+  }
+
+  .loan-selection-card {
+    padding: 1.5rem;
+  }
+
+  .card-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .amount-display {
+    font-size: 2.5rem;
+  }
+
+  .period-selector {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .signature-canvas {
+    height: 150px;
+  }
+}
+
+/* Additional mobile fixes to prevent horizontal overflow and ensure the content fills the modal */
+@media (max-width: 768px) {
+  /* Ensure the top-level modal area fills width and doesn't allow horizontal scroll */
+  .loan-modal-content, .loan-selection-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Make config groups stretch full width and remove fixed paddings that cause overflow */
+  .loan-config-section,
+  .config-group,
+  .loan-summary,
+  .loan-summary-grid,
+  .loan-info-section,
+  .repayment-progress-section,
+  .next-payment-section {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  /* Input with prefix should wrap and inputs must not exceed container width */
+  .input-with-prefix {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    align-items: center !important;
+  }
+
+  .input-with-prefix input,
+  .date-input,
+  #loanAmountInput {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    font-size: 1.25rem !important;
+    padding: 0.75rem !important;
+  }
+
+  /* Period selector and slider full width */
+  .period-selector {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .loan-slider {
+    width: 100% !important;
+  }
+
+  /* Make the gray summary area expand to fill space and stack items */
+  .loan-summary, .summary-grid {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 1rem !important;
+  }
+
+  .summary-item, .summary-card {
+    min-width: 0 !important;
+  }
+
+  /* Prevent table forcing horizontal scroll; allow inner scroll instead */
+  .schedule-table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .schedule-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+}
+
+/* Mobile-specific overrides: make loan-config modal full-screen and stack cards */
+@media (max-width: 768px) {
+  /* The module overlay is already top-aligned; ensure this modal uses full available height */
+  .loan-modal-content {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: calc(100dvh - var(--navbar-offset, 64px) - 8px) !important;
+    max-height: calc(100dvh - var(--navbar-offset, 64px) - 8px) !important;
+    position: relative !important;
+    margin: 0 auto !important;
+    border-radius: 0 !important;
+    padding: 1rem 1rem calc(env(safe-area-inset-bottom, 0px) + 6rem) 1rem !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    background: #ffffff !important;
+  }
+
+  /* Ensure last action buttons are never trapped under mobile browser chrome */
+  .loan-modal-content .action-buttons {
+    margin-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem) !important;
+  }
+
+  .loan-selection-card {
+    padding: 1rem !important;
+    border-radius: 8px !important;
+  }
+
+  .card-header {
+    margin-bottom: 1rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+
+  /* Stack all grids into single column for readability */
+  .loan-summary-grid,
+  .info-grid,
+  .summary-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 12px 0 !important;
+  }
+
+  .summary-card,
+  .info-item {
+    padding: 12px !important;
+  }
+
+  .next-payment-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  .summary-value {
+    font-size: 1.25rem !important;
+  }
+
+  .signature-canvas {
+    height: 120px !important;
+  }
+
+  .action-buttons {
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+
+  .action-buttons .btn-primary,
+  .action-buttons .btn-secondary {
+    width: 100% !important;
+    padding: 0.9rem 1rem !important;
+    font-size: 1rem !important;
+  }
+
+  /* Make schedule table horizontally scrollable but not overflow modal */
+  .schedule-table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-actions {
+    padding: 12px 0 !important;
+  }
+}

@@ -1,0 +1,35 @@
+<!-- ID Card module for apply-loan page -->
+<div class="module-inner">
+  <div class="upload-card">
+    <div class="upload-card__header">
+      <div>
+        <p class="upload-eyebrow">Document Upload</p>
+        <h2>Upload ID Card <span id="idcardCheckmark" class="checkmark"><i class="fas fa-check-circle"></i></span></h2>
+      </div>
+      <span class="upload-status-chip" id="idcardStatusChip">Pending</span>
+    </div>
+    <p class="upload-lead">We need both sides of your government-issued ID card. Make sure details such as your full name and ID number are readable.</p>
+
+    <form id="idcardForm" enctype="multipart/form-data">
+      <div class="dual-inputs">
+        <label class="file-field" for="idcardFilefront">
+          <span>Front Side</span>
+          <input type="file" id="idcardFilefront" name="filefront" accept=".jpg,.jpeg,.png,.pdf" required />
+        </label>
+        <label class="file-field" for="idcardFileback">
+          <span>Back Side</span>
+          <input type="file" id="idcardFileback" name="fileback" accept=".jpg,.jpeg,.png,.pdf" required />
+        </label>
+      </div>
+
+      <button type="submit" class="upload-btn" id="idcardUploadBtn">Upload Both Sides</button>
+    </form>
+
+    <div class="upload-feedback">
+      <div id="uploadStatus" class="status-text"></div>
+      <div id="existingFileInfo" class="existing-info"></div>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="/user-portal/modules-css/idcard.css" />

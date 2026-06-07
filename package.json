@@ -1,0 +1,28 @@
+{
+  "name": "algolend",
+  "version": "1.0.0",
+  "description": "AlgoLend — Bespoke Digital Credit & Risk Management Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "npm install --prefix public/admin && npm run build --prefix public/admin"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.81.1",
+    "adm-zip": "^0.5.16",
+    "axios": "^1.15.2",
+    "crypto-js": "^4.2.0",
+    "dotenv": "^17.2.3",
+    "express": "^4.18.2",
+    "json2csv": "^6.0.0-alpha.2",
+    "multer": "^2.0.2",
+    "openpgp": "^6.3.0",
+    "resend": "^6.12.2",
+    "web-push": "^3.6.7",
+    "xml2js": "^0.6.2"
+  }
+}

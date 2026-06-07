@@ -1,0 +1,34 @@
+# Node
+node_modules/
+
+# Built admin bundle
+
+
+# Logs
+npm-debug.log*
+
+# Env - never commit secrets
+.env
+.env.*
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+.Database BackUp
+
+# Claude Code agent internals
+.agent/
+
+# Superpowers Brainstorm
+.superpowers/
+
+# Sensitive scratch files
+scratch/
+.env
+*.pgp
+*.asc
+*private*key*
+*pgp_key*
+.vercel

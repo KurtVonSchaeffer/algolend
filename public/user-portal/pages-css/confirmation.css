@@ -1,0 +1,393 @@
+:root {
+  --brand-black: #0f0f0f;
+  --brand-grey: #1a1a1a;
+  --brand-accent: var(--color-primary);
+  --brand-muted: #6d6d6d;
+  --card-border: #e5e5e5;
+  --card-bg: #ffffff;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #fff;
+  margin: 0;
+  color: #1d1d1f;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.confirmation-page {
+  padding-bottom: 4rem;
+}
+
+.confirmation-page .container.with-border {
+  max-width: 1100px;
+  margin: 3rem auto;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  box-shadow: 0 15px 45px rgba(15, 23, 42, 0.08);
+}
+
+.steps .step {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.steps .step.active {
+  background: var(--brand-black);
+}
+
+.status-board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.status-pill.ready {
+  background: rgba(15, 145, 88, 0.08);
+  color: #0f9158;
+}
+
+.status-pill.pending {
+  background: rgb(var(--color-primary-rgb) / 0.1);
+  color: var(--brand-accent);
+}
+
+.content.confirmation-layout {
+  display: flex;
+  gap: 2.5rem;
+  padding: 2.5rem;
+}
+
+.left-section {
+  flex: 1.2;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  padding-right: 2.5rem;
+}
+
+.right-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.bank-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-top: 1.5rem;
+}
+
+.confirmation-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.panel-card {
+  background: var(--card-bg);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  padding: 1.8rem;
+  box-shadow: 0 8px 25px rgba(15, 23, 42, 0.08);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--brand-muted);
+  margin: 0;
+}
+
+.card-header h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1.4rem;
+}
+
+.ghost-btn {
+  border: 1px solid rgba(0,0,0,0.12);
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.55rem 1.2rem;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.ghost-btn:hover {
+  border-color: var(--brand-accent);
+  color: var(--brand-accent);
+}
+
+.summary-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.summary-list li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  color: #545454;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+  padding-bottom: 0.35rem;
+}
+
+.summary-list strong {
+  font-size: 1rem;
+  color: #111;
+}
+
+.signature-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  background: rgba(15, 145, 88, 0.08);
+  color: #0f9158;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.banking-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.form-field input,
+.form-field select {
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 10px;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  outline: none;
+  border-color: var(--brand-accent);
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.checkbox-field input {
+  width: 18px;
+  height: 18px;
+}
+
+.submission-status {
+  min-height: 20px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  background: var(--brand-black);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.85rem 1.8rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.btn-primary:hover {
+  background: #000;
+  transform: translateY(-1px);
+}
+
+.saved-accounts-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.saved-select {
+  width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.saved-select:focus {
+  outline: none;
+  border-color: var(--brand-accent);
+}
+
+.saved-select:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.final-confirmation-card {
+  background: rgb(var(--color-primary-rgb) / 0.03);
+  border: 2px solid rgb(var(--color-primary-rgb) / 0.2);
+}
+
+.final-confirmation-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  color: var(--brand-black);
+}
+
+.final-confirmation-card h3 i {
+  color: var(--brand-accent);
+}
+
+.confirmation-text {
+  margin-bottom: 1.5rem;
+}
+
+.consent-checkbox {
+  background: #fff;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.consent-checkbox input {
+  margin-top: 0.2rem;
+}
+
+.consent-checkbox span {
+  line-height: 1.5;
+  color: #333;
+}
+
+.submit-final-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 1.2rem 2rem;
+  font-size: 1.05rem;
+}
+
+.tips-card ul {
+  padding-left: 1.2rem;
+  margin: 1rem 0 0;
+  color: #4b4b4b;
+  line-height: 1.6;
+}
+
+.result-card {
+  border: 2px solid rgba(15, 145, 88, 0.2);
+  background: rgba(15, 145, 88, 0.05);
+  color: #0f9158;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2.5rem 2rem;
+  border: 2px dashed rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+}
+
+.empty-state i {
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
+  color: var(--brand-accent);
+}
+
+.helper-text {
+  color: var(--brand-muted);
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .content.confirmation-layout {
+    flex-direction: column;
+    padding: 1.5rem;
+  }
+
+  .left-section {
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    padding-right: 0;
+    padding-bottom: 1.5rem;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .form-actions .btn-primary,
+  .form-actions .ghost-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

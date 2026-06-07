@@ -1,0 +1,144 @@
+<!-- Credit Check Form -->
+<div class="credit-check-container">
+  <div class="modal-header">
+    <h2>Credit Check</h2>
+  </div>
+  
+  <div class="modal-body">
+      <!-- Credit Check Form -->
+      <div id="credit-form-content">
+        <div class="form-grid">
+          <!-- Left Column -->
+          <div class="form-column">
+            <h3>Personal Information</h3>
+            
+            <div class="form-group">
+              <label>ID Number <span class="required">*</span></label>
+              <input type="text" id="identity_number" placeholder="0213211234" required maxlength="13">
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>Surname <span class="required">*</span></label>
+                <input type="text" id="surname" placeholder="Doe" required>
+              </div>
+              <div class="form-group">
+                <label>First Name <span class="required">*</span></label>
+                <input type="text" id="forename" placeholder="John" required>
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>Gender <span class="required">*</span></label>
+                <select id="gender" required>
+                  <option value="">Select</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Date of Birth <span class="required">*</span></label>
+                <input type="date" id="date_of_birth" required>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Right Column -->
+          <div class="form-column">
+            <h3>Address Information</h3>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>Street Address <span class="required">*</span></label>
+                <input type="text" id="address1" placeholder="123 street ,14 section" required>
+              </div>
+              <div class="form-group">
+                <label>Postal Code <span class="required">*</span></label>
+                <input type="text" id="postal_code" placeholder="0123" required maxlength="4">
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="form-group">
+                <label>Suburb/Area</label>
+                <input type="text" id="address2" placeholder="456 finance road">
+              </div>
+              <div class="form-group">
+                <label>Cell Phone Number</label>
+                <input type="tel" id="cell_tel_no" placeholder="0123456789" maxlength="10">
+              </div>
+            </div>
+            
+            <div class="consent-section" id="credit-consent-status">
+              <p class="consent-status-text">Credit check consent will be captured before you can run the check.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- One-time Credit Consent Disclaimer Modal -->
+      <div id="credit-consent-modal" class="credit-consent-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="credit-consent-title">
+        <div class="credit-consent-card">
+          <h3 id="credit-consent-title">Credit Bureau Consent & Permission</h3>
+
+          <div class="credit-consent-copy">
+            <p>
+              Before we continue with your loan assessment, we need your explicit permission to perform a credit bureau enquiry.
+              This enquiry helps us assess affordability, repayment behavior, and risk profile so we can make responsible lending decisions.
+            </p>
+            <p>
+              By accepting below, you authorize AlgoLend, its credit provider partners, and authorized service providers to request,
+              receive, verify, process, and store your credit profile information from registered credit bureaus and relevant data sources,
+              for purposes related to your current application and legal compliance.
+            </p>
+            <p>
+              You confirm that the personal information you submit is accurate and belongs to you, and that you understand this consent may
+              include identity verification checks, anti-fraud checks, affordability calculations, and risk-based credit decisioning.
+            </p>
+            <p>
+              You also acknowledge that this consent record will be securely saved with your profile for audit and compliance purposes.
+              If you do not provide consent, we will not be able to run your credit check or continue this loan application step.
+            </p>
+          </div>
+
+          <label class="credit-consent-confirm-row" for="credit-consent-accept-checkbox">
+            <input type="checkbox" id="credit-consent-accept-checkbox">
+            <span>I accept and give permission for the credit check to be performed.</span>
+          </label>
+
+          <div class="credit-consent-actions">
+            <button type="button" id="credit-consent-cancel" class="btn-secondary">Cancel</button>
+            <button type="button" id="credit-consent-confirm" class="btn-primary" disabled>I Accept</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Loading State -->
+      <div id="credit-loading" style="display: none;">
+        <div class="loading-spinner">
+          <i class="fas fa-spinner fa-spin fa-3x"></i>
+          <p>Checking your credit score...</p>
+        </div>
+      </div>
+      
+      <!-- Success Result -->
+      <div id="credit-result" style="display: none;">
+        <div class="result-container">
+          <i class="fas fa-check-circle fa-4x" style="color: #1d1d1d;"></i>
+          <h3>Credit Check Complete!</h3>
+          <div class="score-display">
+            <span class="score-label">Your Credit Score</span>
+            <span class="score-value" id="credit-score-value">---</span>
+          </div>
+          <p>You're eligible to proceed with your loan application.</p>
+        </div>
+      </div>
+    </div>
+    
+  <div class="modal-footer">
+    <button class="btn-secondary" onclick="closeModule()">Cancel</button>
+    <button class="btn-primary" id="run-credit-check-btn">Run Credit Check</button>
+    <button class="btn-primary" id="continue-btn" style="display: none;" onclick="continueToLoanSelection()">Continue</button>
+  </div>
+</div>

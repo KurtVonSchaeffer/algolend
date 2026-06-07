@@ -1,0 +1,83 @@
+<!-- KYC module for apply-loan page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KYC Verification - Didit Integration</title>
+    <link rel="stylesheet" href="../modules-css/kyc.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Identity Verification</h1>
+        <p>Complete your KYC verification to access all features. Choose how you'd like to verify:</p>
+
+        <div class="method-selector">
+            <button class="method-btn active" data-method="redirect">
+                 Full Page
+            </button>
+            <button class="method-btn" data-method="iframe" disabled>
+                 In-Page (Coming Soon)
+            </button>
+        </div>
+
+        <form id="kycForm">
+            <div class="form-group">
+                <label for="userId">User ID</label>
+                <input type="text" id="userId" name="userId" required placeholder="e.g., user_12345">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="your@email.com">
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone Number (Optional)</label>
+                <input type="tel" id="phone" name="phone" placeholder="+1234567890">
+            </div>
+
+            <button type="submit" class="btn" id="submitBtn">
+                Start Verification
+            </button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Creating verification session...</p>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        document.getElementById('kycForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('status').textContent = '';
+            const userId = document.getElementById('userId').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            try {
+                const response = await fetch('/api/kyc/create-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ userId, email, phone })
+                });
+                const data = await response.json();
+                document.getElementById('loading').style.display = 'none';
+                if (!response.ok || !data.verification_url) {
+                    throw new Error(data.error || 'Failed to create session');
+                }
+                window.open(data.verification_url, '_blank', 'width=900,height=700');
+                document.getElementById('status').textContent = 'Verification started!';
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('status').textContent = 'Error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>

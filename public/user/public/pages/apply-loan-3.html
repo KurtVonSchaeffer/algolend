@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apply for Loan - Step 3</title>
+  <link rel="stylesheet" href="../pages-css/apply-loan.css">
+  <link rel="icon" type="image/png" href="../favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .amount-selector {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+    
+    .amount-input-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .amount-input-group label {
+      display: block;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+    
+    .amount-input-group input,
+    .amount-input-group select {
+      width: 100%;
+      padding: 0.875rem;
+      font-size: 1rem;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      transition: border-color 0.3s;
+    }
+    
+    .amount-input-group input:focus,
+    .amount-input-group select:focus {
+      outline: none;
+      border-color: var(--color-primary);
+    }
+    
+    .quick-amounts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    
+    .quick-amount-btn {
+      padding: 1rem;
+      background: white;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .quick-amount-btn:hover {
+      border-color: var(--color-primary);
+      background: #fff5e6;
+    }
+    
+    .quick-amount-btn.active {
+      background: var(--color-primary);
+      color: white;
+      border-color: var(--color-primary);
+    }
+    
+    .loan-summary {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-top: 1.5rem;
+    }
+    
+    .loan-summary h3 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: #333;
+    }
+    
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .summary-item:last-child {
+      border-bottom: none;
+      font-weight: 600;
+      font-size: 1.1rem;
+      color: var(--color-primary);
+      padding-top: 1rem;
+    }
+  </style>
+</head>
+<body class="apply-page">
+  <!-- Navbar -->
+  <!--#include file="../layouts/navbar.html" -->
+
+  <div class="container">
+    <div class="steps">
+      <div class="step completed" style="cursor: pointer;" onclick="goBackToStep1()">
+        <span class="step-number">01</span>
+        <span>Documents</span>
+      </div>
+      <div class="step completed" style="cursor: pointer;" onclick="goBackToStep2()">
+        <span class="step-number">02</span>
+        <span>Credit Check</span>
+      </div>
+      <div class="step active">
+        <span class="step-number">03</span>
+        <span>Select Amount</span>
+      </div>
+      <div class="step inactive" style="cursor: pointer;">
+        <span class="step-number">04</span>
+        <span>Confirmation</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="left-section">
+        <div class="left-title">Select Loan Amount</div>
+        <div class="left-subtitle">
+          Choose the amount you need and the repayment period that works best for you.
+        </div>
+        <div class="illustration">
+          <div class="illustration-content">
+            <i class="fas fa-money-bill-wave"></i>
+            <i class="fas fa-calendar-alt"></i>
+          </div>
+        </div>
+        <div class="privacy-note">
+          <i class="fas fa-info-circle"></i>
+          <span>Interest rates are calculated based on your credit score and selected repayment period.</span>
+        </div>
+      </div>
+      <div class="right-section">
+        <div class="amount-selector">
+          <div class="amount-input-group">
+            <label for="loanAmount">Loan Amount (ZAR)</label>
+            <input 
+              type="number" 
+              id="loanAmount" 
+              placeholder="Enter amount" 
+              min="1000" 
+              max="100000" 
+              step="100"
+              oninput="calculateLoan()"
+            >
+            <div class="quick-amounts">
+              <button class="quick-amount-btn" onclick="setAmount(5000)">R 5,000</button>
+              <button class="quick-amount-btn" onclick="setAmount(10000)">R 10,000</button>
+              <button class="quick-amount-btn" onclick="setAmount(20000)">R 20,000</button>
+              <button class="quick-amount-btn" onclick="setAmount(50000)">R 50,000</button>
+            </div>
+          </div>
+          
+          <div class="amount-input-group">
+            <label for="repaymentPeriod">Repayment Period</label>
+            <select id="repaymentPeriod" onchange="calculateLoan()">
+              <option value="">Select period</option>
+              <option value="3">3 Months</option>
+              <option value="6">6 Months</option>
+              <option value="12">12 Months</option>
+              <option value="24">24 Months</option>
+              <option value="36">36 Months</option>
+            </select>
+          </div>
+          
+          <div class="loan-summary" id="loanSummary" style="display: none;">
+            <h3><i class="fas fa-calculator"></i> Loan Summary</h3>
+            <div class="summary-item">
+              <span>Loan Amount:</span>
+              <span id="summaryAmount">R 0</span>
+            </div>
+            <div class="summary-item">
+              <span>Interest Rate:</span>
+              <span id="summaryRate">0%</span>
+            </div>
+            <div class="summary-item">
+              <span>Repayment Period:</span>
+              <span id="summaryPeriod">0 months</span>
+            </div>
+            <div class="summary-item">
+              <span>Monthly Payment:</span>
+              <span id="summaryMonthly">R 0</span>
+            </div>
+            <div class="summary-item">
+              <span>Total Repayment:</span>
+              <span id="summaryTotal">R 0</span>
+            </div>
+          </div>
+        </div>
+        
+        <button class="next-btn" onclick="goToConfirmation()" id="nextBtn" disabled style="opacity: 0.5;">
+          <span>Next</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from '/Services/supabaseClient.js';
+    import { createLoanApplication } from '/Services/dataService.js';
+
+    function goBackToStep1() {
+      window.location.href = 'apply-loan.html';
+    }
+    
+    function goBackToStep2() {
+      window.location.href = 'apply-loan-2.html';
+    }
+
+    function setAmount(amount) {
+      document.getElementById('loanAmount').value = amount;
+      
+      document.querySelectorAll('.quick-amount-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      calculateLoan();
+    }
+
+    function calculateLoan() {
+      const amount = parseFloat(document.getElementById('loanAmount').value);
+      const period = parseInt(document.getElementById('repaymentPeriod').value);
+      const summary = document.getElementById('loanSummary');
+      const nextBtn = document.getElementById('nextBtn');
+      
+      if (amount && period) {
+        let rate = 0.12;
+        if (period <= 6) rate = 0.10;
+        if (period >= 24) rate = 0.15;
+        
+        const totalInterest = amount * rate;
+        const totalAmount = amount + totalInterest;
+        const monthlyPayment = totalAmount / period;
+        
+        document.getElementById('summaryAmount').textContent = `R ${amount.toLocaleString()}`;
+        document.getElementById('summaryRate').textContent = `${(rate * 100).toFixed(0)}%`;
+        document.getElementById('summaryPeriod').textContent = `${period} months`;
+        document.getElementById('summaryMonthly').textContent = `R ${monthlyPayment.toLocaleString('en-ZA', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        document.getElementById('summaryTotal').textContent = `R ${totalAmount.toLocaleString('en-ZA', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        
+        summary.style.display = 'block';
+        nextBtn.disabled = false;
+        nextBtn.style.opacity = '1';
+      } else {
+        summary.style.display = 'none';
+        nextBtn.disabled = true;
+        nextBtn.style.opacity = '0.5';
+      }
+    }
+
+    async function goToConfirmation() {
+      const amount = document.getElementById('loanAmount').value;
+      const period = document.getElementById('repaymentPeriod').value;
+      const nextBtn = document.getElementById('nextBtn');
+      
+      if (amount && period) {
+        try {
+          nextBtn.disabled = true;
+          nextBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+          
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) {
+            alert('Please log in to submit an application');
+            window.location.href = '../login.html';
+            return;
+          }
+
+          const appData = {
+            user_id: session.user.id,
+            amount: parseFloat(amount),
+            term: parseInt(period),
+            status: 'STARTED'
+          };
+
+          const { data, error } = await createLoanApplication(appData);
+          
+          if (error) {
+            console.error('Error creating application:', error);
+            alert('Failed to submit application. Please try again.');
+            nextBtn.disabled = false;
+            nextBtn.innerHTML = '<span>Next</span><i class="fas fa-arrow-right"></i>';
+            return;
+          }
+
+          alert('Application submitted successfully!');
+          window.location.href = '../dashboard.html';
+          
+        } catch (err) {
+          console.error('Unexpected error:', err);
+          alert('An error occurred. Please try again.');
+          nextBtn.disabled = false;
+          nextBtn.innerHTML = '<span>Next</span><i class="fas fa-arrow-right"></i>';
+        }
+      }
+    }
+
+    window.goBackToStep1 = goBackToStep1;
+    window.goBackToStep2 = goBackToStep2;
+    window.setAmount = setAmount;
+    window.calculateLoan = calculateLoan;
+    window.goToConfirmation = goToConfirmation;
+  </script>
+</body>
+</html>

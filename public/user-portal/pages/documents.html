@@ -1,0 +1,119 @@
+<div class="page-container">
+  <div class="content-wrapper">
+    <header class="minimal-header">
+      <div class="header-text">
+        <h1>Payments & Transactions</h1>
+        <p class="page-subtitle">Manage your loan settlements and banking information</p>
+      </div>
+    </header>
+
+    <section class="carousel-section">
+      <div class="metrics-carousel" id="metricsCarousel">
+        <div class="metric-card">
+          <div class="metric-content">
+            <span class="metric-label">Total Outstanding</span>
+            <span class="metric-value" id="totalOutstanding">R 0.00</span>
+          </div>
+          <div class="metric-icon"><i class="fas fa-wallet"></i></div>
+        </div>
+        
+        <div class="metric-card">
+          <div class="metric-content">
+            <span class="metric-label">Next Payment</span>
+            <span class="metric-value" id="nextPaymentAmount">R 0.00</span>
+            <span class="metric-subtext" id="nextPaymentDate">--</span>
+          </div>
+          <div class="metric-icon"><i class="fas fa-calendar-check"></i></div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-content">
+            <span class="metric-label">Paid This Month</span>
+            <span class="metric-value" id="paidThisMonth">R 0.00</span>
+          </div>
+          <div class="metric-icon"><i class="fas fa-chart-line"></i></div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-content">
+            <span class="metric-label">Total Paid</span>
+            <span class="metric-value" id="totalPaid">R 0.00</span>
+          </div>
+          <div class="metric-icon"><i class="fas fa-check-circle"></i></div>
+        </div>
+      </div>
+    </section>
+
+    <nav class="quick-actions-bar">
+      <button class="action-btn" id="addBankAccountBtn">
+        <i class="fas fa-plus"></i>
+        <span>Add Bank</span>
+      </button>
+
+      <div class="action-dropdown-wrapper">
+        <select id="quickAccountSelect" class="action-select">
+          <option value="" disabled selected>Loading accounts...</option>
+        </select>
+      </div>
+
+      <button class="action-btn primary" id="makePaymentBtn">
+        <i class="fas fa-credit-card"></i>
+        <span>Make Payment</span>
+      </button>
+    </nav>
+
+    <div class="payments-grid">
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Active Loans</h3>
+          <span class="count-pill" id="activeLoansCount">0</span>
+        </div>
+        <div id="activeLoansContainer" class="list-content">
+           </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-header">
+          <h3>Bank Accounts</h3>
+        </div>
+        <div id="bankAccountsContainer" class="list-content">
+           </div>
+      </div>
+    </div>
+
+    <div class="section-card full-width" style="margin-bottom: 40px;">
+      <div class="section-header">
+        <h3>Payment History</h3>
+        <div class="header-btns">
+          <button id="downloadStatementBtn" class="text-btn">Download</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table class="payments-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Reference</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Method</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="paymentHistoryBody">
+            </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modern-universal-modal" class="modern-modal-overlay hidden">
+    <div class="modern-modal-panel">
+        <div class="modern-modal-header">
+            <h2 id="modern-modal-title" class="modern-modal-title"></h2>
+            <button class="modern-modal-close" onclick="closeUniversalModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="modern-modal-body" class="modern-modal-body"></div>
+    </div>
+</div>

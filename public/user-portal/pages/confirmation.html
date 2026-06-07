@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm & Submit - Portal</title>
+  <link rel="stylesheet" href="/user-portal/pages-css/apply-loan.css">
+  <link rel="stylesheet" href="/user-portal/pages-css/confirmation.css">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="apply-page confirmation-page">
+  <div class="container with-border">
+    <div class="steps">
+      <div class="step completed" onclick="goToStep(1)">
+        <span class="step-number">01</span>
+        <span>Documents</span>
+      </div>
+      <div class="step completed" onclick="goToStep(2)">
+        <span class="step-number">02</span>
+        <span>Credit Check</span>
+      </div>
+      <div class="step completed" onclick="goToStep(3)">
+        <span class="step-number">03</span>
+        <span>Select Amount</span>
+      </div>
+      <div class="step active">
+        <span class="step-number">04</span>
+        <span>Confirmation</span>
+      </div>
+    </div>
+
+ <div class="content">
+    <div class="left-section">
+      <div class="left-title">Confirm & Submit</div>
+      <div class="left-subtitle">
+        Review your loan offer and provide banking details to complete your application.
+      </div>
+      <div class="steps-guide">
+        <div class="guide-step">
+          <div class="guide-number">1</div>
+          <div class="guide-text">
+            <strong>Review Loan Terms</strong>
+            <span>Check amount, term, and repayment schedule</span>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-number">2</div>
+          <div class="guide-text">
+            <strong>Banking Details</strong>
+            <span>Account for payout and repayments</span>
+          </div>
+        </div>
+        <div class="guide-step">
+          <div class="guide-number">3</div>
+          <div class="guide-text">
+            <strong>Authorize & Submit</strong>
+            <span>Consent to debit order agreement</span>
+          </div>
+        </div>
+      </div>
+      <div class="privacy-note">
+        <i class="fas fa-shield-alt"></i>
+        <span>Your banking details are encrypted and secure.<br>
+        We use bank-level security for all financial information.</span>
+      </div>
+    </div>
+    <div class="right-section">
+      <button class="next-btn" onclick="loadBankingFormModule()" style="cursor: pointer;">
+        <span>Review & Submit Application</span>
+        <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Banking Form Module Container -->
+<div id="module-container" class="module-overlay hidden">
+  <div id="module-content" class="module-content banking-modal-content"></div>
+  <button class="close-btn" onclick="closeBankingModal()">
+    <i class="fas fa-times"></i>
+  </button>
+</div>
+</body>
+</html>

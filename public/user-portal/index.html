@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal</title>
+  
+  <link rel="stylesheet" href="/shared/theme.css">
+  <!-- IBM Plex Sans — Premium Fintech Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="/user-portal/style.css">
+  <link rel="stylesheet" href="/user-portal/animations.css">
+  <link rel="stylesheet" href="/user-portal/enhancements.css">
+
+  <!-- Connecting Layout Styles --->
+  <link rel="stylesheet" href="/user-portal/layouts/navbar.css">
+  <link rel="stylesheet" href="/user-portal/layouts/sidebar.css">
+
+  <!-- Design System: loaded LAST so it wins over all layout CSS above -->
+  <link id="design-system-link" rel="stylesheet" href="/user-portal/design-system.css?v=12">
+  
+  <script type="module" src="/shared/theme-init.js"></script>
+
+  <!-- Immediate Auth Check - Block page load if not authenticated -->
+  <script type="module">
+    import { supabase } from '/Services/supabaseClient.js';
+
+    // Run auth check IMMEDIATELY before anything else loads
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        console.log('⛔ No session - redirecting to login');
+        window.location.replace('/auth/login.html');
+        throw new Error('Not authenticated');
+      }
+
+      const role = session.user?.app_metadata?.role || session.user?.user_metadata?.role || 'borrower';
+      if (!['borrower','super_admin','admin','base_admin','owner'].includes(role)) {
+        console.log('⛔ Not a borrower - redirecting to login. Role:', role);
+        await supabase.auth.signOut();
+        window.location.replace('/auth/login.html');
+        throw new Error('Unauthorized role');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- Page Transition Loader -->
+  <div id="page-transition" class="transition-hidden" aria-hidden="true" role="status">
+    <div class="transition-backdrop"></div>
+    <div class="transition-content">
+      <div class="transition-spinner" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <!-- Navbar (always at the top, company name visible) -->
+  <nav id="navbar"></nav>
+
+  <div class="dashboard-container">
+    <!-- Sidebar (starts below navbar) -->
+    <div id="sidebar"></div>
+    <!-- Main Content Area (neatly positioned) -->
+    <main id="main-content"></main>
+  </div>
+
+
+
+  <script src="/user-portal/script.js"></script>
+  <script src="/user-portal/animations.js" defer></script>
+  <script src="/user-portal/push-notifications.js" defer></script>
+
+  <!-- Keep design-system.css pinned as the LAST stylesheet always -->
+  <script>
+    (function () {
+      function pinDesignSystem() {
+        const link = document.getElementById('design-system-link');
+        if (!link) return;
+        const head = document.head;
+        // If it's already the last stylesheet, nothing to do
+        const allLinks = head.querySelectorAll('link[rel="stylesheet"]');
+        if (allLinks[allLinks.length - 1] === link) return;
+        // Re-append to make it last
+        head.appendChild(link);
+      }
+      // Re-pin after every dynamic stylesheet addition
+      const observer = new MutationObserver(function (mutations) {
+        for (const m of mutations) {
+          for (const node of m.addedNodes) {
+            if (node.tagName === 'LINK' && node.rel === 'stylesheet' && node.id !== 'design-system-link') {
+              setTimeout(pinDesignSystem, 0);
+            }
+          }
+        }
+      });
+      observer.observe(document.head, { childList: true });
+      // Also pin on every page navigation
+      document.addEventListener('zwane:pagechange', pinDesignSystem);
+    })();
+  </script>
+</body>
+</html>

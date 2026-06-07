@@ -1,0 +1,546 @@
+/* Import base styles from apply-loan.css */
+@import url('./apply-loan.css');
+
+/* Modal styling */
+.loan-modal-content {
+  max-width: 900px !important;
+  width: 90% !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  padding: 2rem !important;
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f9fafb;
+  background: #ffffff !important;
+}
+
+/* Webkit scrollbar for modal */
+.loan-modal-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.loan-modal-content::-webkit-scrollbar-track {
+  background: #f9fafb;
+  border-radius: 5px;
+}
+
+.loan-modal-content::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 5px;
+}
+
+.loan-modal-content::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Content inside modal */
+.loan-modal-content .content-full {
+  width: 100%;
+  padding: 0;
+  max-width: 100%;
+}
+
+/* Loan Selection Card */
+.loan-selection-card {
+  background: #fff;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 2.5rem;
+  animation: slideUp 0.5s ease-out;
+  border: 1px solid #e0e0e0;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.card-header h2 {
+  font-size: 2rem;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-weight: 700;
+}
+
+.card-header h2 i {
+  color: #1a1a1a;
+}
+
+.card-header p {
+  color: #666;
+  font-size: 1rem;
+}
+
+/* Configuration Section */
+.loan-config-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+  margin-bottom: 3rem;
+}
+
+.config-group {
+  background: #fafafa;
+  padding: 2rem;
+  border-radius: 4px;
+  border: 2px solid #e0e0e0;
+  transition: all 0.2s;
+}
+
+.config-group:hover {
+  border-color: #bbb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.config-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.85rem;
+}
+
+.config-label i {
+  color: #666;
+  font-size: 1rem;
+}
+
+/* Amount Display */
+.amount-display {
+  text-align: center;
+  font-size: 3rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 1.5rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.amount-display .currency {
+  font-size: 2rem;
+  margin-right: 0.25rem;
+  color: #666;
+}
+
+/* Loan Slider */
+.loan-slider {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: #e0e0e0;
+  outline: none;
+  transition: all 0.2s;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.loan-slider:hover {
+  background: #d0d0d0;
+}
+
+.loan-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  background: #1a1a1a;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.loan-slider::-webkit-slider-thumb:hover {
+  background: #000;
+  transform: scale(1.1);
+}
+
+.loan-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 0;
+  background: #1a1a1a;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.loan-slider::-moz-range-thumb:hover {
+  background: #000;
+  transform: scale(1.1);
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+/* Period Selector */
+.period-selector {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.period-btn {
+  padding: 1rem;
+  border: 2px solid #e0e0e0;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.period-btn:hover {
+  border-color: #1a1a1a;
+  color: #1a1a1a;
+}
+
+.period-btn.active {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+/* Date Input */
+.date-input {
+  width: 100%;
+  padding: 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 1rem;
+  background: #fff;
+  color: #1a1a1a;
+  transition: all 0.2s;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #1a1a1a;
+}
+
+.helper-text {
+  display: block;
+  margin-top: 0.5rem;
+  color: #888;
+  font-size: 0.85rem;
+}
+
+/* Loan Summary */
+.loan-summary {
+  background: #1a1a1a;
+  padding: 2rem;
+  border-radius: 4px;
+  margin-bottom: 3rem;
+  color: #fff;
+  border: none;
+}
+
+.loan-summary h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.95rem;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.summary-item {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1.25rem;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s;
+}
+
+.summary-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.summary-item.highlight {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid #fff;
+}
+
+.summary-label {
+  display: block;
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-bottom: 0.5rem;
+}
+
+.summary-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* Signature Section */
+.signature-section {
+  background: #f8f8f8;
+  padding: 2rem;
+  border-radius: 4px;
+  margin-bottom: 2rem;
+  border: 2px solid #e0e0e0;
+}
+
+.signature-section h3 {
+  font-size: 1.2rem;
+  color: #1a1a1a;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.95rem;
+}
+
+.signature-section h3 i {
+  color: #666;
+}
+
+.signature-disclaimer {
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.signature-canvas-container {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.signature-canvas {
+  width: 100%;
+  height: 200px;
+  border: 2px solid #e0e0e0;
+  border-radius: 4px;
+  background: #fff;
+  cursor: crosshair;
+  transition: border-color 0.2s;
+}
+
+.signature-canvas:hover {
+  border-color: #1a1a1a;
+}
+
+.clear-signature-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 2px solid #e0e0e0;
+  color: #666;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.clear-signature-btn:hover {
+  background: #f0f0f0;
+  border-color: #1a1a1a;
+  color: #1a1a1a;
+}
+
+/* Terms Checkbox */
+.terms-checkbox {
+  margin-top: 1.5rem;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #333;
+  gap: 0.75rem;
+}
+
+.checkbox-container input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.checkbox-label {
+  line-height: 1.5;
+}
+
+.link {
+  color: #1a1a1a;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.link:hover {
+  color: #000;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.btn-secondary,
+.btn-primary {
+  flex: 1;
+  padding: 1.25rem 2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border: none;
+}
+
+.btn-secondary {
+  background: #f0f0f0;
+  color: #666;
+  border: 2px solid #e0e0e0;
+}
+
+.btn-secondary:hover {
+  background: #e8e8e8;
+  border-color: #d0d0d0;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  color: #fff;
+  border: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--color-primary-hover, var(--color-primary)), var(--color-secondary));
+  box-shadow: 0 6px 16px rgb(var(--color-primary-rgb) / 0.35);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .content-full {
+    padding: 0 1rem;
+  }
+
+  .loan-selection-card {
+    padding: 1.5rem;
+  }
+
+  .card-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .amount-display {
+    font-size: 2.5rem;
+  }
+
+  .period-selector {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .signature-canvas {
+    height: 150px;
+  }
+}
+
+/* Module Overlay for Dark Background */
+.module-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.module-overlay.hidden {
+  display: none;
+}
+
+.module-content {
+  position: relative;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

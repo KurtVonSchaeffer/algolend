@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Zwane Financial Services</title>
+
+    <link rel="stylesheet" href="/shared/theme.css">
+    <script type="module" src="/shared/theme-init.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        height: 100%;
+        font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+        background: #FDF9F6;
+        -webkit-font-smoothing: antialiased;
+      }
+      #auth-container {
+        width: 100%;
+        min-height: 100vh;
+        display: block;
+      }
+      /* Loading spinner */
+      .auth-loading {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        color: #64748b;
+      }
+      .auth-loading i { font-size: 28px; color: var(--color-primary, #E7762E); }
+      .auth-loading p { font-size: 14px; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div id="auth-container">
+        <div class="auth-loading">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+          <p>Loading...</p>
+        </div>
+    </div>
+    <script type="module" src="/auth/auth.js"></script>
+</body>
+</html>

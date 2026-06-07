@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apply for Loan - Credit Check</title>
+  <link rel="stylesheet" href="/user-portal/pages-css/apply-loan.css">
+  <link rel="stylesheet" href="/user-portal/modules-css/credit-check.css">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="apply-page">
+  <!-- Navbar -->
+  <!--#include file="../layouts/navbar.html"  -->
+
+  <div class="container with-border">
+    <div class="steps">
+      <div class="step completed" style="cursor: pointer;" onclick="goToStep(1)">
+        <span class="step-number">01</span>
+        <span>Documents</span>
+      </div>
+      <div class="step active">
+        <span class="step-number">02</span>
+        <span>Credit Check</span>
+      </div>
+      <div class="step inactive" style="cursor: pointer;" onclick="goToStep(3)">
+        <span class="step-number">03</span>
+        <span>Select Amount</span>
+      </div>
+      <div class="step inactive" style="cursor: pointer;" onclick="goToStep(4)">
+        <span class="step-number">04</span>
+        <span>Confirmation</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="left-section">
+        <div class="left-title">Credit Check Required</div>
+        <div class="left-subtitle">
+          We need to verify your credit information to proceed with your loan application.
+        </div>
+        <div class="steps-guide">
+          <div class="guide-step">
+            <div class="guide-number">1</div>
+            <div class="guide-text">
+              <strong>Provide ID Number</strong>
+              <span>13-digit South African ID</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-number">2</div>
+            <div class="guide-text">
+              <strong>Personal Information</strong>
+              <span>Name, date of birth, and gender</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-number">3</div>
+            <div class="guide-text">
+              <strong>Address Details</strong>
+              <span>Residential address and postal code</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-number">4</div>
+            <div class="guide-text">
+              <strong>Verify & Submit</strong>
+              <span>Review information and consent</span>
+            </div>
+          </div>
+        </div>
+        <div class="privacy-note">
+          <i class="fas fa-shield-alt"></i>
+          <span>Your information is protected with bank-level encryption.<br>
+          We use Experian, South Africa's leading credit bureau.</span>
+        </div>
+      </div>
+      <div class="right-section">
+        <div class="credit-circle-outer">
+          <button id="start-credit-check-btn" onclick="startCreditCheckSilent(this)">
+            <span class="scc-label">Start<br>Credit<br>Check</span>
+            <span class="scc-spinner" style="display:none;"><i class="fas fa-sync-alt fa-spin fa-2x"></i></span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Credit Result Popup (shown after successful silent check) -->
+  <div id="credit-result-popup" style="display:none;" class="credit-result-popup">
+    <div class="cr-card">
+
+      <!-- Coloured banner top -->
+      <div id="cr-banner" class="cr-banner">
+        <div class="cr-banner-icon"><i class="fas fa-shield-check"></i></div>
+      </div>
+
+      <button class="cr-close" onclick="document.getElementById('credit-result-popup').style.display='none'" title="Close"><i class="fas fa-times"></i></button>
+
+      <div class="cr-body">
+        <p class="cr-subtitle">Credit Check Complete</p>
+        <h2 class="cr-headline">Bureau Score</h2>
+
+        <!-- Score ring -->
+        <div class="cr-score-ring">
+          <span id="cr-score-value" class="cr-score-number">---</span>
+          <span class="cr-score-unit">pts</span>
+        </div>
+
+        <div id="cr-risk-badge" class="cr-risk-badge">---</div>
+        <p id="cr-risk-desc" class="cr-risk-desc"></p>
+
+        <div class="cr-divider"></div>
+
+        <button class="cr-continue-btn" onclick="window.continueToLoanSelection()">
+          Continue to Loan Selection&nbsp;<i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Module container kept for any fallback usage -->
+  <div id="module-container" class="module-overlay hidden">
+    <div id="module-content" class="module-content"></div>
+    <button class="close-btn" onclick="closeModule()">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <script src="/user-portal/modules-js/credit-check.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>SACRRA Migration Validator | Zwane Financial Services</title>
+    <link href="index.css" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block; line-height: 1; text-transform: none;
+            letter-spacing: normal; word-wrap: normal; white-space: nowrap; direction: ltr;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: #fff8f6; }
+    </style>
+    <script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: { extend: { colors: { "primary": "#a04100", "on-primary": "#ffffff", "surface": "#fff8f6", "on-surface": "#261812", "surface-container-lowest": "#ffffff", "surface-container-low": "#fff1eb", "surface-container": "#ffeae1", "outline-variant": "#e2bfb0", "on-surface-variant": "#5a4136", "error": "#ba1a1a" } } }
+        }
+    </script>
+</head>
+<body class="antialiased overflow-x-hidden">
+    <div id="app-shell" class="min-h-screen w-full">
+        <div class="flex items-center justify-center h-screen">
+            <div class="flex flex-col items-center gap-4">
+                <div class="w-12 h-12 border-4 border-[#a04100] border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-gray-500 font-semibold animate-pulse">Loading SACRRA Validator…</p>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="./src/modules/sacrra-validator.js"></script>
+</body>
+</html>

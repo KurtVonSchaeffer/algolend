@@ -1,0 +1,36 @@
+<div class="page-container">
+  <div class="content-wrapper">
+
+    <header class="minimal-header notifications-header">
+      <div class="header-text">
+        <h1>Notifications</h1>
+        <p class="page-subtitle">Your activity updates and alerts.</p>
+      </div>
+      <button id="markAllReadBtn" class="action-btn secondary" style="height:44px;padding:0 20px;font-size:13px;border-radius:12px;display:none;">
+        <i class="fas fa-check-double"></i> Mark all read
+      </button>
+    </header>
+
+    <!-- Filter tabs -->
+    <div class="notif-filter-row">
+      <button class="notif-filter-btn active" data-filter="all">All</button>
+      <button class="notif-filter-btn" data-filter="unread">
+        Unread <span class="notif-unread-badge" id="unreadBadge" style="display:none;"></span>
+      </button>
+      <button class="notif-filter-btn" data-filter="loan">Loans</button>
+      <button class="notif-filter-btn" data-filter="payment">Payments</button>
+      <button class="notif-filter-btn" data-filter="system">System</button>
+    </div>
+
+    <!-- Notification list -->
+    <div id="notificationsContainer" class="notif-container">
+      <!-- Populated by JS -->
+      <div class="notif-loading">
+        <div class="notif-skeleton"></div>
+        <div class="notif-skeleton"></div>
+        <div class="notif-skeleton"></div>
+      </div>
+    </div>
+
+  </div>
+</div>

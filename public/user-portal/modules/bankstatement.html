@@ -1,0 +1,62 @@
+<!-- Bank Statement module for apply-loan page -->
+<div class="module-inner">
+  <div class="upload-card">
+    <div class="upload-card__header">
+      <div>
+        <p class="upload-eyebrow">TruID Connection</p>
+        <h2>Connect Bank Statement <span id="bankstatementCheckmark" class="checkmark"><i class="fas fa-check-circle"></i></span></h2>
+      </div>
+      <span class="upload-status-chip" id="bankstatementStatusChip">Pending</span>
+    </div>
+    <p class="upload-lead">Securely connect your bank via TruID so your statement data can be verified automatically.</p>
+
+    <div>
+      <div class="upload-dropzone">
+        <i class="fas fa-landmark"></i>
+        <p class="dropzone-title">Connect with TruID</p>
+        <p class="dropzone-subtext">You'll be redirected to your bank's secure consent screen.</p>
+        <span class="file-hint">Prefer manual upload? Use the option below.</span>
+      </div>
+
+      <button type="button" class="upload-btn" id="truidConnectBtn">Connect Bank via TruID</button>
+      <button type="button" class="upload-btn upload-btn-secondary" id="manualBankUploadBtn">Manual Bank Upload</button>
+      <input type="file" id="manualBankFile" accept=".pdf,.png,.jpg,.jpeg" hidden>
+      <div id="manualBankSelectedFile" class="selected-file-name"></div>
+    </div>
+
+    <div class="upload-feedback">
+      <div id="truidStatusMessage" class="status-text"></div>
+      <div id="existingFileInfo" class="existing-info"></div>
+    </div>
+  </div>
+</div>
+
+<div id="manualUploadDisclaimerModal" class="manual-disclaimer-overlay hidden">
+  <div class="manual-disclaimer-card" role="dialog" aria-modal="true" aria-labelledby="manualDisclaimerTitle">
+    <h3 id="manualDisclaimerTitle">Credit Bureau Consent & Permission</h3>
+    <div class="manual-disclaimer-copy">
+      <p>
+        Before continuing with manual bank statement upload, you must provide explicit consent for credit and affordability verification.
+        This allows AlgoLend and its authorized service providers to perform checks needed to assess your application responsibly.
+      </p>
+      <p>
+        By accepting below, you authorize us to request and process your credit profile information from registered credit bureaus,
+        perform identity and anti-fraud checks, evaluate affordability, and store this consent record for audit and legal compliance.
+      </p>
+      <p>
+        You confirm that all details and documents you submit are true, belong to you, and may be used for lending decisions.
+        If you do not provide consent, we cannot continue with this part of the application process.
+      </p>
+    </div>
+
+    <label class="manual-disclaimer-consent-row" for="manualUploadConsentCheckbox">
+      <input type="checkbox" id="manualUploadConsentCheckbox">
+      <span>I accept and give permission for the credit check and verification process.</span>
+    </label>
+
+    <div class="manual-disclaimer-actions">
+      <button type="button" class="manual-disclaimer-btn secondary" id="manualUploadDisclaimerCancel">Cancel</button>
+      <button type="button" class="manual-disclaimer-btn primary" id="manualUploadDisclaimerAccept" disabled>I Accept</button>
+    </div>
+  </div>
+</div>

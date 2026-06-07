@@ -1,0 +1,233 @@
+<div class="page-container">
+  <div class="content-wrapper">
+    
+    <header class="minimal-header">
+      <div class="header-text">
+        <h1>Support & About Us</h1>
+        <p class="page-subtitle">Learn more about AlgoLend and find a branch near you.</p>
+      </div>
+    </header>
+
+    <section class="carousel-section">
+      <div class="metrics-carousel">
+        
+        <div class="metric-card contact-carousel-card">
+          <div class="card-top-row">
+            <div class="metric-content">
+              <span class="metric-label">Email Support</span>
+              <span class="metric-value contact-val">info@algolend.co.za</span>
+            </div>
+            <div class="metric-icon"><i class="fas fa-envelope"></i></div>
+          </div>
+          <button class="action-btn primary outline-btn" onclick="window.location.href='mailto:info@algolend.co.za'">
+            <i class="fas fa-paper-plane"></i> Send Email
+          </button>
+        </div>
+
+        <div class="metric-card contact-carousel-card">
+          <div class="card-top-row">
+            <div class="metric-content">
+              <span class="metric-label">Call Centre</span>
+              <span class="metric-value contact-val">010 500 0978</span>
+            </div>
+            <div class="metric-icon"><i class="fas fa-phone-alt"></i></div>
+          </div>
+          <button class="action-btn primary outline-btn" onclick="window.location.href='tel:0105000978'">
+            <i class="fas fa-phone"></i> Call Now
+          </button>
+        </div>
+
+        <div class="metric-card contact-carousel-card">
+          <div class="card-top-row">
+            <div class="metric-content">
+              <span class="metric-label">Customer Care</span>
+              <span class="metric-value contact-val">069 119 5046</span>
+            </div>
+            <div class="metric-icon"><i class="fab fa-whatsapp"></i></div>
+          </div>
+          <button class="action-btn primary outline-btn" onclick="window.location.href='tel:0691195046'">
+            <i class="fas fa-headset"></i> Contact Us
+          </button>
+        </div>
+
+        <div class="metric-card contact-carousel-card">
+          <div class="card-top-row">
+            <div class="metric-content">
+              <span class="metric-label">Visit Us</span>
+              <span class="metric-value contact-val">7 Branches</span>
+            </div>
+            <div class="metric-icon"><i class="fas fa-map-marker-alt"></i></div>
+          </div>
+          <button class="action-btn primary outline-btn" onclick="openBranchesModal()">
+            <i class="fas fa-building"></i> View Locations
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <div class="section-card">
+      <div class="section-header">
+        <h3><i class="fas fa-info-circle text-primary" style="margin-right: 8px;"></i> About AlgoLend</h3>
+      </div>
+
+      <div class="about-grid">
+        <div class="about-text-block">
+          <h4>What we stand for</h4>
+          <p>
+            AlgoLend is a bespoke, end-to-end digital credit and risk management platform built for corporate lending. We partner with registered credit providers and FSPs to deliver fully branded, customised lending solutions — covering the complete client journey from digital application through to portfolio management and compliance reporting.
+          </p>
+          <div class="code-of-conduct">
+            <h5>Our Strict Code of Conduct:</h5>
+            <ul>
+              <li><strong>Pre-Agreement Statement and Quotation:</strong> We provide all clients with a clear pre-agreement statement and a comprehensive quotation prior to entering into any agreement.</li>
+              <li><strong>Credit Agreement Transparency:</strong> We ensure that all clients receive a copy of their credit agreement, detailing the terms and conditions in an easily understandable format.</li>
+              <li><strong>Full Disclosure of Costs:</strong> We inform clients of all costs associated with the agreement, ensuring they are fully aware of their financial commitments.</li>
+              <li><strong>Credit Reporting:</strong> We adhere to the NCR, FSCA and FIC as required, maintaining the highest standards of compliance.</li>
+              <li><strong>Client Support in Default Situations:</strong> We assist clients who find themselves in default, ensuring they have the support needed to navigate difficult financial situations.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="about-text-block">
+          <h4>Our story</h4>
+          <p>
+            AlgoLend was built to solve the gap between enterprise-grade credit infrastructure and the lenders who need it most. Established lenders, emerging credit providers, and specialist finance businesses deserve the same sophisticated tools as the largest banks — without the cost or complexity of building from scratch.
+            <br><br>
+            Our platform is not off-the-shelf. Each implementation is custom-configured to your credit model, aligned to your compliance framework, and branded to your business identity — delivered as a fully managed, end-to-end digital lending system.
+          </p>
+        </div>
+      </div>
+
+      <h4 class="why-us-title">Why Us</h4>
+      <div class="why-us-grid">
+        <div class="why-card">
+          <i class="fas fa-chart-pie"></i>
+          <h5>Credit Scoring</h5>
+          <p>We use a unique financial vetting process that considers everyone’s specific financial circumstances, ensuring a fair and tailored approach to credit approval.</p>
+        </div>
+        <div class="why-card">
+          <i class="fas fa-lightbulb"></i>
+          <h5>Solution Driven</h5>
+          <p>We offer tailored financial products that cater to the unique needs of our clients.</p>
+        </div>
+        <div class="why-card">
+          <i class="fas fa-door-open"></i>
+          <h5>Financial Access</h5>
+          <p>Granting access to formal financial services for all, regardless of income, location, or background.</p>
+        </div>
+        <div class="why-card">
+          <i class="fas fa-heart"></i>
+          <h5>Customer Care</h5>
+          <p>We take pride in providing high-quality customer service to ensure customer satisfaction and promptly address any concerns or issues.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="support-bottom-grid">
+      
+      <div class="section-card" style="margin-bottom: 0;">
+        <div class="section-header">
+          <h3><i class="fas fa-question-circle text-primary" style="margin-right: 8px;"></i> Frequently Asked Questions</h3>
+        </div>
+        <div class="faq-container">
+          
+          <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+              <i class="fas fa-chevron-right"></i>
+              <span>When will I be eligible for an increase in my loan amount?</span>
+            </div>
+            <div class="faq-answer">
+              Loan eligibility and terms are determined by the credit policy of your lender. Please contact the support team for details specific to your account.
+            </div>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+              <i class="fas fa-chevron-right"></i>
+              <span>Does your financing require upfront payments?</span>
+            </div>
+            <div class="faq-answer">
+              We will never ask for an upfront fee. That is illegal. Please contact us should you be required to pay an upfront fee by any of our consultants.
+            </div>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+              <i class="fas fa-chevron-right"></i>
+              <span>Can I use my SRD SASSA grant to apply for financing?</span>
+            </div>
+            <div class="faq-answer">
+              No.
+            </div>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+              <i class="fas fa-chevron-right"></i>
+              <span>How do I lodge a complaint?</span>
+            </div>
+            <div class="faq-answer">
+              Email <strong>info@algolend.co.za</strong> or use the in-platform messaging system.
+            </div>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+              <i class="fas fa-chevron-right"></i>
+              <span>Which bank accounts do you accept?</span>
+            </div>
+            <div class="faq-answer">
+              All major bank accounts, except Discovery.<br>
+              Tymebank applications are processed in branch.
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="section-card" style="margin-bottom: 0;">
+        <div class="section-header">
+          <h3><i class="fas fa-book text-primary" style="margin-right: 8px;"></i> Legal & Resources</h3>
+        </div>
+        <div class="help-resources">
+          <a href="#" class="modern-list-item resource-link" onclick="openResource('user-guide')">
+            <div class="resource-icon"><i class="fas fa-file-alt"></i></div>
+            <div class="resource-text">
+              <span class="resource-title">User Guide</span>
+              <span class="resource-desc">Complete guide to using the platform</span>
+            </div>
+          </a>
+          <a href="#" class="modern-list-item resource-link" onclick="openResource('terms')">
+            <div class="resource-icon"><i class="fas fa-file-contract"></i></div>
+            <div class="resource-text">
+              <span class="resource-title">Terms & Conditions</span>
+              <span class="resource-desc">Loan terms and agreements</span>
+            </div>
+          </a>
+          <a href="#" class="modern-list-item resource-link" onclick="openResource('privacy')">
+            <div class="resource-icon"><i class="fas fa-shield-alt"></i></div>
+            <div class="resource-text">
+              <span class="resource-title">Privacy Policy</span>
+              <span class="resource-desc">How we protect your data</span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<div id="modern-universal-modal" class="modern-modal-overlay hidden">
+    <div class="modern-modal-panel">
+        <div class="modern-modal-header">
+            <h2 id="modern-modal-title" class="modern-modal-title"></h2>
+            <button class="modern-modal-close" onclick="closeUniversalModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="modern-modal-body" class="modern-modal-body"></div>
+    </div>
+</div>
+
+<script src="/user-portal/pages-js/support.js"></script>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Outgoing Payments | Your Company</title>
+      <link rel="stylesheet" href="../shared/theme.css" />
+    <link rel="stylesheet" href="./src/styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <style> 
+      body { font-family: 'Inter', sans-serif; }
+      /* Custom style for selected payout */
+      .payout-card.selected {
+        background-color: color-mix(in srgb, var(--color-primary) 12%, #ffffff);
+        border-right: 4px solid var(--color-primary);
+      }
+    </style>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+</head>
+<body class="antialiased">
+    
+    <!-- 
+      NEW STRUCTURE: 
+      The layout.js script will now build the entire app structure 
+      (sidebar, header, main) inside this single div.
+    -->
+    <div id="app-shell" class="min-h-screen">
+      <!-- Loading spinner while layout.js initializes -->
+      <div class="flex items-center justify-center h-screen">
+        <i class="fa-solid fa-circle-notch fa-spin text-3xl" style="color: var(--color-secondary);"></i>
+      </div>
+    </div>
+    
+    <!-- We need Chart.js for the new bar chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- This is the only script tag needed -->
+    <script type="module" src="./src/modules/outgoing-payments.js"></script>
+</body>
+</html>

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apply for Loan - Portal</title>
+  <link rel="stylesheet" href="/user-portal/pages-css/apply-loan.css">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .document-list.hidden-consent {
+      display: none !important;
+    }
+    
+    .consent-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 1rem;
+    }
+    
+    .consent-btn:hover {
+      border-color: #9ca3af;
+    }
+    
+    .consent-btn.active {
+      background: #111827;
+      color: #f9fafb;
+      border-color: #111827;
+    }
+    
+    .consent-btn i {
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body class="apply-page">
+  <!-- Navbar -->
+  <!--#include file="../layouts/navbar.html" -->
+
+  <div class="container with-border">
+    <div class="steps">
+      <div class="step active">
+        <span class="step-number">01</span>
+        <span>Documents</span>
+      </div>
+      <div class="step inactive" style="cursor: pointer;" onclick="goToStep(2)">
+        <span class="step-number">02</span>
+        <span>Credit Check</span>
+      </div>
+      <div class="step inactive" style="cursor: pointer;" onclick="goToStep(3)">
+        <span class="step-number">03</span>
+        <span>Select Amount</span>
+      </div>
+      <div class="step inactive" style="cursor: pointer;" onclick="goToStep(4)">
+        <span class="step-number">04</span>
+        <span>Confirmation</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="left-section">
+        <div class="left-title">Consent & Privacy</div>
+        <div class="left-subtitle">
+          <button class="consent-btn" id="consentBtn" onclick="toggleConsent()">
+            <i class="fas fa-square"></i>
+            <span>I Consent to Privacy Policy</span>
+          </button>
+          <p style="font-size:1rem;line-height:1.6;color:#666;">
+            I consent to the collection and processing of my documents and personal information for loan application and verification purposes. I have read and agree to the <a href="#" class="privacy-link">Privacy Policy</a>.
+          </p>
+          <span style="color:#888;font-size:0.95rem;">You must give consent before proceeding.</span>
+        </div>
+      </div>
+      <div class="right-section">
+        <ul class="document-list hidden-consent" id="documentList">
+          <li>
+            <button class="document-btn" type="button" id="kycBtn">
+              <span class="document-icon-pill">
+                <i class="fas fa-user-check document-icon"></i>
+              </span>
+              <div class="document-copy">
+                <span class="document-label">KYC Verification</span>
+                <small>Confirm your personal details</small>
+              </div>
+              <span class="document-status" id="kycBtnStatus">Start</span>
+            </button>
+          </li>
+
+          <li>
+            <button class="document-btn" type="button" onclick="loadModule('tillslip')" id="tillslipBtn" data-doc="tillslip">
+              <span class="document-icon-pill">
+                <i class="fas fa-receipt document-icon"></i>
+              </span>
+              <div class="document-copy">
+                <span class="document-label">Payslip</span>
+                <small>Latest payslip/salary slip</small>
+              </div>
+              <span class="document-status" id="tillslipBtnStatus">Pending</span>
+            </button>
+          </li>
+          <li>
+            <button class="document-btn" type="button" onclick="loadModule('bankstatement')" id="bankstatementBtn" data-doc="bankstatement">
+              <span class="document-icon-pill">
+                <i class="fas fa-landmark document-icon"></i>
+              </span>
+              <div class="document-copy">
+                <span class="document-label">Bank Statement</span>
+                <small>Connect via TruID</small>
+              </div>
+              <span class="document-status" id="bankstatementBtnStatus">Pending</span>
+            </button>
+          </li>
+        </ul>
+        <div id="module-status" class="module-status"></div>
+        <button class="next-btn" type="button" onclick="goToStep(2)" id="nextBtn">
+          <span>Next</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dynamic Module Container -->
+  <div id="module-container" class="module-overlay hidden">
+    <div id="module-content" class="module-content"></div>
+    <button class="close-btn" onclick="closeModule()">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <!-- Declarations Popup (shown when user hasn't completed declarations yet) -->
+  <div id="declarations-popup-overlay" class="declarations-popup-overlay hidden">
+    <div class="declarations-popup">
+      <button class="declarations-popup-close" id="closeDeclarationsPopup">
+        <i class="fas fa-times"></i>
+      </button>
+      <div class="declarations-popup-scroll">
+        <!-- Disclaimer Banner -->
+        <div class="declarations-popup-disclaimer">
+          <div class="disclaimer-icon"><i class="fas fa-shield-alt"></i></div>
+          <h3>Privacy & Consent Disclaimer</h3>
+          <p>
+            By proceeding, you consent to AlgoLend collecting, processing, and storing your personal information
+            (including identity details, financial data, and uploaded documents) for the purposes of evaluating
+            your loan application. Your data is handled in accordance with the Protection of Personal Information
+            Act (POPIA) and our <a href="#" class="privacy-link">Privacy Policy</a>. You may withdraw consent at
+            any time by contacting us, though this may affect your application.
+          </p>
+        </div>
+
+        <!-- Declarations Form -->
+        <form id="popup-declarations-form" class="popup-declarations-form">
+          <h4 class="popup-section-title"><i class="fas fa-clipboard-list"></i> Required Profile Details</h4>
+          <p class="popup-section-subtitle">Complete these once — details are saved to your profile settings automatically.</p>
+
+          <!-- ID Number -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-id-card"></i>
+              <div>
+                <strong>Identity Number</strong>
+                <small>Please provide your South African ID number</small>
+              </div>
+            </div>
+            <input type="text" id="popup_identity_number" class="popup-input" placeholder="Enter your SA ID number" maxlength="20" autocomplete="off">
+          </div>
+
+          <!-- Experian Personal Details -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-address-card"></i>
+              <div>
+                <strong>Credit Profile Details</strong>
+                <small>These are used for Experian credit checks so you don't re-enter later</small>
+              </div>
+            </div>
+
+            <div class="popup-financial-grid">
+              <div class="popup-money-field">
+                <label for="popup_first_name">First Name *</label>
+                <input type="text" id="popup_first_name" class="popup-input" placeholder="First name">
+              </div>
+              <div class="popup-money-field">
+                <label for="popup_last_name">Surname *</label>
+                <input type="text" id="popup_last_name" class="popup-input" placeholder="Surname">
+              </div>
+
+              <div class="popup-money-field">
+                <label for="popup_gender">Gender *</label>
+                <select id="popup_gender" class="popup-select">
+                  <option value="">Select gender</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+              </div>
+              <div class="popup-money-field">
+                <label for="popup_date_of_birth">Date of Birth * (yyyy/mm/dd)</label>
+                <input type="date" id="popup_date_of_birth" class="popup-input">
+              </div>
+
+              <div class="popup-money-field">
+                <label for="popup_address">Street Address *</label>
+                <input type="text" id="popup_address" class="popup-input" placeholder="Street address">
+              </div>
+              <div class="popup-money-field">
+                <label for="popup_postal_code">Postal Code *</label>
+                <input type="text" id="popup_postal_code" class="popup-input" maxlength="4" placeholder="0123">
+              </div>
+
+              <div class="popup-money-field">
+                <label for="popup_suburb_area">Suburb / Area</label>
+                <input type="text" id="popup_suburb_area" class="popup-input" placeholder="Suburb / area">
+              </div>
+              <div class="popup-money-field">
+                <label for="popup_cell_tel_no">Cell Phone Number</label>
+                <input type="text" id="popup_cell_tel_no" class="popup-input" maxlength="10" placeholder="0821234567">
+              </div>
+            </div>
+          </div>
+
+          <!-- Purpose of Loan -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-bullseye"></i>
+              <div>
+                <strong>Purpose of Loan *</strong>
+                <small>Required — what will the loan be used for?</small>
+              </div>
+            </div>
+            <div class="popup-financial-grid">
+              <div class="popup-money-field" style="grid-column: 1 / -1;">
+                <label for="popup_loan_purpose">Select purpose *</label>
+                <select id="popup_loan_purpose" class="popup-input" required>
+                  <option value="">— Select purpose —</option>
+                  <option value="Personal / Family Expenses">Personal / Family Expenses</option>
+                  <option value="Medical">Medical</option>
+                  <option value="Education / School Fees">Education / School Fees</option>
+                  <option value="Funeral Costs">Funeral Costs</option>
+                  <option value="Home Improvements">Home Improvements</option>
+                  <option value="Vehicle Repairs">Vehicle Repairs</option>
+                  <option value="Business / Working Capital">Business / Working Capital</option>
+                  <option value="Debt Consolidation">Debt Consolidation</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Financial Information -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-wallet"></i>
+              <div>
+                <strong>Financial Information</strong>
+                <small>Income details — verified against Experian</small>
+              </div>
+            </div>
+            <div class="popup-financial-grid">
+              <div class="popup-money-field">
+                <label for="popup_income_salary">Salary Income (R) *</label>
+                <input type="number" id="popup_income_salary" class="popup-money-input" min="0" step="0.01" placeholder="0.00" required>
+              </div>
+              <div class="popup-money-field">
+                <label for="popup_income_other">
+                  Additional Income (R)
+                  <span style="font-size:11px;color:#8E8E93;"> — optional</span>
+                </label>
+                <input type="number" id="popup_income_other" class="popup-money-input" min="0" step="0.01" placeholder="0.00">
+              </div>
+            </div>
+          </div>
+
+          <!-- Next of Kin -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-people-arrows"></i>
+              <div>
+                <strong>Next of Kin *</strong>
+                <small>Emergency contact — required for all applications</small>
+              </div>
+            </div>
+            <div class="popup-financial-grid">
+              <div class="popup-money-field">
+                <label for="popup_nok_name">Full Name *</label>
+                <input type="text" id="popup_nok_name" class="popup-input" placeholder="Full name" required>
+              </div>
+              <div class="popup-money-field">
+                <label for="popup_nok_phone">Contact Number *</label>
+                <input type="tel" id="popup_nok_phone" class="popup-input" placeholder="0821234567" maxlength="10" required>
+              </div>
+              <div class="popup-money-field" style="grid-column: 1 / -1;">
+                <label for="popup_nok_relationship">Relationship *</label>
+                <select id="popup_nok_relationship" class="popup-input" required>
+                  <option value="">— Select —</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Partner">Partner</option>
+                  <option value="Parent">Parent</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="Child">Child</option>
+                  <option value="Friend">Friend</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Historically Disadvantaged -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-user-shield"></i>
+              <div>
+                <strong>Historically Disadvantaged Status</strong>
+                <small>Are you historically disadvantaged in South Africa?</small>
+              </div>
+            </div>
+            <div class="popup-radio-group">
+              <label class="popup-radio"><input type="radio" name="popup_hd_status" value="yes"><span>Yes</span></label>
+              <label class="popup-radio"><input type="radio" name="popup_hd_status" value="no"><span>No</span></label>
+            </div>
+          </div>
+
+          <!-- Home Ownership -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-house-user"></i>
+              <div>
+                <strong>Home Ownership</strong>
+                <small>Do you own or rent your primary residence?</small>
+              </div>
+            </div>
+            <div class="popup-radio-group">
+              <label class="popup-radio"><input type="radio" name="popup_home_ownership" value="own"><span>Own</span></label>
+              <label class="popup-radio"><input type="radio" name="popup_home_ownership" value="rent"><span>Rent</span></label>
+            </div>
+          </div>
+
+          <!-- Marital Status -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-heart"></i>
+              <div>
+                <strong>Marital Status</strong>
+                <small>Your current marital status</small>
+              </div>
+            </div>
+            <div class="popup-radio-group popup-radio-wrap">
+              <label class="popup-radio"><input type="radio" name="popup_marital_status" value="single"><span>Single</span></label>
+              <label class="popup-radio"><input type="radio" name="popup_marital_status" value="married"><span>Married</span></label>
+              <label class="popup-radio"><input type="radio" name="popup_marital_status" value="divorced"><span>Divorced</span></label>
+              <label class="popup-radio"><input type="radio" name="popup_marital_status" value="widowed"><span>Widowed</span></label>
+              <label class="popup-radio"><input type="radio" name="popup_marital_status" value="separated"><span>Separated</span></label>
+            </div>
+          </div>
+
+          <!-- Highest Qualification -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-graduation-cap"></i>
+              <div>
+                <strong>Highest Qualification</strong>
+                <small>Your highest level of education</small>
+              </div>
+            </div>
+            <select id="popup_highest_qualification" class="popup-select">
+              <option value="">Select qualification</option>
+              <option value="N/A">N/A</option>
+              <option value="Matric">Matric</option>
+              <option value="Degree">Degree</option>
+              <option value="Honours">Honours Degree</option>
+              <option value="Masters">Masters</option>
+              <option value="PhD">PhD / Doctorate</option>
+            </select>
+          </div>
+
+          <!-- Referral / Next of Kin -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-user-plus"></i>
+              <div>
+                <strong>Referral / Next of Kin</strong>
+                <small>Optional emergency contact or referral</small>
+              </div>
+            </div>
+            <div class="popup-radio-group">
+              <label class="popup-radio"><input type="radio" name="popup_referral" value="yes"><span>Yes</span></label>
+              <label class="popup-radio"><input type="radio" name="popup_referral" value="no" checked><span>No</span></label>
+            </div>
+            <div id="popup-referral-fields" class="popup-referral-fields" style="display:none;">
+              <input type="text" id="popup_referral_name" placeholder="Full name" class="popup-input">
+              <input type="text" id="popup_referral_phone" placeholder="Cellphone number" class="popup-input">
+            </div>
+          </div>
+
+          <!-- Standard Conditions (must be last) -->
+          <div class="popup-decl-card">
+            <div class="popup-decl-header">
+              <i class="fas fa-file-contract"></i>
+              <div>
+                <strong>Standard Conditions</strong>
+                <small>Credit agreement terms and conditions</small>
+              </div>
+            </div>
+            <label class="popup-checkbox">
+              <input type="checkbox" id="popup_std_conditions">
+              <span>I confirm that I have read and accepted the <strong>Standard Conditions of Credit Agreement</strong>. I understand all terms, fees, and obligations.</span>
+            </label>
+          </div>
+
+          <!-- Save Button -->
+          <button type="submit" id="popup-save-declarations" class="popup-save-btn">
+            <i class="fas fa-check-circle"></i> Save & Continue
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inline scripts removed; functionality lives in pages-js/apply-loan.js -->
+ 
+</body>
+</html>

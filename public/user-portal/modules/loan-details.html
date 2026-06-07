@@ -1,0 +1,185 @@
+<div class="loan-details-modal-content">
+  <div class="modal-header-section">
+    <div class="modal-title-section">
+      <i class="fas fa-file-invoice-dollar"></i>
+      <div>
+        <h2 id="loanDetailsTitle">Loan Details</h2>
+        <p class="loan-details-subtitle" id="loanDetailsSubtitle">Complete loan information and repayment schedule</p>
+      </div>
+    </div>
+    <div class="loan-status-badge-container">
+      <span class="loan-status-badge" id="loanDetailStatus">Active</span>
+    </div>
+  </div>
+
+  <!-- Loan Summary Cards -->
+  <div class="loan-summary-grid">
+    <div class="summary-card principal">
+      <div class="summary-icon">
+        <i class="fas fa-money-bill-wave"></i>
+      </div>
+      <div class="summary-content">
+        <span class="summary-label">Principal Amount</span>
+        <span class="summary-value" id="loanPrincipal">R 0.00</span>
+      </div>
+    </div>
+
+    <div class="summary-card outstanding">
+      <div class="summary-icon">
+        <i class="fas fa-wallet"></i>
+      </div>
+      <div class="summary-content">
+        <span class="summary-label">Outstanding Balance</span>
+        <span class="summary-value" id="loanOutstanding">R 0.00</span>
+      </div>
+    </div>
+
+    <div class="summary-card payment">
+      <div class="summary-icon">
+        <i class="fas fa-calendar-check"></i>
+      </div>
+      <div class="summary-content">
+        <span class="summary-label">Monthly Payment</span>
+        <span class="summary-value" id="loanMonthly">R 0.00</span>
+      </div>
+    </div>
+
+    <div class="summary-card paid">
+      <div class="summary-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <div class="summary-content">
+        <span class="summary-label">Total Paid</span>
+        <span class="summary-value" id="loanTotalPaid">R 0.00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loan Information Section -->
+  <div class="loan-info-section">
+    <div class="info-section-header">
+      <h3><i class="fas fa-info-circle"></i> Loan Information</h3>
+    </div>
+    
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="info-label">Loan Reference</span>
+        <span class="info-value" id="loanReference">---</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Application ID</span>
+        <span class="info-value" id="applicationReference">---</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Disbursement Date</span>
+        <span class="info-value" id="loanStartDate">---</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Maturity Date</span>
+        <span class="info-value" id="loanMaturityDate">---</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Loan Term</span>
+        <span class="info-value" id="loanTerm">---</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Interest Rate</span>
+        <span class="info-value" id="loanInterestRate">---</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Total Interest</span>
+        <span class="info-value" id="loanTotalInterest">---</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Total Repayment</span>
+        <span class="info-value" id="loanTotalRepayment">---</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Repayment Progress -->
+  <div class="repayment-progress-section">
+    <div class="info-section-header">
+      <h3><i class="fas fa-chart-line"></i> Repayment Progress</h3>
+    </div>
+    
+    <div class="progress-container">
+      <div class="progress-stats">
+        <div class="progress-stat">
+          <span class="progress-stat-value" id="progressPercentage">0%</span>
+          <span class="progress-stat-label">Completed</span>
+        </div>
+        <div class="progress-stat">
+          <span class="progress-stat-value" id="paymentsCount">0/0</span>
+          <span class="progress-stat-label">Payments Made</span>
+        </div>
+        <div class="progress-stat">
+          <span class="progress-stat-value" id="remainingPayments">0</span>
+          <span class="progress-stat-label">Remaining</span>
+        </div>
+      </div>
+      
+      <div class="progress-bar-container">
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="repaymentProgress" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Next Payment Section -->
+  <div class="next-payment-section">
+    <div class="next-payment-card">
+      <div class="next-payment-icon">
+        <i class="fas fa-calendar-alt"></i>
+      </div>
+      <div class="next-payment-info">
+        <span class="next-payment-label">Next Payment Due</span>
+        <span class="next-payment-date" id="nextPaymentDueDate">---</span>
+        <span class="next-payment-amount" id="nextPaymentDueAmount">R 0.00</span>
+      </div>
+      <button class="btn-primary" onclick="openPaymentModal(window.currentLoanId)">
+        <i class="fas fa-credit-card"></i>
+        Pay Now
+      </button>
+    </div>
+  </div>
+
+  <!-- Payment Schedule -->
+  <div class="payment-schedule-section">
+    <div class="info-section-header">
+      <h3><i class="fas fa-list"></i> Payment Schedule</h3>
+    </div>
+    
+    <div class="schedule-table-container">
+      <table class="schedule-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Due Date</th>
+            <th>Payment Amount</th>
+            <th>Principal</th>
+            <th>Interest</th>
+            <th>Balance</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="paymentScheduleBody">
+          <tr>
+            <td colspan="7" class="empty-schedule">
+              <i class="fas fa-spinner fa-spin"></i> Loading schedule...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="modal-actions">
+    <button class="btn-primary" onclick="closeLoanDetailsModal()">
+      <i class="fas fa-times"></i>
+      Close
+    </button>
+  </div>
+</div>

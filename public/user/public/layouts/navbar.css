@@ -1,0 +1,157 @@
+/* Navbar styles */
+
+.navbar {
+  background: var(--color-surface-card);
+  padding: 0 32px;
+  position: fixed;
+  top: 0;
+  left: 260px;
+  width: calc(100% - 250px);
+  height: 70px;
+  display: flex;
+  align-items: center;
+  z-index: 1200;
+  border-bottom: 1.5px solid var(--color-border);
+  box-shadow: none;
+}
+
+.navbar-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 40px;
+  width: 100%;
+  gap: 16px;
+  padding: 0;
+}
+
+/* Logo */
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  min-width: 80px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: 0.5px;
+}
+
+.logo-icon {
+  font-size: 20px;
+}
+
+.logo-text {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: 0.5px;
+}
+
+/* Search Bar */
+.navbar-search {
+  flex: 1;
+  max-width: 400px;
+  margin: 0 40px;
+  position: relative;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 16px 10px 40px;
+  border: none;
+  border-radius: 24px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.search-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.search-input:focus {
+  outline: none;
+  background: var(--color-secondary-soft);
+  color: var(--color-primary-contrast);
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+/* Right Section */
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+/* Icon Buttons */
+.navbar-icon-btn {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.navbar-icon-btn:hover {
+  background: var(--color-surface);
+}
+
+.navbar-icon-btn:active {
+  transform: scale(0.95);
+}
+
+/* Notification Badge */
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #ec770a;
+  color: #ec770a;
+  font-size: 10px;
+  font-weight: 700;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .navbar-container {
+    padding: 0 16px;
+  }
+
+  .navbar-search {
+    display: none;
+  }
+
+  .navbar-logo {
+    min-width: auto;
+  }
+
+  .logo-text {
+    font-size: 18px;
+  }
+}

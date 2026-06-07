@@ -1,0 +1,101 @@
+<div class="page-container">
+  <div class="content-wrapper">
+    <div class="calculator-wrapper">
+      <div class="calculator-container">
+        <div class="calculator-header">
+          <h1>Loan Calculator</h1>
+          <p>Estimate your monthly payments and total repayment amount</p>
+          <div class="calculator-disclaimer">
+            <i class="fas fa-info-circle"></i>
+            <span>This calculator is for illustrative purposes only. Actual loan terms and rates may vary based on your credit profile and application assessment.</span>
+          </div>
+        </div>
+
+        <!-- Eligibility Banner — shown when borrower has a credit band -->
+        <div id="calcEligibilityBanner" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:14px;padding:12px 16px;margin-bottom:16px;font-size:13px;font-weight:600;"></div>
+
+        <div class="calculator-card">
+          <div class="calculator-inputs">
+            <div class="input-group">
+              <label for="loanAmount">Loan Amount</label>
+              <div class="input-with-prefix">
+                <span class="prefix">R</span>
+                <input type="number" id="loanAmount" value="5000" min="100" max="10000" step="100">
+              </div>
+              <input type="range" id="loanAmountSlider" min="100" max="10000" step="100" value="5000">
+              <div class="range-labels">
+                <span>R 100</span>
+                <span>R 10,000</span>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="loanTerm">Loan Term (Months)</label>
+              <input type="number" id="loanTerm" value="1" min="1" max="24" step="1">
+              <input type="range" id="loanTermSlider" min="1" max="24" step="1" value="1">
+              <div class="range-labels">
+                <span>1 month</span>
+                <span>24 months</span>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label>Interest Rate (Annual)</label>
+              <div style="width: 100%; padding: 0 16px 0 16px; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; color: #1a1a1a; font-size: 1rem; font-weight: 600;">
+                20% per year
+              </div>
+            </div>
+          </div>
+
+          <div class="calculator-results">
+            <h3>Loan Summary</h3>
+            <div class="result-grid">
+              <div class="result-card">
+                <div class="result-label">Monthly Payment</div>
+                <div class="result-value" id="monthlyPayment">R 0.00</div>
+              </div>
+              <div class="result-card">
+                <div class="result-label">Total Interest</div>
+                <div class="result-value" id="totalInterest">R 0.00</div>
+              </div>
+              <div class="result-card">
+                <div class="result-label">Total Repayment</div>
+                <div class="result-value primary" id="totalRepayment">R 0.00</div>
+              </div>
+            </div>
+
+            <div class="breakdown-section">
+              <h4>Payment Breakdown</h4>
+              <div class="breakdown-legend">
+                <div class="legend-item">
+                  <span class="legend-color principal"></span>
+                  <div class="legend-text">
+                    <span>Principal</span>
+                    <strong id="principalAmount">R 0.00</strong>
+                  </div>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-color interest"></span>
+                  <div class="legend-text">
+                    <span>Interest + Fees</span>
+                    <strong id="interestAmount">R 0.00</strong>
+                  </div>
+                </div>
+              </div>
+              <small id="breakdownInfo" style="color: #999; font-size: 0.85rem; margin-top: 1rem; display: block; font-weight: 500;">
+                <i class="fas fa-info-circle"></i> Includes: Interest (20% annual) + Admin fees (R60/month) + Initiation fees (15%/month)
+              </small>
+            </div>
+
+            <button class="btn-apply" onclick="applyForLoan()">
+              <i class="fas fa-arrow-right"></i>
+              Apply for this Loan
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/user-portal/pages-js/loan-calculator.js"></script>

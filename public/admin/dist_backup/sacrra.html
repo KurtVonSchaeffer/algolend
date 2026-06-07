@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>SACRRA Portal | Zwane Financial Services</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        body { font-family: 'Inter', sans-serif; background-color: #fff8f6; }
+    </style>
+    <script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-primary": "#ffb693",
+                      "on-tertiary": "#ffffff",
+                      "surface-container-highest": "#f8ddd2",
+                      "surface-bright": "#fff8f6",
+                      "tertiary-fixed-dim": "#4fdf97",
+                      "primary-container": "#ff6b00",
+                      "on-tertiary-container": "#003921",
+                      "on-primary-fixed": "#351000",
+                      "outline-variant": "#e2bfb0",
+                      "on-surface": "#261812",
+                      "inverse-on-surface": "#ffede6",
+                      "on-secondary-fixed": "#1a1c1e",
+                      "error-container": "#ffdad6",
+                      "inverse-surface": "#3d2d26",
+                      "secondary-fixed-dim": "#c6c6c9",
+                      "on-primary-fixed-variant": "#7a3000",
+                      "on-error-container": "#93000a",
+                      "background": "#fff8f6",
+                      "surface": "#fff8f6",
+                      "secondary-container": "#e2e2e5",
+                      "on-surface-variant": "#5a4136",
+                      "surface-container-lowest": "#ffffff",
+                      "primary-fixed": "#ffdbcc",
+                      "primary": "#a04100",
+                      "on-tertiary-fixed-variant": "#005231",
+                      "tertiary": "#006d42",
+                      "surface-container": "#ffeae1",
+                      "primary-fixed-dim": "#ffb693",
+                      "on-tertiary-fixed": "#002111",
+                      "secondary-fixed": "#e2e2e5",
+                      "on-secondary": "#ffffff",
+                      "on-primary-container": "#572000",
+                      "secondary": "#5d5e61",
+                      "on-secondary-container": "#636467",
+                      "on-background": "#261812",
+                      "surface-dim": "#efd5ca",
+                      "outline": "#8e7164",
+                      "on-error": "#ffffff",
+                      "surface-variant": "#f8ddd2",
+                      "error": "#ba1a1a",
+                      "surface-container-low": "#fff1eb",
+                      "tertiary-container": "#00af6d",
+                      "surface-container-high": "#fee3d8",
+                      "on-secondary-fixed-variant": "#454749",
+                      "on-primary": "#ffffff",
+                      "tertiary-fixed": "#6ffcb1",
+                      "surface-tint": "#a04100"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "lg": "24px",
+                      "margin": "32px",
+                      "sidebar_width": "260px",
+                      "xs": "8px",
+                      "xl": "32px",
+                      "gutter": "24px",
+                      "md": "16px",
+                      "sm": "12px",
+                      "base": "4px"
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="antialiased overflow-x-hidden">
+    <div id="app-shell" class="min-h-screen w-full">
+        <div class="flex items-center justify-center h-screen bg-surface-bright">
+            <div class="flex flex-col items-center gap-4">
+                <div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-on-surface-variant font-bold animate-pulse">Initializing Professional Energy Workspace...</p>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="./src/modules/sacrra.js"></script>
+</body>
+</html>

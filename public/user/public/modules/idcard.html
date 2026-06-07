@@ -1,0 +1,17 @@
+<!-- ID Card module for apply-loan page -->
+<!-- frontend/modules/idcard -->
+ <!--require 2 uploads for photo-->
+ <div class="module-inner">
+   <h2>Upload ID Card 🆔</h2>
+   <p>Please upload a clear photo of your government-issued ID card.</p>
+
+   <form id="idcardForm" enctype="multipart/form-data">
+     <input type="file" id="idcardFilefront" name="filefront" accept=".jpg,.jpeg,.png,.pdf" required />
+     <input type="file" id="idcardFileback" name="fileback" accept=".jpg,.jpeg,.png,.pdf" required />
+     <button type="submit" class="upload-btn">Upload</button>
+   </form>
+
+   <div id="uploadStatus"></div>
+  </div>
+
+<link rel="stylesheet" href="../modules-css/idcard.css" />

@@ -1,0 +1,59 @@
+modules = ["nodejs-20", "web"]
+[agent]
+expertMode = true
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+PORT = "5000"
+APP_URL = "https://localhost:5000"
+DIDIT_WORKFLOW_ID = "e58d187a-4ab7-4a5b-8e8f-8f62e14a0137"
+SUPABASE_URL = "https://jmnjkxfxenrudpvjprcu.supabase.co"
+DOCUSEAL_TEMPLATE_ID = "2381549"
+DOCUSEAL_API_URL = "https://api.docuseal.com"
+VITE_DOCUSEAL_TEMPLATE_ID = "2381549"
+VITE_DOCUSEAL_ENABLED = "true"
+DOCUSEAL_TEST_HEADER_NAME = "X-Docuseal-Zwane"
+DOCUSEAL_TEST_HEADER_VALUE = "Zw-Live-94589"
+SURESYSTEMS_BASE_URL = "https://uat.suredebit.co.za"
+SURESYSTEMS_BASIC_AUTH_USERNAME = "algohiveuat"
+SURESYSTEMS_HEADER_PREFIX = "SS"
+SURESYSTEMS_CLIENT_ID = "D43B37E2-032C-11F1-8F64-4201C0A81A14"
+SURESYSTEMS_MERCHANT_GID = "18348"
+SURESYSTEMS_REMOTE_GID = "78"
+SURESYSTEMS_SYSTEM_USERNAME = "algohiveuat"
+SURESYSTEMS_USE_MTLS = "false"
+SURESYSTEMS_CERT_PATH = "./certs/client.crt"
+SURESYSTEMS_KEY_PATH = "./certs/client.key"
+SURESYSTEMS_CA_PATH = "./certs/ca.crt"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server.js"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80

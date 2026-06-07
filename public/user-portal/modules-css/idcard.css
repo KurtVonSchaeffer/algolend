@@ -1,0 +1,138 @@
+/* ID Card module styles */
+
+.module-inner {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.upload-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+  animation: fadeIn 0.3s ease;
+}
+
+.upload-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.upload-eyebrow {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: #8c8c8c;
+  margin-bottom: 0.35rem;
+}
+
+.upload-lead {
+  color: #5a5a5a;
+  line-height: 1.5;
+  margin: 1rem 0 1.25rem;
+}
+
+.upload-status-chip {
+  background: #fff5eb;
+  color: var(--color-primary);
+  padding: 0.35rem 1rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.upload-status-chip.success {
+  background: #e7f7f0;
+  color: #0f9158;
+}
+
+.dual-inputs {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.file-field {
+  border: 2px dashed #dadada;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.file-field input[type="file"] {
+  margin-top: 0.2rem;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.upload-btn {
+  width: 100%;
+  background-color: #eb5a0c;
+  color: white;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-top: 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.upload-btn:hover {
+  background-color: #ff6d1b;
+}
+
+.upload-btn:disabled {
+  background-color: #c5c6cc;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.status-text {
+  font-size: 0.95rem;
+  margin-top: 1rem;
+}
+
+.existing-info {
+  margin-top: 0.35rem;
+  font-size: 0.9rem;
+  color: #1f8c5c;
+}
+
+.upload-feedback {
+  text-align: left;
+}
+
+.checkmark {
+  display: none;
+  font-size: 1.1rem;
+  margin-left: 0.35rem;
+  color: #0f9158;
+}
+
+.checkmark.visible {
+  display: inline-block;
+  animation: checkmarkBounce 0.5s ease;
+}
+
+.checkmark i {
+  color: #0f9158;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes checkmarkBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}

@@ -1,0 +1,467 @@
+/* =================================================================
+   Portal Visual Enhancements
+   Better icons, color-coded actions, improved empty states,
+   support grid, section headers & card polish.
+   Applied on top of all existing page CSS — no layout changes.
+   ================================================================= */
+
+/* ────────────────────────────────────────────────────────────────
+   1. DASHBOARD — QUICK ACTION CIRCLES (MOBILE)
+   Each action gets its own color identity
+   ──────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+
+  /* New Loan — Orange */
+  .quick-actions-row .action-btn-item:nth-child(1) .action-icon-circle {
+    background: rgba(231, 118, 46, 0.12);
+    color: #E7762E;
+  }
+  .quick-actions-row .action-btn-item:nth-child(1):active .action-icon-circle {
+    background: #E7762E; color: white;
+  }
+
+  /* Pay — Green */
+  .quick-actions-row .action-btn-item:nth-child(2) .action-icon-circle {
+    background: rgba(16, 185, 129, 0.12);
+    color: #10b981;
+  }
+  .quick-actions-row .action-btn-item:nth-child(2):active .action-icon-circle {
+    background: #10b981; color: white;
+  }
+
+  /* Transactions — Blue */
+  .quick-actions-row .action-btn-item:nth-child(3) .action-icon-circle {
+    background: rgba(59, 130, 246, 0.12);
+    color: #3b82f6;
+  }
+  .quick-actions-row .action-btn-item:nth-child(3):active .action-icon-circle {
+    background: #3b82f6; color: white;
+  }
+
+  /* Applications — Purple */
+  .quick-actions-row .action-btn-item:nth-child(4) .action-icon-circle {
+    background: rgba(139, 92, 246, 0.12);
+    color: #8b5cf6;
+  }
+  .quick-actions-row .action-btn-item:nth-child(4):active .action-icon-circle {
+    background: #8b5cf6; color: white;
+  }
+
+  /* Make action label text slightly larger & bolder */
+  .action-btn-item span {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+  }
+
+  /* ── Hero snap cards — warm tinted gradient ─────────────────── */
+  .snap-card {
+    background: linear-gradient(145deg, #ffffff 0%, #fef7f2 100%) !important;
+    border: 1px solid rgba(231, 118, 46, 0.07) !important;
+  }
+
+  /* First snap card (payment due) gets a stronger orange tint */
+  .snap-card:first-child {
+    background: linear-gradient(145deg, #fff9f5 0%, #fff3eb 100%) !important;
+    border: 1px solid rgba(231, 118, 46, 0.12) !important;
+  }
+
+  /* ── Better empty loans state ────────────────────────────────── */
+  .empty-loans-state {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 14px !important;
+    padding: 52px 24px !important;
+    color: var(--text-muted) !important;
+    border: 1.5px dashed rgba(231, 118, 46, 0.22) !important;
+    background: rgba(231, 118, 46, 0.02) !important;
+  }
+
+  .empty-loans-state::before {
+    content: "\f3d1";           /* fa-money-bill */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 40px;
+    color: rgba(231, 118, 46, 0.30);
+    display: block;
+  }
+
+  .empty-loans-state::after {
+    content: "Apply for your first loan →";
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-primary, #E7762E);
+    padding: 10px 20px;
+    border: 1.5px solid rgba(231, 118, 46, 0.30);
+    border-radius: 100px;
+    margin-top: 4px;
+    cursor: pointer;
+  }
+
+  /* ── Section title bar icon accents (mobile) ─────────────────── */
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   2. DASHBOARD — DESKTOP QUICK ACTIONS
+   ──────────────────────────────────────────────────────────────── */
+#main-content .action-card:nth-child(1) .action-icon-wrapper {
+  background: rgba(231, 118, 46, 0.12);
+  color: #E7762E;
+}
+#main-content .action-card:nth-child(2) .action-icon-wrapper {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+#main-content .action-card:nth-child(3) .action-icon-wrapper {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+#main-content .action-card:nth-child(4) .action-icon-wrapper {
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+}
+
+#main-content .action-card:nth-child(1):hover .action-icon-wrapper { background: #E7762E;  color: #fff; }
+#main-content .action-card:nth-child(2):hover .action-icon-wrapper { background: #10b981; color: #fff; }
+#main-content .action-card:nth-child(3):hover .action-icon-wrapper { background: #3b82f6;  color: #fff; }
+#main-content .action-card:nth-child(4):hover .action-icon-wrapper { background: #8b5cf6;  color: #fff; }
+
+/* ── Desktop metric cards — warm tint ─────────────────────────── */
+#main-content .card {
+  background: linear-gradient(145deg, #ffffff 0%, #fefaf7 100%) !important;
+}
+
+#main-content .credit-score-card {
+  background: linear-gradient(145deg, #fff7f2 0%, #ffeee0 100%) !important;
+  border: 1px solid rgba(231, 118, 46, 0.10) !important;
+}
+
+/* ── Desktop metric card icon badges ──────────────────────────── */
+#main-content .card-label::before {
+  margin-right: 6px;
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   3. SUPPORT PAGE — CONTACT CARDS
+   Mobile: visible 2×2 grid instead of hidden horizontal scroll
+   ──────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Use :has() to only target metrics carousels that contain contact cards */
+  .metrics-carousel:has(.contact-carousel-card) {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    overflow-x: visible !important;
+    padding-bottom: 4px !important;
+    gap: 12px !important;
+    scroll-snap-type: none !important;
+  }
+
+  .contact-carousel-card {
+    flex: none !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Slightly smaller padding on mobile contact cards */
+  .contact-carousel-card {
+    padding: 20px 16px !important;
+    gap: 16px !important;
+    border-radius: 24px !important;
+  }
+
+  .contact-carousel-card .contact-val {
+    font-size: 16px !important;
+  }
+}
+
+/* ── Unique icon + button color per contact method ─────────────── */
+
+/* Email — Blue */
+.contact-carousel-card:nth-child(1) .metric-icon {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+.contact-carousel-card:nth-child(1) .outline-btn {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: #3b82f6 !important;
+  box-shadow: none !important;
+}
+.contact-carousel-card:nth-child(1) .outline-btn:hover {
+  background: #3b82f6 !important;
+  color: #fff !important;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.28) !important;
+}
+
+/* Phone — Green */
+.contact-carousel-card:nth-child(2) .metric-icon {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+.contact-carousel-card:nth-child(2) .outline-btn {
+  background: rgba(16, 185, 129, 0.10) !important;
+  color: #10b981 !important;
+  box-shadow: none !important;
+}
+.contact-carousel-card:nth-child(2) .outline-btn:hover {
+  background: #10b981 !important;
+  color: #fff !important;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.28) !important;
+}
+
+/* WhatsApp — Teal */
+.contact-carousel-card:nth-child(3) .metric-icon {
+  background: rgba(13, 148, 136, 0.12);
+  color: #0d9488;
+}
+.contact-carousel-card:nth-child(3) .outline-btn {
+  background: rgba(13, 148, 136, 0.10) !important;
+  color: #0d9488 !important;
+  box-shadow: none !important;
+}
+.contact-carousel-card:nth-child(3) .outline-btn:hover {
+  background: #0d9488 !important;
+  color: #fff !important;
+  box-shadow: 0 8px 20px rgba(13, 148, 136, 0.28) !important;
+}
+
+/* Branches — Orange */
+.contact-carousel-card:nth-child(4) .metric-icon {
+  background: rgba(231, 118, 46, 0.12);
+  color: #E7762E;
+}
+.contact-carousel-card:nth-child(4) .outline-btn {
+  background: rgba(231, 118, 46, 0.10) !important;
+  color: #E7762E !important;
+  box-shadow: none !important;
+}
+.contact-carousel-card:nth-child(4) .outline-btn:hover {
+  background: #E7762E !important;
+  color: #fff !important;
+}
+
+/* ── Why-Us cards — coloured icon backgrounds ──────────────────── */
+.why-us-grid .why-card:nth-child(1) i { color: #E7762E; }
+.why-us-grid .why-card:nth-child(2) i { color: #f59e0b; }
+.why-us-grid .why-card:nth-child(3) i { color: #10b981; }
+.why-us-grid .why-card:nth-child(4) i { color: #ef4444; }
+
+.why-card {
+  border: 1px solid transparent;
+  transition: border-color 0.18s ease, transform 0.18s ease !important;
+}
+
+.why-us-grid .why-card:nth-child(1):hover { border-color: rgba(231, 118, 46, 0.22); }
+.why-us-grid .why-card:nth-child(2):hover { border-color: rgba(245, 158, 11, 0.22); }
+.why-us-grid .why-card:nth-child(3):hover { border-color: rgba(16, 185, 129, 0.22); }
+.why-us-grid .why-card:nth-child(4):hover { border-color: rgba(239, 68, 68, 0.22); }
+
+/* ── Resource links — coloured icons ──────────────────────────── */
+.help-resources .resource-link:nth-child(1) .resource-icon { color: #3b82f6; }
+.help-resources .resource-link:nth-child(2) .resource-icon { color: #8b5cf6; }
+.help-resources .resource-link:nth-child(3) .resource-icon { color: #10b981; }
+
+/* ────────────────────────────────────────────────────────────────
+   4. SECTION HEADER ICON BADGES
+   Adds a small coloured square icon before each major section h2/h3
+   ──────────────────────────────────────────────────────────────── */
+
+/* Section title bars — left accent bar */
+.section-title-bar h2,
+.section-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-title-bar h2::before,
+.section-header h3::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 1.1em;
+  background: var(--color-primary, #E7762E);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   5. NOTIFICATIONS PAGE — EMPTY STATE ICON RING
+   ──────────────────────────────────────────────────────────────── */
+.notif-empty-icon {
+  background: rgba(231, 118, 46, 0.08) !important;
+  border: 1.5px dashed rgba(231, 118, 46, 0.25);
+  color: rgba(231, 118, 46, 0.45) !important;
+  transition: transform 0.3s ease;
+}
+
+.notif-empty:hover .notif-empty-icon {
+  transform: scale(1.06) rotate(-5deg);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   6. PROFILE TABS — Show icon + label on mobile
+   ──────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .profile-tabs {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 4px;
+    padding: 8px 12px;
+    background: #fafafa;
+  }
+  .profile-tabs::-webkit-scrollbar { display: none; }
+
+  .tab-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 10px 14px;
+    border-radius: 14px;
+    min-width: 70px;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .tab-button i {
+    font-size: 18px;
+  }
+
+  .tab-button span {
+    display: block !important;
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .tab-button.active {
+    background: rgba(231, 118, 46, 0.10);
+    color: var(--color-primary, #E7762E);
+    border-bottom-color: transparent;
+  }
+
+  .tab-button.active i {
+    color: var(--color-primary, #E7762E);
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   7. LOAN CALCULATOR — Slider & results styling
+   ──────────────────────────────────────────────────────────────── */
+input[type="range"] {
+  accent-color: var(--color-primary, #E7762E);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   8. GENERAL CARD IMPROVEMENTS
+   Subtle warm gradient on all white section-cards
+   ──────────────────────────────────────────────────────────────── */
+.section-card {
+  background: linear-gradient(160deg, #ffffff 0%, #fefaf8 100%) !important;
+  border: 1px solid rgba(231, 118, 46, 0.05);
+}
+
+/* Metric cards — subtle tinted backgrounds */
+.metric-card {
+  background: linear-gradient(145deg, #ffffff 0%, #fefaf7 100%) !important;
+  border: 1px solid rgba(231, 118, 46, 0.06) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   9. PAYMENTS PAGE — Metric icon colors per card
+   ──────────────────────────────────────────────────────────────── */
+.metrics-carousel .metric-card:nth-child(1) .metric-icon {
+  background: rgba(231, 118, 46, 0.12);
+  color: #E7762E;
+}
+.metrics-carousel .metric-card:nth-child(2) .metric-icon {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+.metrics-carousel .metric-card:nth-child(3) .metric-icon {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+}
+.metrics-carousel .metric-card:nth-child(4) .metric-icon {
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   10. FAQ ACCORDION — Better open state
+   ──────────────────────────────────────────────────────────────── */
+.faq-item.active {
+  border-left: 3px solid var(--color-primary, #E7762E) !important;
+}
+
+.faq-question i.fa-chevron-right {
+  width: 20px;
+  height: 20px;
+  background: rgba(231, 118, 46, 0.10);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+}
+
+.faq-item.active .faq-question i.fa-chevron-right {
+  background: rgba(231, 118, 46, 0.18);
+  color: var(--color-primary, #E7762E);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   11. NOTIFICATION FILTER PILLS — Slight glow on active
+   ──────────────────────────────────────────────────────────────── */
+.notif-filter-btn.active {
+  box-shadow: 0 4px 16px rgba(231, 118, 46, 0.30) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   12. STATUS BADGE COLORS
+   ──────────────────────────────────────────────────────────────── */
+.loan-status[data-status="active"],
+.loan-status.active  { background: rgba(16, 185, 129, 0.12) !important; color: #10b981 !important; }
+.loan-status[data-status="pending"],
+.loan-status.pending { background: rgba(245, 158, 11, 0.12) !important; color: #f59e0b !important; }
+.loan-status[data-status="closed"],
+.loan-status.closed  { background: rgba(100, 116, 139, 0.12) !important; color: #64748b !important; }
+.loan-status[data-status="declined"],
+.loan-status.declined { background: rgba(239, 68, 68, 0.12) !important; color: #ef4444 !important; }
+
+/* ────────────────────────────────────────────────────────────────
+   13. APPLY LOAN PAGE — Step indicators
+   ──────────────────────────────────────────────────────────────── */
+.step-indicator.active,
+.progress-step.active,
+[class*="step"][class*="active"] {
+  color: var(--color-primary, #E7762E) !important;
+  border-color: var(--color-primary, #E7762E) !important;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   14. BOTTOM NAV — Active tab coloured icon + label
+   ──────────────────────────────────────────────────────────────── */
+.mobile-nav-btn.active i,
+.nav-tab.active i,
+[class*="nav-btn"].active i {
+  color: var(--color-primary, #E7762E) !important;
+}
+
+[class*="nav-btn"].active [class*="label"],
+[class*="nav-btn"].active span {
+  color: var(--color-primary, #E7762E) !important;
+  font-weight: 700 !important;
+}

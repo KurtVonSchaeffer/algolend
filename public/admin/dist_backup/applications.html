@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Applications | Your Company</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Inter', sans-serif; } </style>
+  <script type="module" crossorigin src="/assets/applications-BohQmD71.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/supabaseClient-Ki9k9WNi.js">
+  <link rel="modulepreload" crossorigin href="/assets/layout-P4Epjfxm.js">
+  <link rel="modulepreload" crossorigin href="/assets/dataService-OY041MzK.js">
+  <link rel="modulepreload" crossorigin href="/assets/utils-D6Z1B7Jq.js">
+  <link rel="stylesheet" crossorigin href="/assets/layout-Cv8M3ELg.css">
+  <link rel="stylesheet" crossorigin href="/assets/styles-DDNkMNvF.css">
+</head>
+<body class="bg-gray-100 antialiased">
+    
+    <!-- NEW LAYOUT: The entire page is now built inside this one div by layout..js -->
+    <div id="app-shell" class="min-h-screen">
+      <!-- Loading spinner while layout.js initializes-->
+      <div class="flex items-center justify-center h-screen">
+        <i class="fa-solid fa-circle-notch fa-spin text-3xl" style="color: var(--color-secondary);"></i>
+      </div>
+    </div>
+
+    <!-- 
+      YOUR MODAL: I have kept your excellent "Create Application" modal.
+      It will be controlled by the new applications.js file.
+    -->
+    <div id="create-app-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 m-4 transform transition-transform duration-300 scale-95">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Create New Application</h2>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">
+                    <i class="fa-solid fa-times fa-xl"></i>
+                </button>
+            </div>
+            <!-- Form for creating a new application -->
+            <form id="create-app-form" class="space-y-4">
+                <div class="relative">
+                    <label for="user-search-input" class="block text-sm font-medium text-gray-700 mb-1">Search for Applicant (must be existing user)</label>
+                    <input type="text" id="user-search-input" placeholder="Start typing a name or email..." autocomplete="off" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-brand-accent focus:border-brand-accent">
+                    <input type="hidden" id="selected-user-id" name="user_id" required>
+                    <!-- Search results dropdown -->
+                    <div id="user-search-results" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-60 overflow-y-auto shadow-lg hidden">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="loan-amount" class="block text-sm font-medium text-gray-700 mb-1">Loan Amount (ZAR)</label>
+                        <input type="number" id="loan-amount" required placeholder="e.g., 5000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-brand-accent focus:border-brand-accent">
+                    </div>
+                    <div>
+                        <label for="loan-term" class="block text-sm font-medium text-gray-700 mb-1">Term (Months)</label>
+                        <input type="number" id="loan-term" required placeholder="e.g., 12" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-brand-accent focus:border-brand-accent">
+                    </div>
+                </div>
+
+                <div>
+                  <label for="loan-purpose" class="block text-sm font-medium text-gray-700 mb-1">Loan Purpose</label>
+                  <input type="text" id="loan-purpose" required placeholder="e.g., Debt Consolidation" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-brand-accent focus:border-brand-accent">
+                </div>
+
+                <fieldset class="border-t pt-4">
+                    <legend class="text-lg font-semibold text-gray-800 mb-2">Financial Snapshot</legend>
+                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="monthly-income" class="block text-sm font-medium text-gray-700 mb-1">Monthly Income</label>
+                            <input type="number" id="monthly-income" required placeholder="e.g., 25000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-brand-accent focus:border-brand-accent">
+                        </div>
+                        <div>
+                            <label for="monthly-expenses" class="block text-sm font-medium text-gray-700 mb-1">Monthly Expenses</label>
+                            <input type="number" id="monthly-expenses" required placeholder="e.g., 15000" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-brand-accent focus:border-brand-accent">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div class="flex justify-end pt-4">
+                    <button type="submit" id="submit-app-btn" class="bg-brand-accent text-white px-6 py-2 rounded-lg font-semibold hover:bg-brand-accent-hover transition flex items-center gap-2 disabled:bg-gray-400">
+                        <span id="submit-btn-text">Submit Application</span>
+                        <i id="submit-spinner" class="fa-solid fa-spinner fa-spin hidden"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main JS file for this page -->
+</body>
+</html>

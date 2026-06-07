@@ -1,0 +1,120 @@
+<div class="banking-form-module">
+  <div class="module-header">
+    <h2><i class="fas fa-file-contract"></i> Loan Application Summary</h2>
+    <p class="module-subtitle">Review your loan terms and provide banking details</p>
+  </div>
+
+  <div class="module-body">
+    <!-- Loan Summary Section -->
+    <div class="form-section loan-summary-section">
+      <h3><i class="fas fa-circle-info"></i> Your Loan Offer</h3>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="summary-label">Loan Amount</span>
+          <strong class="summary-value" id="summaryLoanAmount">--</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Loan Term</span>
+          <strong class="summary-value" id="summaryLoanPeriod">--</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Monthly Payment</span>
+          <strong class="summary-value" id="summaryMonthlyPayment">--</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Total Repayment</span>
+          <strong class="summary-value" id="summaryTotalRepayment">--</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Repayment Date</span>
+          <strong class="summary-value" id="summaryFirstDebit">Set by admin after review</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-divider">
+      <span>Banking Information</span>
+    </div>
+
+    <form id="bankingFormInner" novalidate>
+      <!-- Saved Accounts Section -->
+      <div class="form-section">
+        <h3><i class="fas fa-university"></i> Select Bank Account</h3>
+        <p class="section-hint">Choose a saved account or enter new details below</p>
+        <div class="saved-accounts-row">
+          <select id="savedAccountsSelect" class="saved-select" style="width: 100%;">
+            <option value="">-- Select an account or add new --</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-divider" id="newAccountDivider">
+        <span>Bank Account Details</span>
+      </div>
+
+      <!-- Bank Details Form -->
+      <div class="form-section" id="bankDetailsSection">
+        <input type="hidden" id="selectedBankAccountId" value="">
+        <div class="form-row">
+          <label class="form-field">
+            <span>Bank name</span>
+            <input type="text" name="bankName" id="bankName" placeholder="e.g. FNB, Absa, Standard Bank" required>
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label class="form-field">
+            <span>Account holder name</span>
+            <input type="text" name="accountHolder" id="accountHolder" placeholder="Full name as per bank" required>
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label class="form-field">
+            <span>Account number</span>
+            <input type="text" name="accountNumber" id="accountNumber" inputmode="numeric" maxlength="20" placeholder="e.g. 62123456789" required>
+          </label>
+          <label class="form-field">
+            <span>Branch code</span>
+            <input type="text" name="branchCode" id="branchCode" inputmode="numeric" maxlength="8" placeholder="e.g. 250655" required>
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label class="form-field">
+            <span>Account type</span>
+            <select name="accountType" id="accountType" required>
+              <option value="">Select type</option>
+              <option value="cheque">Cheque / Current</option>
+              <option value="savings">Savings</option>
+              <option value="transmission">Transmission</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <!-- Consent Section -->
+      <div class="form-section consent-section">
+        <h3><i class="fas fa-shield-check"></i> Authorization</h3>
+        <label class="checkbox-field">
+          <input type="checkbox" id="finalConsent" required>
+          <span>I confirm that the banking details provided are accurate and belong to me. I authorize the lender to deposit the loan amount into this account and collect repayments via debit order.</span>
+        </label>
+      </div>
+
+      <div id="submissionStatus" class="submission-status"></div>
+
+      <!-- Action Buttons -->
+      <div class="module-actions">
+        <button type="button" class="btn-secondary" id="cancelBankingBtn">
+          <i class="fas fa-arrow-left"></i>
+          <span>Cancel</span>
+        </button>
+        <button type="button" class="btn-primary" id="submitConfirmationBtn">
+          <span>Submit application</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "crons": [
+    {
+      "path": "/api/cron/notifications",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/flag-defaults",
+      "schedule": "0 9 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors 'self' https://zw-express.vercel.app http://localhost:5001;"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "ALLOWALL"
+        }
+      ]
+    }
+  ]
+}

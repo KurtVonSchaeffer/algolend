@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apply for Loan - Select Amount</title>
+  <link rel="stylesheet" href="/user-portal/pages-css/apply-loan.css">
+  <link rel="stylesheet" href="/user-portal/modules-css/loan-config.css">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="apply-page">
+  <!-- Navbar -->
+  <!--#include file="../layouts/navbar.html" -->
+
+  <div class="container with-border">
+    <div class="steps">
+      <div class="step completed" style="cursor: pointer;" onclick="goToStep(1)">
+        <span class="step-number">01</span>
+        <span>Documents</span>
+      </div>
+      <div class="step completed" style="cursor: pointer;" onclick="goToStep(2)">
+        <span class="step-number">02</span>
+        <span>Credit Check</span>
+      </div>
+      <div class="step active">
+        <span class="step-number">03</span>
+        <span>Select Amount</span>
+      </div>
+      <div class="step inactive" style="cursor: pointer;" onclick="goToStep(4)">
+        <span class="step-number">04</span>
+        <span>Confirmation</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="left-section">
+        <div class="left-title">Apply for loan</div>
+        <div class="left-subtitle">
+          Configure your loan amount, repayment period, and review the terms before proceeding.
+        </div>
+        <div class="steps-guide">
+          <div class="guide-step">
+            <div class="guide-number">1</div>
+            <div class="guide-text">
+              <strong>Enter Loan Amount</strong>
+              <span>Between R100 - R10,000</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-number">2</div>
+            <div class="guide-text">
+              <strong>Choose Repayment Period</strong>
+              <span>1-24 months (unlock longer terms)</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-number">3</div>
+            <div class="guide-text">
+              <strong>Review & Sign</strong>
+              <span>Confirm loan terms and authorize</span>
+            </div>
+          </div>
+          <div class="guide-step">
+            <div class="guide-number">4</div>
+            <div class="guide-text">
+              <strong>Admin Schedules Date</strong>
+              <span>Repayment date is set after review</span>
+            </div>
+          </div>
+        </div>
+        <div class="privacy-note">
+          <i class="fas fa-shield-alt"></i>
+          <span>All loan calculations are based on a 20% monthly interest rate.<br>
+          Review your terms carefully before signing.</span>
+        </div>
+      </div>
+      <div class="right-section">
+        <button class="next-btn" onclick="loadLoanModule()" style="cursor: pointer;">
+          <span>Configure Loan Amount</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loan Configuration Module Container -->
+  <div id="module-container" class="module-overlay hidden">
+    <div id="module-content" class="module-content loan-modal-content"></div>
+    <button class="close-btn" onclick="closeModule()">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <script src="/user-portal/modules-js/loan-config.js"></script>
+</body>
+</html>

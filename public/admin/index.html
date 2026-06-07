@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading Admin Portal...</title>
+
+    <script type="module">
+        // --- FIX 1: Correct relative path ---
+        import { supabase } from './src/services/supabaseClient.js';
+
+        async function handleRedirect() {
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (session) {
+                const { data: isAllowed, error } = await supabase.rpc('is_role_or_higher', { 
+                    p_min_role: 'base_admin' 
+                });
+
+                if (isAllowed) {
+                    // --- FIX 2: Correct path (no .html) ---
+                    window.location.replace('/admin/dashboard');
+                } else {
+                    // They are logged in, but NOT an admin.
+                    alert('You do not have permission to access this area.');
+                    window.location.replace('/auth/login.html');
+                }
+            } else {
+                // Not logged in at all.
+                window.location.replace('/auth/login.html');
+            }
+        }
+
+        handleRedirect();
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+</head>
+<body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f9fafb; color: #374151;">
+    <p>Verifying credentials...</p>
+</body>
+</html>

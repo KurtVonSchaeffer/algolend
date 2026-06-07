@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apply for Loan - Step 2</title>
+  <link rel="stylesheet" href="../pages-css/apply-loan.css">
+  <link rel="icon" type="image/png" href="../favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="apply-page">
+  <!-- Navbar -->
+  <!--#include file="../layouts/navbar.html" -->
+
+  <div class="container">
+    <div class="steps">
+      <div class="step completed" style="cursor: pointer;" onclick="goBackToStep1()">
+        <span class="step-number">01</span>
+        <span>Documents</span>
+      </div>
+      <div class="step active">
+        <span class="step-number">02</span>
+        <span>Credit Check</span>
+      </div>
+      <div class="step inactive" style="cursor: pointer;">
+        <span class="step-number">03</span>
+        <span>Select Amount</span>
+      </div>
+      <div class="step inactive" style="cursor: pointer;">
+        <span class="step-number">04</span>
+        <span>Confirmation</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="left-section">
+        <div class="left-title">Credit Check</div>
+        <div class="left-subtitle">
+          We are now checking your credit score and eligibility for the loan.
+        </div>
+        <div class="illustration">
+          <div class="illustration-content">
+            <i class="fas fa-credit-card"></i>
+            <i class="fas fa-chart-line"></i>
+          </div>
+        </div>
+        <div class="privacy-note">
+          <i class="fas fa-lock"></i>
+          <span>Your credit information is secure and confidential.<br>
+          Please see our <a href="#" class="privacy-link">Privacy Policy</a> for more details.</span>
+        </div>
+      </div>
+      <div class="right-section">
+        <div class="credit-status">
+          <i class="fas fa-spinner fa-spin"></i>
+          <span>Checking your credit score...</span>
+        </div>
+        <button class="next-btn" onclick="goToConfirmation()">
+          <span>Next</span>
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function goBackToStep1() {
+      window.location.href = 'apply-loan.html';
+    }
+
+    function goToConfirmation() {
+      window.location.href = 'apply-loan-3.html';
+    }
+  </script>
+</body>
+</html>

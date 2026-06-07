@@ -1,0 +1,48 @@
+<!-- Edit Application Module -->
+<div class="edit-app-modal">
+  <div class="modal-header">
+    <h2><i class="fas fa-edit"></i> Edit Application</h2>
+    <p class="modal-subtitle">Update your loan application details</p>
+  </div>
+
+  <div class="modal-body">
+    <div class="form-section">
+      <label for="editAmount">Loan Amount (R)</label>
+      <input type="number" id="editAmount" min="100" max="10000" step="100" placeholder="Enter amount">
+    </div>
+
+    <div class="form-section">
+      <label for="editPurpose">Loan Purpose</label>
+      <select id="editPurpose">
+        <option value="">Select purpose</option>
+        <option value="Personal">Personal</option>
+        <option value="Business">Business</option>
+        <option value="Education">Education</option>
+        <option value="Emergency">Emergency</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+
+    <div class="form-section">
+      <label for="editPeriod">Repayment Period (months)</label>
+      <input type="number" id="editPeriod" min="1" max="24" placeholder="Enter months">
+      <small class="form-hint">Note: Period restrictions may apply based on loan history</small>
+    </div>
+
+    <div class="form-section">
+      <label for="editNotes">Additional Notes (Optional)</label>
+      <textarea id="editNotes" rows="3" placeholder="Add any additional information..."></textarea>
+    </div>
+
+    <div class="status-message" id="editStatusMessage"></div>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn-secondary" onclick="closeEditModal()">
+      <i class="fas fa-times"></i> Cancel
+    </button>
+    <button class="btn-primary" id="saveEditBtn" onclick="saveApplicationEdit()">
+      <i class="fas fa-save"></i> Save Changes
+    </button>
+  </div>
+</div>

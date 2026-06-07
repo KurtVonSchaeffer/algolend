@@ -1,0 +1,856 @@
+0~ynz96tj.7m1.js:21 
+      /////////////////////
+   ///////////////////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////        Curious and driven?
+  ///////////////@@@@@@@///////        Work with us!
+  ///////////////@@@@@@@///////
+  ///////////////@@@@@@@///////        https://join.replit.com/hack.with.us
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@#//////////////
+   ///////////////////////////
+      /////////////////////
+      
+0~ynz96tj.7m1.js:21 Download the Apollo DevTools for a better development experience: https://chrome.google.com/webstore/detail/apollo-client-developer-t/jdkknkkbebbapilgoeccciglkfbmbnfm
+0~ynz96tj.7m1.js:21 [LaunchDarkly] LaunchDarkly client initialized
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+ Unrecognized feature: 'ambient-light-sensor'.
+ Unrecognized feature: 'battery'.
+ Unrecognized feature: 'execution-while-not-rendered'.
+ Unrecognized feature: 'execution-while-out-of-viewport'.
+ Unrecognized feature: 'layout-animations'.
+ Unrecognized feature: 'legacy-image-formats'.
+ Unrecognized feature: 'navigation-override'.
+ Unrecognized feature: 'oversized-images'.
+ Unrecognized feature: 'publickey-credentials'.
+ Unrecognized feature: 'speaker-selection'.
+ Unrecognized feature: 'unoptimized-images'.
+ Unrecognized feature: 'unsized-media'.
+ Unrecognized feature: 'pointer-lock'.
+ Allow attribute will take precedence over 'allowfullscreen'.
+ Allow attribute will take precedence over 'allowpaymentrequest'.
+MyMintAdmin-1:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+gravatar.com/avatar/c1ac7f72505675160a705250d71272f2?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+dotdevproxy.janeway.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+dotdevproxy.janeway.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+dotdevproxy.janeway.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+dotdevproxy.picard.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+dotdevproxy.picard.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+dotdevproxy.picard.repl.co/__reachability:1  Failed to load resource: net::ERR_CERT_AUTHORITY_INVALID
+/public/sounds/Achievement_Bell_Replit.wav:1  Failed to load resource: net::ERR_CACHE_OPERATION_NOT_SUPPORTED
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+0~ynz96tj.7m1.js:21 Missing field 'thinkingEnabled' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'enableAutomatedTesting' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'enableAutoCheckpointing' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'autoApprovePlan' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'webSearchEnabled' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'imageGenerationEnabled' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'autonomyLevel' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Missing field 'maxAutonomyEnabled' while writing result {
+  "__typename": "AgentSettings",
+  "chatMode": "general",
+  "modelProfile": "MODEL_PROFILE_ADVANCED"
+}
+(anonymous) @ 0~ynz96tj.7m1.js:21
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+stallwart.build.js:1 stallwart: failed ping 1
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+0~ynz96tj.7m1.js:21 Cache data may be lost when replacing the authorizations field of a Customer object.
+
+This could cause additional (usually avoidable) network requests to fetch data that were otherwise cached.
+
+To address this problem (which is not a bug in Apollo Client), either ensure all objects of type CustomerAuthorizations have an ID or a custom merge function, or define a custom merge function for the Customer.authorizations field, so InMemoryCache can safely merge these objects:
+
+  existing: {"__typename":"CustomerAuthorizations","createWorkspace":{"__typename":"CustomerAuthorization","isAuthorized":true,"code":"authorized"}}
+  incoming: {"__typename":"CustomerAuthorizations","viewSubscription":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to view the subscription."},"viewSeats":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to view seats."},"viewUsage":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to view usage."},"editUsageLimit":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to edit the usage limit."},"editSettings":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to edit the settings."},"enableScim":{"__typename":"CustomerAuthorization","isAuthorized":false,"message":"This feature requires an enterprise plan. Contact the sales team to enable SCIM provisioning."}}
+
+For more information about these options, please refer to the documentation:
+
+  * Ensuring entity objects have IDs: https://go.apollo.dev/c/generating-unique-identifiers
+  * Defining custom merge functions: https://go.apollo.dev/c/merging-non-normalized-objects
+
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+ Haven't heard from the server in a while, resetting connection...
+stallwart.build.js:1 stallwart: failed ping 1
+t0.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://uat.suredebit.co.za/&size=32:1  Failed to load resource: the server responded with a status of 404 ()
+t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=http://uat.suredebit.co.za&size=32:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+stallwart.build.js:1 stallwart: failed ping 1
+ WebSocket is already in CLOSING or CLOSED state.
+ WebSocket is already in CLOSING or CLOSED state.
+ WebSocket is already in CLOSING or CLOSED state.
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+graphql:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+www.facebook.com/tr/?id=1153929076518158&ev=PageView&dl=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&rl=https%3A%2F%2Fbilling.stripe.com%2F&if=false&ts=1776861089697&sw=1536&sh=864&cudff[fn]=%5E%23%23%23%27*&cudff[ln]=*********&ncudff[fn]=*%23%23%23*&udff[fn]=050dc6eab5314acad350b203ba1ea4b811a0179d5cf931080226fbb4370fa9eb&ncudff[ln]=*********&udff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&audff[fn]=050dc6eab5314acad350b203ba1ea4b811a0179d5cf931080226fbb4370fa9eb&audff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&v=2.9.281&r=stable&ec=84&o=6174&fbp=fb.1.1775832724110.871379602221023075&ler=other&cdl=API_unavailable&pmd[title]=src%2Fpages%2FHomePage.jsx%20-%20mint%20-%20Replit&pmd[locale]=en&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&plt=3118.900000035763&mdc[data]=%7B%22json_ld%22%3A%7B%22b%22%3A%22AAAAAAAAAAAA%22%7D%2C%22opengraph%22%3A%7B%22b%22%3A%22pEAHAgA%3D%22%7D%2C%22schema_org%22%3A%7B%22b%22%3A%22AAAAAAA%3D%22%7D%7D&mdc[version]=9dcf46b7e073ad3f3d69a65ae9d01de2&mft[microdata]=%5B%5D&mft[version]=7deaf9800d69b075ec3e9904de083941&it=1776861089664&coo=false&expv2[0]=pl1&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=im0&expv2[6]=hf0&rqm=GET:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.120.4:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+graphql:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+graphql:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+graphql:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+cloudflare-dns.com/dns-query:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+0~ynz96tj.7m1.js:21   WARN  [Statsig] Caught error in _tryFetchFallbackUrlsFromNetwork Object
+(anonymous) @ 0~ynz96tj.7m1.js:21
+www.google.com/ccm/form-data/11411994397?gtm=45be64h1v9171242957za200zd9171242957xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~117266401~117384406~118128923&rcb=13&npa=0&frm=0&ae=a&pscdl=noapi&auid=1056592168.1775832724&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B147.0.7727.56%7CNot.A%252FBrand%3B8.0.0.0%7CChromium%3B147.0.7727.56&uamb=0&uam=&uap=Windows&uapv=19.0.0&uaw=0:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+005qn5-ycdc2y.js:2 Uncaught (in promise) ApolloError: Failed to fetch
+    at new r (005qn5-ycdc2y.js:2:10157)
+    at Object.error (0yoc1kfxdloye.js:2:58768)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at Object.error (0yoc1kfxdloye.js:2:30005)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at 0yoc1kfxdloye.js:2:30287
+    at Array.forEach (<anonymous>)
+    at n (0yoc1kfxdloye.js:2:30256)
+    at Object.error (0yoc1kfxdloye.js:2:31081)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at r.<anonymous> (01s07trr6h_bj.js:2:27091)
+    at Object.next (005qn5-ycdc2y.js:2:2225)
+    at a (005qn5-ycdc2y.js:2:721)
+m.stripe.com/6:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=ff93ecf1-a2ec-4fb8-946f-0aa6cd914e92:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+analytics.google.com/g/collect?v=2&tid=G-MPJY3F1YEL&gtm=45je64k0h2v9135634466za20g&_p=1776844008164&gcd=13l3l3l3l2l1&npa=0&dma=0&ecid=1189091901&_eu=EBAIAGQ&are=1&cid=1995973321.1775832724&frm=0&ir=1&pscdl=noapi&rcb=14&sr=1536x864&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B147.0.7727.56%7CNot.A%252FBrand%3B8.0.0.0%7CChromium%3B147.0.7727.56&uam=&uamb=0&uap=Windows&uapv=19.0.0&uaw=0&ul=en-us&gaf=2&_s=274&tag_exp=0~115616985~115938466~115938468~117266400~117512543~118463262&dl=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&dr=https%3A%2F%2Fbilling.stripe.com%2F&dp=%2F%40T645%2FMyMintAdmin-1&dt=replEnvironmentDesktop&sid=1776843497&sct=6&seg=1&_tu=wAQ&en=Viewed%20replEnvironmentDesktop%20Page&_ee=1&ep.event_category=All&ep.value=0&_et=11&tfd=17092130:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+www.facebook.com/privacy_sandbox/pixel/register/trigger/?id=1153929076518158&ev=PageView&dl=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&rl=https%3A%2F%2Fbilling.stripe.com%2F&if=false&ts=1776861089697&sw=1536&sh=864&cudff[fn]=%5E%23%23%23%27*&cudff[ln]=*********&ncudff[fn]=*%23%23%23*&udff[fn]=050dc6eab5314acad350b203ba1ea4b811a0179d5cf931080226fbb4370fa9eb&ncudff[ln]=*********&udff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&audff[fn]=050dc6eab5314acad350b203ba1ea4b811a0179d5cf931080226fbb4370fa9eb&audff[ln]=21a3230e03772a58aff1b3709a9e232850916337e1fba95c434076b6668c6e08&v=2.9.281&r=stable&ec=84&o=6174&fbp=fb.1.1775832724110.871379602221023075&ler=other&cdl=API_unavailable&pmd[title]=src%2Fpages%2FHomePage.jsx%20-%20mint%20-%20Replit&pmd[locale]=en&pmd[keywords]=replit%2Cai%2Csoftware%2Cbuild%2Ccollaborate%2CIDE%2Cplatform%2Ccode%2Cdeploy%2Cprototype%2Conline%2Cagent&pmd[description]=Build%20and%20deploy%20software%20collaboratively%20with%20the%20power%20of%20AI%20without%20spending%20a%20second%20on%20setup.&plt=3118.900000035763&mdc[data]=%7B%22json_ld%22%3A%7B%22b%22%3A%22AAAAAAAAAAAA%22%7D%2C%22opengraph%22%3A%7B%22b%22%3A%22pEAHAgA%3D%22%7D%2C%22schema_org%22%3A%7B%22b%22%3A%22AAAAAAA%3D%22%7D%7D&mdc[version]=9dcf46b7e073ad3f3d69a65ae9d01de2&mft[microdata]=%5B%5D&mft[version]=7deaf9800d69b075ec3e9904de083941&it=1776861089664&coo=false&expv2[0]=pl1&expv2[1]=el3&expv2[2]=bc1&expv2[3]=ra2&expv2[4]=rp2&expv2[5]=im0&expv2[6]=hf0&rqm=FGET:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1776861100230&sid=55a37de4-34e2-40a5-8476-906e1901e298&ec=2&gz=1:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1776861089721&sid=55a37de4-34e2-40a5-8476-906e1901e298&ec=2&gz=1:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1776861076812&sid=55a37de4-34e2-40a5-8476-906e1901e298&ec=1&gz=1:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+graphql:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+www.google.co.za/ads/ga-audiences?v=1&t=sr&slf_rd=1&_r=4&tid=G-MPJY3F1YEL&cid=1995973321.1775832724&gtm=45je64k0h2v9135634466za20g&rcb=14&aip=1&dma=0&gcd=13l3l3l3l2l1&npa=0&frm=0&tag_exp=0~115616985~115938466~115938468~117266400~117512543~118463262&z=1397745557:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+graphql:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+graphql:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+graphql:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+graphql:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+sp.replit.com/v1/p:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+stats.g.doubleclick.net/j/collect?t=dc&aip=1&_r=3&v=1&_v=j102&tid=UA-25629695-1&cid=1995973321.1775832724&jid=146005825&gjid=393326509&_gid=1321049619.1776704163&_u=SCCAgEAjQAAAAGgCIAD~&z=1692027101:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+analytics.google.com/g/collect?v=2&tid=G-MPJY3F1YEL&gtm=45je64k0h2v9135634466za20g&_p=1776844008164&_gaz=1&gcd=13l3l3l3l2l1&npa=0&dma=0&ecid=1189091901&_eu=EBAIAGQ&are=1&cid=1995973321.1775832724&ec_mode=a&frm=0&ir=1&pscdl=noapi&rcb=14&sr=1536x864&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B147.0.7727.56%7CNot.A%252FBrand%3B8.0.0.0%7CChromium%3B147.0.7727.56&uam=&uamb=0&uap=Windows&uapv=19.0.0&uaw=0&ul=en-us&gaf=2&_s=273&tag_exp=0~115616985~115938466~115938468~117266400~117512543~118463262&dl=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&dr=https%3A%2F%2Fbilling.stripe.com%2F&dp=%2F%40T645%2FMyMintAdmin-1&dt=replEnvironmentDesktop&sid=1776843497&sct=6&seg=1&_tu=wAQ&en=page_view&_ee=1&_et=21507&tfd=17087106:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=8be4dc62-79af-4f25-a9fe-973ee279db61:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=9080c805-b7dd-4cee-ab11-c372a72e5b43:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=7d05bcea-c18b-446d-bd5d-0e2de1bba9b3:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=8c026258-ad03-4c59-ae6d-f631220d73f6:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.120.4:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+googleads.g.doubleclick.net/pagead/viewthroughconversion/11411994397/?random=1776861090784&cv=11&fst=1776861090784&bg=ffffff&guid=ON&async=1&en=page_view&gtm=45be64h1v9171242957za200zd9171242957xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~117266401~117384406~118128923&u_w=1536&u_h=864&url=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&ref=https%3A%2F%2Freplit.com%2F%40T645%2Fmint&rcb=13&frm=0&tiba=MyMintAdmin%20(1)%20-%20Replit&ae=a&hn=www.googleadservices.com&npa=0&pscdl=noapi&auid=1056592168.1775832724&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B147.0.7727.56%7CNot.A%252FBrand%3B8.0.0.0%7CChromium%3B147.0.7727.56&uamb=0&uam=&uap=Windows&uapv=19.0.0&uaw=0&data=event%3Dpage_view&rfmt=3&fmt=4:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1776861112242&sid=55a37de4-34e2-40a5-8476-906e1901e298&ec=2&gz=1:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+statsigapi.net/v1/sdk_exception:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+ WebSocket connection to 'wss://replit.com/graphql_subscriptions' failed: 
+www.google.com/rmkt/collect/11411994397/?random=1776861090784&cv=11&fst=1776861090784&fmt=8&bg=ffffff&guid=ON&async=1&en=page_view&gtm=45be64h1v9171242957za200zd9171242957xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~117266401~117384406~118128923&u_w=1536&u_h=864&url=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&ref=https%3A%2F%2Freplit.com%2F%40T645%2Fmint&rcb=13&frm=0&tiba=MyMintAdmin%20(1)%20-%20Replit&ae=a&hn=www.googleadservices.com&npa=0&pscdl=noapi&auid=1056592168.1775832724&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B147.0.7727.56%7CNot.A%252FBrand%3B8.0.0.0%7CChromium%3B147.0.7727.56&uamb=0&uam=&uap=Windows&uapv=19.0.0&uaw=0&data=event%3Dpage_view&gcp=5:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+www.google.com/ccm/collect?rcb=13&frm=0&en=page_view&dr=billing.stripe.com&dl=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&scrsrc=www.googletagmanager.com&rnd=1662428856.1776844009&dt=MyMintAdmin%20(1)%20-%20Replit&auid=1056592168.1775832724&navt=r&npa=0&ae=a&_tu=wAQ&gtm=45be64h1v9171242957za200zd9171242957xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~117266401~117384406~118128923&apve=1&apvf=f&apvc=0&tids=AW-11411994397&tid=AW-11411994397&tft=1776861090809&tfd=17087213:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+www.google.com/pagead/form-data/11411994397?gtm=45be64h1v9171242957za200zd9171242957xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~117266401~117384406~118128923&rcb=13&npa=0&frm=0&pscdl=noapi&ae=a&auid=1056592168.1775832724&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B147.0.7727.56%7CNot.A%252FBrand%3B8.0.0.0%7CChromium%3B147.0.7727.56&uamb=0&uam=&uap=Windows&uapv=19.0.0&uaw=0&_tu=wAQ:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.120.4:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1776861107686&sid=55a37de4-34e2-40a5-8476-906e1901e298&ec=1&gz=1:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+googleads.g.doubleclick.net/pagead/viewthroughconversion/11411994397/?random=1776861090784&cv=11&fst=1776861090784&fmt=3&bg=ffffff&guid=ON&async=1&en=page_view&gtm=45be64h1v9171242957za200zd9171242957xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~117266401~117384406~118128923&u_w=1536&u_h=864&url=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&ref=https%3A%2F%2Freplit.com%2F%40T645%2Fmint&rcb=13&frm=0&tiba=MyMintAdmin%20(1)%20-%20Replit&ae=a&hn=www.googleadservices.com&npa=0&pscdl=noapi&auid=1056592168.1775832724&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B147.0.7727.56%7CNot.A%252FBrand%3B8.0.0.0%7CChromium%3B147.0.7727.56&uamb=0&uam=&uap=Windows&uapv=19.0.0&uaw=0&data=event%3Dpage_view:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+graphql:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+www.google.com/ccm/collect?rcb=13&frm=0&en=page_view&dr=billing.stripe.com&dl=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&scrsrc=www.googletagmanager.com&rnd=1662428856.1776844009&dt=MyMintAdmin%20(1)%20-%20Replit&auid=1056592168.1775832724&navt=r&npa=0&ae=a&_tu=wAQ&gtm=45be64h1v9171242957za200zd9171242957xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~117266401~117384406~118128923&apve=1&apvf=f&apvc=0&tids=AW-11411994397&tid=AW-11411994397&tft=1776861090809&tfd=17087213:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+www.google.com/rmkt/collect/11411994397/?random=1776861090784&cv=11&fst=1776861090784&fmt=3&bg=ffffff&guid=ON&async=1&en=page_view&gtm=45be64h1v9171242957za200zd9171242957xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~117266401~117384406~118128923&u_w=1536&u_h=864&url=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&ref=https%3A%2F%2Freplit.com%2F%40T645%2Fmint&rcb=13&frm=0&tiba=MyMintAdmin%20(1)%20-%20Replit&ae=a&hn=www.googleadservices.com&npa=0&pscdl=noapi&auid=1056592168.1775832724&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B147.0.7727.56%7CNot.A%252FBrand%3B8.0.0.0%7CChromium%3B147.0.7727.56&uamb=0&uam=&uap=Windows&uapv=19.0.0&uaw=0&data=event%3Dpage_view&gcp=5:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=9961e56b-80a5-448d-8c23-229489b40bb5:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+/graphql:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+/graphql:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+/graphql:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+0_-t5o4gjm258.js:2 WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+(anonymous) @ 0_-t5o4gjm258.js:2
+www.google.com/g/collect?v=2&tid=G-MPJY3F1YEL&gtm=45je64k0h2v9135634466za20g&_p=1776844008164&gcd=13l3l3l3l2l1&npa=0&dma=0&ecid=1189091901&_eu=EBAIAGQ&are=1&cid=1995973321.1775832724&frm=0&ir=1&pscdl=noapi&rcb=14&sr=1536x864&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B147.0.7727.56%7CNot.A%252FBrand%3B8.0.0.0%7CChromium%3B147.0.7727.56&uam=&uamb=0&uap=Windows&uapv=19.0.0&uaw=0&ul=en-us&gaf=3&_s=274&tag_exp=0%7E115616985%7E115938466%7E115938468%7E117266400%7E117512543%7E118463262&dl=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&dr=https%3A%2F%2Fbilling.stripe.com%2F&dp=%2F%40T645%2FMyMintAdmin-1&dt=replEnvironmentDesktop&sid=1776843497&sct=6&seg=1&_tu=wAQ&en=Viewed+replEnvironmentDesktop+Page&_ee=1&ep.event_category=All&ep.value=0&_et=11&tfd=17092130:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=01639492-fd30-49dc-9739-812e3e3a36e7:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=006fc040-7972-4d84-9540-7b6c14889ac1:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=2e941a01-e691-47f3-a2d6-c877e2a8eeda:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=d9135023-b185-409e-9b8a-5b319a03c167:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1776861118538&sid=55a37de4-34e2-40a5-8476-906e1901e298&ec=1&gz=1:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+www.google.com/g/collect?v=2&tid=G-MPJY3F1YEL&gtm=45je64k0h2v9135634466za20g&_p=1776844008164&_gaz=1&gcd=13l3l3l3l2l1&npa=0&dma=0&ecid=1189091901&_eu=EBAIAGQ&are=1&cid=1995973321.1775832724&ec_mode=a&frm=0&ir=1&pscdl=noapi&rcb=14&sr=1536x864&uaa=x86&uab=64&uafvl=Google%2520Chrome%3B147.0.7727.56%7CNot.A%252FBrand%3B8.0.0.0%7CChromium%3B147.0.7727.56&uam=&uamb=0&uap=Windows&uapv=19.0.0&uaw=0&ul=en-us&gaf=3&_s=273&tag_exp=0%7E115616985%7E115938466%7E115938468%7E117266400%7E117512543%7E118463262&dl=https%3A%2F%2Freplit.com%2F%40T645%2FMyMintAdmin-1&dr=https%3A%2F%2Fbilling.stripe.com%2F&dp=%2F%40T645%2FMyMintAdmin-1&dt=replEnvironmentDesktop&sid=1776843497&sct=6&seg=1&_tu=wAQ&en=page_view&_ee=1&_et=21507&tfd=17087106:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.120.4:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=458c0cb1-55c6-4c74-af23-659e0b042139:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=c18bd18c-a4e6-415e-bcf2-25288533d181:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1776861120770&sid=55a37de4-34e2-40a5-8476-906e1901e298&ec=2&gz=1:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+0~ynz96tj.7m1.js:21  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1776861120770&sid=55a37de4-34e2-40a5-8476-906e1901e298&ec=2&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 0~ynz96tj.7m1.js:21:10057
+    at a.<anonymous> (16~zcc6hu~_6z.js:2:38808)
+    at Generator.next (<anonymous>)
+    at 16~zcc6hu~_6z.js:2:36352
+    at new Promise (<anonymous>)
+    at i (16~zcc6hu~_6z.js:2:36101)
+    at a._sendRequest (16~zcc6hu~_6z.js:2:38031)
+    at 16~zcc6hu~_6z.js:2:26872
+    at r.ErrorBoundary._capture (16~zcc6hu~_6z.js:2:27170)
+    at e.<computed> [as _sendRequest] (16~zcc6hu~_6z.js:2:26841)
+    at a.<anonymous> (16~zcc6hu~_6z.js:2:39979)
+    at Generator.next (<anonymous>)
+    at a (16~zcc6hu~_6z.js:2:36157)
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 0~ynz96tj.7m1.js:21
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+01s07trr6h_bj.js:2 WebSocket connection to 'wss://replit.com/graphql_subscriptions' failed: 
+(anonymous) @ 01s07trr6h_bj.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A1%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=25065a23-4057-487d-bad7-811522578ce4:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A1%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=00e57d33-6af7-4ae8-8e13-f28494c0bc6f:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1776861123074&sid=55a37de4-34e2-40a5-8476-906e1901e298&ec=1&gz=1:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+0~ynz96tj.7m1.js:21  ERROR  [Statsig] A networking error occurred during POST request to https://prodregistryv2.org/v1/rgstr?k=client-Bp7m7pNB6H0fnSGjVtxN5BeWQw4BSAat4OFsXa3VcTF&st=javascript-client&sv=3.26.0&t=1776861123074&sid=55a37de4-34e2-40a5-8476-906e1901e298&ec=1&gz=1. TypeError: Failed to fetch TypeError: Failed to fetch
+    at 0~ynz96tj.7m1.js:21:10057
+    at a.<anonymous> (16~zcc6hu~_6z.js:2:38808)
+    at Generator.next (<anonymous>)
+    at 16~zcc6hu~_6z.js:2:36352
+    at new Promise (<anonymous>)
+    at i (16~zcc6hu~_6z.js:2:36101)
+    at a._sendRequest (16~zcc6hu~_6z.js:2:38031)
+    at 16~zcc6hu~_6z.js:2:26872
+    at r.ErrorBoundary._capture (16~zcc6hu~_6z.js:2:27170)
+    at e.<computed> [as _sendRequest] (16~zcc6hu~_6z.js:2:26841)
+    at a.<anonymous> (16~zcc6hu~_6z.js:2:39979)
+    at Generator.next (<anonymous>)
+    at a (16~zcc6hu~_6z.js:2:36157)
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21   WARN  [Statsig] Failed to flush events.
+(anonymous) @ 0~ynz96tj.7m1.js:21
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A2%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=e2e0e4f7-5894-4505-bc59-37ba838450c6:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A2%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=b4303fae-b893-48f4-adb8-28aadc0dcb67:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+01s07trr6h_bj.js:2 WebSocket connection to 'wss://replit.com/graphql_subscriptions' failed: 
+(anonymous) @ 01s07trr6h_bj.js:2
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+sp.replit.com/v1/p:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A3%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=e76353d8-7f48-4f4c-bc79-275edd0f16a3:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A3%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=8cd539d6-91d5-410b-bf03-d57d55d736d3:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+sp.replit.com/v1/p:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+ WebSocket connection to 'wss://replit.com/graphql_subscriptions' failed: 
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A1%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=e277b389-d7ae-4bdf-9a10-3c065cf35b1c:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=5bc1e30d-e435-4d6b-aebe-04380000ee6f:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=8d677b66-109b-46a8-aec6-0e5f5ed748aa:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=2962fb8a-705f-428c-a7c0-00095b62c7b3:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=b617ed86-6bf2-40e2-822e-289f78cb376e:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=d697bd5b-0f38-4d79-9c50-91788cd02004:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=4faa73d5-9ee3-4f43-904f-e723ce29c8b3:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A1%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=e164e3c1-44b8-437f-a3d0-8fe39e891e7a:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=4536b913-a93b-430b-a4b0-2e2421987fc4:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=41aeb0da-e402-42ff-8075-5d4baf772556:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A1%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=dc0d283f-4710-48e9-b2af-917c0ec34bf6:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A1%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=f05a0d87-7881-4cb8-8416-6bdd388c4c61:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A1%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=5256c1fc-34b0-49a6-b3e9-f28facb5264c:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=6d9f36b6-64c2-4369-94d4-a7d4a28b92d6:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A1%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=331c32ee-6090-4a24-b12c-de9095afd9ab:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A1%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=d7b14175-b682-4988-ab9b-a063dc32db05:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e%2Cretry_count%3A1%2Cretry_after%3A0&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=a425e0e1-344e-4d68-8592-b782e64e4f27:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=26d95694-dbb6-4cae-acc6-dd3dd21c1a0d:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=a06dc08f-c0e6-4e3e-8274-6d9b67dc2360:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=c9311130-a3fc-4c50-af28-84d541e3074e:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=355083bf-a0d5-4b2e-b0a4-2bbe740e03a6:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=fe7a37c7-0a16-4417-9325-ad2c1a4d08d0:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=a5019dce-9c70-4587-a4b7-9ca829668014:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=e57502f0-59e7-423c-80bb-3ff0958e2c4e:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=6a4bfe49-4ab6-4cd5-85dc-57809412189c:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=11d771d2-bdb6-4df5-b9ca-2f055adc60bc:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=efd92dc3-35dd-48ba-b876-8ab724e6cdff:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=35ced6f8-a0e3-4c07-a881-92affe9b8f4f:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+sp.replit.com/v1/p:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+graphql:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+sp.replit.com/v1/p:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+graphql:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=08f174c3-0625-4626-9dcc-14fb7a2cbf67:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+005qn5-ycdc2y.js:2 Uncaught (in promise) ApolloError: Failed to fetch
+    at new r (005qn5-ycdc2y.js:2:10157)
+    at Object.error (0yoc1kfxdloye.js:2:58768)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at Object.error (0yoc1kfxdloye.js:2:30005)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at 0yoc1kfxdloye.js:2:30287
+    at Array.forEach (<anonymous>)
+    at n (0yoc1kfxdloye.js:2:30256)
+    at Object.error (0yoc1kfxdloye.js:2:31081)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at r.<anonymous> (01s07trr6h_bj.js:2:27091)
+    at Object.next (005qn5-ycdc2y.js:2:2225)
+    at a (005qn5-ycdc2y.js:2:721)
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=d2d18c71-3bdb-46f2-b8f8-5dce4bd9e963:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=ec666b2c-46b7-4866-8f3a-6259940d845b:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.120.4:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=df2d938b-c289-4287-a5ae-cfd20d0269e9:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+graphql:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+graphql:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=bca80348-7a50-4dfc-9683-7fa980cf40d6:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=e25d7f4a-7dd8-4997-8aec-2c473523a029:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+01s07trr6h_bj.js:2 WebSocket connection to 'wss://replit.com/graphql_subscriptions' failed: 
+(anonymous) @ 01s07trr6h_bj.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=26d08812-500c-4330-97eb-102f72837e20:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+cdn.replit.com/_next/static/chunks/0hsj_kg0c..g7.js:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=a5599a31-ce9f-4ff6-8181-6e2378fa455a:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=f8ad5273-058b-4273-b369-a7b5e7e668bc:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+turbopack-07r3lzx66r3l-.js:2 Uncaught (in promise) ChunkLoadError: Failed to load chunk https://cdn.replit.com/_next/static/chunks/0hsj_kg0c..g7.js from module 876992
+    at turbopack-07r3lzx66r3l-.js:2:7486
+    at async Promise.all (index 0)
+    at async 01mofq9dpgs~-.js:2:18968
+    at async 0ft7-erz0nk0v.js:2:3782
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=2f3737eb-fb0b-4ef8-92a8-69cd7b5a35cc:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.120.4:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.120.4:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+sp.replit.com/v1/p:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+0yi64h8_q4s3l.js:2 WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+(anonymous) @ 0yi64h8_q4s3l.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=526ec9e2-96c6-4c2a-b69f-cc9e234d13f7:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=8817418c-c75a-4fe1-b8fa-003fbb80f12f:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+10.hv6cti2gy5.js:2 WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+(anonymous) @ 10.hv6cti2gy5.js:2
+0_-t5o4gjm258.js:2 WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+(anonymous) @ 0_-t5o4gjm258.js:2
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Afetch%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=aeb63239-ab37-41a4-91b1-75c8ab12a44f:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+logs.browser-intake-us5-datadoghq.com/api/v2/logs?ddsource=browser&ddtags=sdk_version%3A4.46.0%2Capi%3Axhr%2Cenv%3Aproduction%2Cservice%3Awebsite%2Cversion%3A2e76561e&dd-api-key=pub31a5047a3a4692afb84a423db984dc57&dd-evp-origin-version=4.46.0&dd-evp-origin=browser&dd-request-id=9dadb786-1b04-41e7-8ee3-3d94c009a78d:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+/data/repls/28b13494-a082-4114-87f9-c9cec1854f44/get_connection_metadata:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+MyMintAdmin-1:1 Uncaught (in promise) ApolloError: Failed to fetch
+    at new r (005qn5-ycdc2y.js:2:10157)
+    at 0yoc1kfxdloye.js:2:68724
+    at n (0yoc1kfxdloye.js:2:29847)
+    at 0yoc1kfxdloye.js:2:29773
+    at new Promise (<anonymous>)
+    at Object.then (0yoc1kfxdloye.js:2:29740)
+    at Object.error (0yoc1kfxdloye.js:2:29857)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at 0yoc1kfxdloye.js:2:30287
+    at Array.forEach (<anonymous>)
+    at n (0yoc1kfxdloye.js:2:30256)
+    at Object.error (0yoc1kfxdloye.js:2:31081)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at r.<anonymous> (01s07trr6h_bj.js:2:27091)
+    at Object.next (005qn5-ycdc2y.js:2:2225)
+    at a (005qn5-ycdc2y.js:2:721)
+07w.y6o8ufu3n.js:88 Uncaught (in promise) ApolloError: Failed to fetch
+    at new r (005qn5-ycdc2y.js:2:10157)
+    at 0yoc1kfxdloye.js:2:68724
+    at n (0yoc1kfxdloye.js:2:29847)
+    at 0yoc1kfxdloye.js:2:29773
+    at new Promise (<anonymous>)
+    at Object.then (0yoc1kfxdloye.js:2:29740)
+    at Object.error (0yoc1kfxdloye.js:2:29857)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at 0yoc1kfxdloye.js:2:30287
+    at Array.forEach (<anonymous>)
+    at n (0yoc1kfxdloye.js:2:30256)
+    at Object.error (0yoc1kfxdloye.js:2:31081)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at p (0sfcfibbt3l~g.js:2:10128)
+    at m (0sfcfibbt3l~g.js:2:10610)
+    at t.error (0sfcfibbt3l~g.js:2:11163)
+    at r.<anonymous> (01s07trr6h_bj.js:2:27091)
+    at Object.next (005qn5-ycdc2y.js:2:2225)
+    at a (005qn5-ycdc2y.js:2:721)
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+0~ynz96tj.7m1.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 0~ynz96tj.7m1.js:21
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/c1ac7f72505675160a705250d71272f2?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/c1ac7f72505675160a705250d71272f2?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/c1ac7f72505675160a705250d71272f2?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+8b777aaf19a0cbeaf68bfab87a9a19f4:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/c1ac7f72505675160a705250d71272f2?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'ambient-light-sensor'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'battery'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'execution-while-not-rendered'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'execution-while-out-of-viewport'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'layout-animations'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'legacy-image-formats'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'navigation-override'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'oversized-images'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'publickey-credentials'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'speaker-selection'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'unoptimized-images'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'unsized-media'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Allow attribute will take precedence over 'allowfullscreen'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+injected.js:37 Session: [object Object]
+injected.js:37 Session Error: null
+injected.js:37 Profile: [object Object]
+injected.js:37 Profile Error: null
+injected.js:37 Borrower user detected, redirecting to user portal...
+jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/logout?scope=global:1  Failed to load resource: the server responded with a status of 403 ()
+jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/user:1  Failed to load resource: the server responded with a status of 403 ()
+injected.js:37 ⚠️ Cannot setup real-time notifications: No user session
+(anonymous) @ injected.js:37
+jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/user:1  Failed to load resource: the server responded with a status of 403 ()
+injected.js:37 ✅ Session validated
+injected.js:37 Error getting unread count: Error: User not authenticated
+    at getUnreadCount (notificationService.js:87:22)
+    at async loadUnreadCount (script.js:1082:21)
+(anonymous) @ injected.js:37
+injected.js:37 Sign out error: AuthApiError: Session from session_id claim in JWT does not exist
+    at E (index.js:1:1)
+    at async R.l.headers (index.js:1:1)
+    at async R (index.js:1:1)
+    at async q.signOut (index.js:1:1)
+    at async index.js:1:1
+    at async d._useSession (index.js:1:1)
+    at async d._signOut (index.js:1:1)
+    at async index.js:1:1
+(anonymous) @ injected.js:37
+jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/logout?scope=global:1  Failed to load resource: the server responded with a status of 403 ()
+injected.js:37 Sign out error: AuthApiError: Session from session_id claim in JWT does not exist
+    at E (index.js:1:1)
+    at async R.l.headers (index.js:1:1)
+    at async R (index.js:1:1)
+    at async q.signOut (index.js:1:1)
+    at async index.js:1:1
+    at async d._useSession (index.js:1:1)
+    at async d._signOut (index.js:1:1)
+    at async index.js:1:1
+(anonymous) @ injected.js:37
+jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/logout?scope=global:1  Failed to load resource: the server responded with a status of 403 ()
+injected.js:37 Sign out error: AuthApiError: Session from session_id claim in JWT does not exist
+    at E (index.js:1:1)
+    at async R.l.headers (index.js:1:1)
+    at async R (index.js:1:1)
+    at async q.signOut (index.js:1:1)
+    at async index.js:1:1
+    at async d._useSession (index.js:1:1)
+    at async d._signOut (index.js:1:1)
+    at async index.js:1:1
+(anonymous) @ injected.js:37
+jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/logout?scope=global:1  Failed to load resource: the server responded with a status of 403 ()
+injected.js:37 Sign out error: AuthApiError: Session from session_id claim in JWT does not exist
+    at E (index.js:1:1)
+    at async R.l.headers (index.js:1:1)
+    at async R (index.js:1:1)
+    at async q.signOut (index.js:1:1)
+    at async index.js:1:1
+    at async d._useSession (index.js:1:1)
+    at async d._signOut (index.js:1:1)
+    at async index.js:1:1
+(anonymous) @ injected.js:37
+jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/logout?scope=global:1  Failed to load resource: the server responded with a status of 403 ()
+injected.js:37 Sign out error: AuthApiError: Session from session_id claim in JWT does not exist
+    at E (index.js:1:1)
+    at async R.l.headers (index.js:1:1)
+    at async R (index.js:1:1)
+    at async q.signOut (index.js:1:1)
+    at async index.js:1:1
+    at async d._useSession (index.js:1:1)
+    at async d._signOut (index.js:1:1)
+    at async index.js:1:1
+(anonymous) @ injected.js:37
+jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/logout?scope=global:1  Failed to load resource: the server responded with a status of 403 ()
+injected.js:37 Sign out error: AuthApiError: Session from session_id claim in JWT does not exist
+    at E (index.js:1:1)
+    at async R.l.headers (index.js:1:1)
+    at async R (index.js:1:1)
+    at async q.signOut (index.js:1:1)
+    at async index.js:1:1
+    at async d._useSession (index.js:1:1)
+    at async d._signOut (index.js:1:1)
+    at async index.js:1:1
+(anonymous) @ injected.js:37
+jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/logout?scope=global:1  Failed to load resource: the server responded with a status of 403 ()
+injected.js:37 Sign out error: AuthApiError: Session from session_id claim in JWT does not exist
+    at E (index.js:1:1)
+    at async R.l.headers (index.js:1:1)
+    at async R (index.js:1:1)
+    at async q.signOut (index.js:1:1)
+    at async index.js:1:1
+    at async d._useSession (index.js:1:1)
+    at async d._signOut (index.js:1:1)
+    at async index.js:1:1
+(anonymous) @ injected.js:37
+injected.js:214  POST https://jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/logout?scope=global 403 (Forbidden)
+apply @ injected.js:214
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+R @ index.js:1
+signOut @ index.js:1
+(anonymous) @ index.js:1
+_useSession @ index.js:1
+await in _useSession
+_signOut @ index.js:1
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+B @ index.js:1
+_acquireLock @ index.js:1
+signOut @ index.js:1
+await in signOut
+(anonymous) @ script.js:1408
+injected.js:37 Sign out error: AuthApiError: Session from session_id claim in JWT does not exist
+    at E (index.js:1:1)
+    at async R.l.headers (index.js:1:1)
+    at async R (index.js:1:1)
+    at async q.signOut (index.js:1:1)
+    at async index.js:1:1
+    at async d._useSession (index.js:1:1)
+    at async d._signOut (index.js:1:1)
+    at async index.js:1:1
+(anonymous) @ injected.js:37
+(anonymous) @ script.js:1410
+injected.js:37 ⚠️ Payslip form not found
+(anonymous) @ injected.js:37
+initTillSlipModule @ tillslip.js?v=1776863292243:15
+(anonymous) @ tillslip.js?v=1776863292243:156
+injected.js:37 ⚠️ Bank statement module DOM not ready
+(anonymous) @ injected.js:37
+initBankStatementModule @ bankstatement.js?v=1776863292243:21
+(anonymous) @ bankstatement.js?v=1776863292243:527
+injected.js:37 📋 KYC status response: {verified: false, status: 'Not Started', normalizedStatus: 'not started', sessionId: 'b6ac236b-5a38-4699-a708-7dd42bf3caee', updatedAt: '2026-04-22T12:59:25.068+00:00', …}
+injected.js:214  POST https://jmnjkxfxenrudpvjprcu.supabase.co/rest/v1/truid_collections?on_conflict=collection_id 400 (Bad Request)
+apply @ injected.js:214
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+r @ index.js:1
+Promise.then
+h @ index.js:1
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+then @ index.js:1
+injected.js:37 Supabase Sync Error: {code: '23502', details: null, hint: null, message: 'null value in column "collection_id" of relation "truid_collections" violates not-null constraint'}
+(anonymous) @ injected.js:37
+refreshDocumentStatuses @ apply-loan.js?v=1776863292243:646
+await in refreshDocumentStatuses
+initDocumentChecklist @ apply-loan.js?v=1776863292243:697
+await in initDocumentChecklist
+bootApplyLoanPage @ apply-loan.js?v=1776863292243:1295
+(anonymous) @ apply-loan.js?v=1776863292243:1304
+PendingScript
+(anonymous) @ script.js:527
+loadPageScript @ script.js:510
+loadPage @ script.js:391
+await in loadPage
+onclick @ index.html:1
+injected.js:37 ⚠️ ID card module DOM not ready
+(anonymous) @ injected.js:37
+initIdCardModule @ idcard.js?v=1776863292243:15
+(anonymous) @ idcard.js?v=1776863292243:192
+injected.js:37 📋 KYC status response: {verified: false, status: 'Not Started', normalizedStatus: 'not started', sessionId: 'b6ac236b-5a38-4699-a708-7dd42bf3caee', updatedAt: '2026-04-22T12:59:25.068+00:00', …}
+injected.js:214  POST https://jmnjkxfxenrudpvjprcu.supabase.co/rest/v1/truid_collections?on_conflict=collection_id 400 (Bad Request)
+apply @ injected.js:214
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+r @ index.js:1
+Promise.then
+h @ index.js:1
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+then @ index.js:1
+injected.js:37 Supabase Sync Error: {code: '23502', details: null, hint: null, message: 'null value in column "collection_id" of relation "truid_collections" violates not-null constraint'}
+(anonymous) @ injected.js:37
+refreshDocumentStatuses @ apply-loan.js?v=1776863292243:646
+await in refreshDocumentStatuses
+initDocumentChecklist @ apply-loan.js?v=1776863292243:697
+await in initDocumentChecklist
+(anonymous) @ apply-loan.js?v=1776863292243:1313
+loadPage @ script.js:397
+await in loadPage
+onclick @ index.html:1
+injected.js:214  POST https://jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/logout?scope=global 403 (Forbidden)
+apply @ injected.js:214
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+R @ index.js:1
+signOut @ index.js:1
+(anonymous) @ index.js:1
+_useSession @ index.js:1
+await in _useSession
+_signOut @ index.js:1
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+B @ index.js:1
+_acquireLock @ index.js:1
+signOut @ index.js:1
+await in signOut
+(anonymous) @ script.js:1408
+injected.js:37 Sign out error: AuthApiError: Session from session_id claim in JWT does not exist
+    at E (index.js:1:1)
+    at async R.l.headers (index.js:1:1)
+    at async R (index.js:1:1)
+    at async q.signOut (index.js:1:1)
+    at async index.js:1:1
+    at async d._useSession (index.js:1:1)
+    at async d._signOut (index.js:1:1)
+    at async index.js:1:1
+(anonymous) @ injected.js:37
+(anonymous) @ script.js:1410
+injected.js:214  POST https://jmnjkxfxenrudpvjprcu.supabase.co/auth/v1/logout?scope=global 403 (Forbidden)
+apply @ injected.js:214
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+R @ index.js:1
+signOut @ index.js:1
+(anonymous) @ index.js:1
+_useSession @ index.js:1
+await in _useSession
+_signOut @ index.js:1
+(anonymous) @ index.js:1
+(anonymous) @ index.js:1
+B @ index.js:1
+_acquireLock @ index.js:1
+signOut @ index.js:1
+await in signOut
+(anonymous) @ script.js:1408
+injected.js:37 Sign out error: AuthApiError: Session from session_id claim in JWT does not exist
+    at E (index.js:1:1)
+    at async R.l.headers (index.js:1:1)
+    at async R (index.js:1:1)
+    at async q.signOut (index.js:1:1)
+    at async index.js:1:1
+    at async d._useSession (index.js:1:1)
+    at async d._signOut (index.js:1:1)
+    at async index.js:1:1
+(anonymous) @ injected.js:37
+(anonymous) @ script.js:1410

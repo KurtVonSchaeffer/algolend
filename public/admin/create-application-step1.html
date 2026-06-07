@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Application - Step 1 | Your Company Admin</title>
+    <link rel="stylesheet" href="../shared/theme.css" />
+    <link rel="stylesheet" href="./src/styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Step Progress Styles. */
+        .steps-container {
+            max-width: 900px;
+            margin: 0 auto 3rem;
+            padding: 0 1rem;
+        }
+        
+        .steps-wrapper {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            padding: 2rem 0;
+        }
+        
+        .steps-wrapper::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #e5e7eb;
+            transform: translateY(-50%);
+            z-index: 0;
+        }
+        
+        .step-item {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            cursor: pointer;
+        }
+        
+        .step-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: #9ca3af;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s;
+        }
+        
+        .step-item.active .step-circle {
+            background: #ea580c;
+            border-color: #ea580c;
+            color: white;
+            box-shadow: 0 0 0 4px rgba(234, 88, 12, 0.1);
+        }
+        
+        .step-item.completed .step-circle {
+            background: #10b981;
+            border-color: #10b981;
+            color: white;
+        }
+        
+        .step-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #6b7280;
+            text-align: center;
+        }
+        
+        .step-item.active .step-label {
+            color: #ea580c;
+        }
+        
+        /* Content Card Styles */
+        .content-card {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .content-header {
+            background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+            color: white;
+            padding: 2rem;
+        }
+        
+        .content-header h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .content-header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+        
+        .content-body {
+            padding: 2.5rem;
+        }
+        
+        /* Form Styles */
+        .form-section {
+            margin-bottom: 2rem;
+        }
+        
+        .form-section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #f3f4f6;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #ea580c;
+            box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        /* User Search Styles */
+        .search-container {
+            position: relative;
+        }
+        
+        .search-input-wrapper {
+            position: relative;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+        
+        .search-input {
+            padding-left: 3rem;
+        }
+        
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-top: none;
+            border-radius: 0 0 0.5rem 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 10;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .search-result-item {
+            padding: 1rem;
+            border-bottom: 1px solid #f3f4f6;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .search-result-item:hover {
+            background: #fef3f2;
+        }
+        
+        .search-result-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #ea580c;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        
+        .search-result-info {
+            flex: 1;
+        }
+        
+        .search-result-name {
+            font-weight: 600;
+            color: #111827;
+        }
+        
+        .search-result-email {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .selected-user-card {
+            background: #fef3f2;
+            border: 2px solid #ea580c;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+        
+        .selected-user-card .remove-btn {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 1.25rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        /* Action Buttons */
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2.5rem;
+            padding-top: 2rem;
+            border-top: 2px solid #f3f4f6;
+        }
+        
+        .btn {
+            padding: 0.875rem 2rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-secondary {
+            background: white;
+            border: 2px solid #e5e7eb;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #f9fafb;
+            border-color: #d1d5db;
+        }
+        
+        .btn-primary {
+            background: #ea580c;
+            border: 2px solid #ea580c;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #dc2626;
+            border-color: #dc2626;
+        }
+        
+        .btn-primary:disabled {
+            background: #d1d5db;
+            border-color: #d1d5db;
+            cursor: not-allowed;
+        }
+        
+        .helper-text {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+        }
+        
+        .error-text {
+            font-size: 0.875rem;
+            color: #ef4444;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        
+        .error-text.visible {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .steps-wrapper {
+                padding: 1rem 0;
+            }
+            
+            .step-circle {
+                width: 50px;
+                height: 50px;
+                font-size: 1rem;
+            }
+            
+            .step-label {
+                font-size: 0.75rem;
+            }
+            
+            .content-body {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+</head>
+<body class="bg-gray-50 antialiased">
+    
+    <div id="app-shell" class="min-h-screen">
+        <!-- Layout will be injected here by layout.js -->
+        <div class="flex items-center justify-center h-screen">
+            <i class="fa-solid fa-circle-notch fa-spin text-3xl" style="color: var(--color-secondary);"></i>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initLayout } from './src/shared/layout.js';
+        import { supabase } from './src/services/supabaseClient.js';
+
+        // Application state
+        let selectedUser = null;
+        let searchTimeout = null;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initLayout();
+            renderPageContent();
+        });
+
+        function renderPageContent() {
+            const mainContent = document.getElementById('main-content');
+            if (!mainContent) return;
+
+            mainContent.innerHTML = `
+                <div class="steps-container">
+                    <div class="steps-wrapper">
+                        <div class="step-item active">
+                            <div class="step-circle">1</div>
+                            <div class="step-label">Applicant Info</div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-circle">2</div>
+                            <div class="step-label">Loan Details</div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-circle">3</div>
+                            <div class="step-label">Financial Info</div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-circle">4</div>
+                            <div class="step-label">Review & Submit</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="content-card">
+                    <div class="content-header">
+                        <h1><i class="fas fa-user-plus"></i> Select Applicant</h1>
+                        <p>Search and select an existing user to create a loan application</p>
+                    </div>
+                    
+                    <div class="content-body">
+                        <form id="step1-form">
+                        <div class="form-section">
+                            <h2 class="form-section-title">Find Applicant</h2>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Search by Name or Email</label>
+                                <div class="search-container">
+                                    <div class="search-input-wrapper">
+                                        <i class="fas fa-search search-icon"></i>
+                                        <input 
+                                            type="text" 
+                                            id="user-search" 
+                                            class="form-input search-input" 
+                                            placeholder="Start typing to search..."
+                                            autocomplete="off"
+                                        >
+                                    </div>
+                                    <div id="search-results" class="search-results" style="display: none;"></div>
+                                </div>
+                                <p class="helper-text">
+                                    <i class="fas fa-info-circle"></i> 
+                                    Search for an existing user or create a new one below
+                                </p>
+                                <div id="selected-user-display"></div>
+                            </div>
+
+                            <!-- OR Divider -->
+                            <div style="display: flex; align-items: center; gap: 1rem; margin: 2rem 0;">
+                                <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
+                                <span style="color: #6b7280; font-size: 0.875rem; font-weight: 600;">OR</span>
+                                <div style="flex: 1; height: 1px; background: #e5e7eb;"></div>
+                            </div>
+
+                            <!-- Create New User Button -->
+                            <div style="text-align: center;">
+                                <button type="button" id="create-new-user-btn" class="btn btn-secondary" style="width: 100%;">
+                                    <i class="fas fa-user-plus"></i>
+                                    Create New User
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- New User Form (Hidden by default) -->
+                        <div id="new-user-form-section" class="form-section" style="display: none;">
+                            <h2 class="form-section-title">
+                                <i class="fas fa-user-plus"></i> New User Details
+                                <button type="button" id="cancel-new-user-btn" class="btn btn-secondary" style="float: right; padding: 0.5rem 1rem; font-size: 0.875rem;">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                            </h2>
+                            
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label">Full Name *</label>
+                                    <input type="text" id="new-full-name" class="form-input" placeholder="e.g., John Doe" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Email *</label>
+                                    <input type="email" id="new-email" class="form-input" placeholder="e.g., john@example.com" required>
+                                </div>
+                            </div>
+
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label">Phone Number *</label>
+                                    <input type="tel" id="new-phone" class="form-input" placeholder="e.g., 0812345678" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">ID Number *</label>
+                                    <input type="text" id="new-id-number" class="form-input" placeholder="e.g., 9001010000000" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Temporary Password *</label>
+                                <input type="text" id="new-password" class="form-input" placeholder="Will be sent to user's email" value="" required>
+                                <p class="helper-text">
+                                    <i class="fas fa-key"></i> User will need to change this on first login
+                                </p>
+                            </div>
+
+                            <button type="button" id="save-new-user-btn" class="btn btn-primary" style="width: 100%;">
+                                <i class="fas fa-save"></i>
+                                Create User & Continue
+                            </button>
+                        </div>                            <div class="actions">
+                                <button type="button" class="btn btn-secondary" onclick="window.location.href='/admin/applications'">
+                                    <i class="fas fa-arrow-left"></i>
+                                    Cancel
+                                </button>
+                                <button type="submit" class="btn btn-primary" id="next-btn" disabled>
+                                    Next: Loan Details
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+
+            attachEventListeners();
+        }
+
+        function attachEventListeners() {
+            const searchInput = document.getElementById('user-search');
+            const form = document.getElementById('step1-form');
+            const createNewUserBtn = document.getElementById('create-new-user-btn');
+            const cancelNewUserBtn = document.getElementById('cancel-new-user-btn');
+            const saveNewUserBtn = document.getElementById('save-new-user-btn');
+
+            // User search
+            searchInput?.addEventListener('input', handleSearch);
+
+            // Form submission
+            form?.addEventListener('submit', handleSubmit);
+
+            // Create new user button
+            createNewUserBtn?.addEventListener('click', showNewUserForm);
+            cancelNewUserBtn?.addEventListener('click', hideNewUserForm);
+            saveNewUserBtn?.addEventListener('click', handleCreateNewUser);
+
+            // Generate random password on load
+            const passwordInput = document.getElementById('new-password');
+            if (passwordInput) {
+                passwordInput.value = generateRandomPassword();
+            }
+        }
+
+        function showNewUserForm() {
+            document.getElementById('new-user-form-section').style.display = 'block';
+            document.getElementById('create-new-user-btn').style.display = 'none';
+            document.getElementById('user-search').disabled = true;
+            
+            // Clear selected user if any
+            if (selectedUser) {
+                removeUser();
+            }
+        }
+
+        function hideNewUserForm() {
+            document.getElementById('new-user-form-section').style.display = 'none';
+            document.getElementById('create-new-user-btn').style.display = 'block';
+            document.getElementById('user-search').disabled = false;
+            
+            // Clear form
+            document.getElementById('new-full-name').value = '';
+            document.getElementById('new-email').value = '';
+            document.getElementById('new-phone').value = '';
+            document.getElementById('new-id-number').value = '';
+            document.getElementById('new-password').value = generateRandomPassword();
+        }
+
+        function generateRandomPassword() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+            let password = '';
+            for (let i = 0; i < 12; i++) {
+                password += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return password;
+        }
+
+        async function handleCreateNewUser() {
+            const fullName = document.getElementById('new-full-name').value.trim();
+            const email = document.getElementById('new-email').value.trim();
+            const phone = document.getElementById('new-phone').value.trim();
+            const idNumber = document.getElementById('new-id-number').value.trim();
+            const password = document.getElementById('new-password').value.trim();
+
+            // Validation
+            if (!fullName || !email || !phone || !idNumber || !password) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address');
+                return;
+            }
+
+            const saveBtn = document.getElementById('save-new-user-btn');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating User...';
+
+            try {
+                // Create user in Supabase Auth
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: {
+                            full_name: fullName,
+                            phone: phone,
+                            id_number: idNumber,
+                            role: 'borrower'
+                        }
+                    }
+                });
+
+                if (authError) {
+                    // Check if user already exists
+                    if (authError.message.includes('already registered')) {
+                        throw new Error('A user with this email already exists');
+                    }
+                    throw authError;
+                }
+
+                // Create profile (this might be done by trigger, but we'll ensure it exists)
+                const userId = authData.user?.id;
+                
+                if (userId) {
+                    // Check if profile exists
+                    const { data: existingProfile } = await supabase
+                        .from('profiles')
+                        .select('id')
+                        .eq('id', userId)
+                        .single();
+
+                    // Only insert if profile doesn't exist
+                    if (!existingProfile) {
+                        const { error: profileError } = await supabase
+                            .from('profiles')
+                            .insert([{
+                                id: userId,
+                                full_name: fullName,
+                                email: email,
+                                phone: phone,
+                                id_number: idNumber,
+                                role: 'borrower'
+                            }]);
+
+                        if (profileError && !profileError.message.includes('duplicate')) {
+                            console.error('Profile creation error:', profileError);
+                        }
+                    }
+                }
+
+                // Select the newly created user
+                const newUser = {
+                    id: userId,
+                    full_name: fullName,
+                    email: email,
+                    phone: phone,
+                    role: 'borrower'
+                };
+
+                selectUser(newUser);
+                hideNewUserForm();
+
+                alert(`User created successfully!\n\nEmail: ${email}\nPassword: ${password}\n\nPlease share these credentials with the user.`);
+
+            } catch (error) {
+                console.error('Error creating user:', error);
+                alert(`Error creating user: ${error.message}`);
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalText;
+            } finally {
+                if (!saveBtn.disabled) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = originalText;
+                }
+            }
+        }
+
+        async function handleSearch(e) {
+            const query = e.target.value.trim();
+            const resultsDiv = document.getElementById('search-results');
+
+            if (query.length < 2) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+
+            // Debounce search
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                try {
+                    resultsDiv.innerHTML = '<div class="search-result-item"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
+                    resultsDiv.style.display = 'block';
+
+                    const { data, error } = await supabase
+                        .from('profiles')
+                        .select('id, full_name, email, phone, role')
+                        .or(`full_name.ilike.%${query}%,email.ilike.%${query}%`)
+                        .eq('role', 'borrower')
+                        .limit(10);
+
+                    if (error) {
+                        console.error('Search error:', error);
+                        resultsDiv.innerHTML = `
+                            <div class="search-result-item" style="color: #ef4444;">
+                                <i class="fas fa-exclamation-circle"></i> 
+                                Search error. Please try again.
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    if (!data || data.length === 0) {
+                        resultsDiv.innerHTML = `
+                            <div class="search-result-item" style="color: #6b7280;">
+                                <i class="fas fa-info-circle"></i> 
+                                No users found. Try creating a new user below.
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    renderSearchResults(data);
+                } catch (error) {
+                    console.error('Search error:', error);
+                    resultsDiv.innerHTML = `
+                        <div class="search-result-item" style="color: #ef4444;">
+                            <i class="fas fa-exclamation-circle"></i> 
+                            Error: ${error.message}
+                        </div>
+                    `;
+                }
+            }, 300);
+        }
+
+        function renderSearchResults(users) {
+            const resultsDiv = document.getElementById('search-results');
+            
+            resultsDiv.innerHTML = users.map(user => {
+                const initial = user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U';
+                return `
+                    <div class="search-result-item" onclick='selectUser(${JSON.stringify(user)})'>
+                        <div class="search-result-avatar">${initial}</div>
+                        <div class="search-result-info">
+                            <div class="search-result-name">${user.full_name || 'Unknown'}</div>
+                            <div class="search-result-email">${user.email}</div>
+                        </div>
+                        <i class="fas fa-chevron-right" style="color: #d1d5db;"></i>
+                    </div>
+                `;
+            }).join('');
+            
+            resultsDiv.style.display = 'block';
+        }
+
+        window.selectUser = function(user) {
+            selectedUser = user;
+            const resultsDiv = document.getElementById('search-results');
+            const displayDiv = document.getElementById('selected-user-display');
+            const nextBtn = document.getElementById('next-btn');
+            const searchInput = document.getElementById('user-search');
+
+            resultsDiv.style.display = 'none';
+            searchInput.value = '';
+
+            const initial = user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U';
+            displayDiv.innerHTML = `
+                <div class="selected-user-card">
+                    <div class="search-result-avatar">${initial}</div>
+                    <div class="search-result-info">
+                        <div class="search-result-name">${user.full_name || 'Unknown'}</div>
+                        <div class="search-result-email">${user.email}</div>
+                    </div>
+                    <button type="button" class="remove-btn" onclick="removeUser()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+
+            nextBtn.disabled = false;
+        };
+
+        window.removeUser = function() {
+            selectedUser = null;
+            document.getElementById('selected-user-display').innerHTML = '';
+            document.getElementById('next-btn').disabled = true;
+        };
+
+        function handleSubmit(e) {
+            e.preventDefault();
+            
+            if (!selectedUser) {
+                alert('Please select an applicant');
+                return;
+            }
+
+            // Save to sessionStorage and navigate to step 2
+            sessionStorage.setItem('newApplication', JSON.stringify({
+                step: 1,
+                user: selectedUser
+            }));
+
+            window.location.href = '/admin/create-application-step2';
+        }
+    </script>
+</body>
+</html>

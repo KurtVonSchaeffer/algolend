@@ -1,0 +1,232 @@
+<div class="page-container">
+  <div class="content-wrapper">
+    <div class="dashboard-wrapper">
+      <div class="dashboard-container">
+
+        <div id="mobile-view">
+            <section class="welcome-section">
+                <p class="greeting-line" id="greetingMobile"></p>
+                <h1 class="main-title">Portfolio Overview</h1>
+                <p class="date-label" id="currentDateMobile"></p>
+            </section>
+
+            <section class="hero-carousel-wrapper">
+                <div class="hero-carousel" id="metricsCarousel"></div>
+                <div class="carousel-indicators" id="carouselDots"></div>
+            </section>
+
+            <section class="quick-actions-row">
+                <button class="action-btn-item" onclick="createNewApplication()">
+                    <div class="action-icon-circle"><i class="fas fa-plus"></i></div>
+                    <span>New Loan</span>
+                </button>
+                <button class="action-btn-item" onclick="makePayment()">
+                    <div class="action-icon-circle"><i class="fas fa-wallet"></i></div>
+                    <span>Pay</span>
+                </button>
+                <button class="action-btn-item" onclick="openFullScreenModal('transactions')">
+                    <div class="action-icon-circle"><i class="fas fa-list-ul"></i></div>
+                    <span>Transactions</span>
+                </button>
+                <button class="action-btn-item" onclick="openFullScreenModal('applications')">
+                    <div class="action-icon-circle"><i class="fas fa-file-alt"></i></div>
+                    <span>Applications</span>
+                </button>
+            </section>
+
+            <section class="loans-section">
+                <div class="section-header">
+                    <h2 class="section-title">Active Loans</h2>
+                    <button class="view-all-link" onclick="openLoansModule()">View All</button>
+                </div>
+                <div class="loans-container-hifi" id="activeLoansGridMobile">
+                    </div>
+            </section>
+
+            <div id="fullScreenModal" class="full-modal hidden">
+                <div class="modal-header-hifi">
+                    <button onclick="closeFullScreenModal()" class="modal-close-btn">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <h2 id="modalTitle" class="modal-title-mobile">Details</h2>
+                    <div style="width: 36px;"></div> </div>
+                <div id="modalBody" class="modal-body-content"></div>
+            </div>
+        </div>
+
+        <div id="desktop-view">
+            <div class="dashboard-header">
+              <div class="header-left">
+                <p class="greeting-line" id="greetingDesktop"></p>
+                <h1>Portfolio Overview</h1>
+                <p id="currentDate">Tuesday, November 11, 2025</p>
+              </div>
+            </div>
+
+            <div class="top-section">
+              <div class="metrics-grid">
+                <div class="card ds-metric-card">
+                  <div class="ds-card-header">
+                    <span class="card-label">Outstanding Balance</span>
+                    <div class="card-icon-badge" style="--badge-color:#E7762E;--badge-bg:rgba(231,118,46,0.10)"><i class="fas fa-wallet"></i></div>
+                  </div>
+                  <div class="card-value" id="currentBalance">R 0.00</div>
+                  <div class="card-subtitle">Total principal remaining</div>
+                </div>
+                <div class="card ds-metric-card">
+                  <div class="ds-card-header">
+                    <span class="card-label">Next Payment Due</span>
+                    <div class="card-icon-badge" style="--badge-color:#3b82f6;--badge-bg:rgba(59,130,246,0.10)"><i class="fas fa-calendar-alt"></i></div>
+                  </div>
+                  <div class="card-value" id="nextPaymentAmount">R 0.00</div>
+                  <div class="card-subtitle" id="nextPaymentDate">Due date pending</div>
+                </div>
+                <div class="card ds-metric-card">
+                  <div class="ds-card-header">
+                    <span class="card-label">Total Borrowed</span>
+                    <div class="card-icon-badge" style="--badge-color:#10b981;--badge-bg:rgba(16,185,129,0.10)"><i class="fas fa-arrow-trend-up"></i></div>
+                  </div>
+                  <div class="card-value" id="totalBorrowed">R 0.00</div>
+                  <div class="card-subtitle">Lifetime capacity</div>
+                </div>
+                <div class="card ds-metric-card">
+                  <div class="ds-card-header">
+                    <span class="card-label">Total Repaid</span>
+                    <div class="card-icon-badge" style="--badge-color:#8b5cf6;--badge-bg:rgba(139,92,246,0.10)"><i class="fas fa-circle-check"></i></div>
+                  </div>
+                  <div class="card-value" id="totalRepaid">R 0.00</div>
+                  <div class="card-subtitle">Successfully settled</div>
+                </div>
+              </div>
+              <div class="credit-score-card card ds-metric-card">
+                <div class="ds-card-header">
+                  <span class="card-label">Credit Score</span>
+                  <div class="card-icon-badge" style="--badge-color:#E7762E;--badge-bg:rgba(231,118,46,0.10)"><i class="fas fa-chart-line"></i></div>
+                </div>
+                <div class="card-value" id="creditScore">0</div>
+                <div class="card-subtitle">Experian Financial Standing</div>
+                <div class="score-meter">
+                  <div class="score-fill"></div>
+                </div>
+              </div>
+
+              <!-- Eligibility Widget -->
+              <div class="card ds-metric-card" id="eligibilityCard" style="display:none;">
+                <div class="ds-card-header">
+                  <span class="card-label">My Eligibility</span>
+                  <div class="card-icon-badge" id="eligibilityBadgeIcon" style="--badge-color:#10b981;--badge-bg:rgba(16,185,129,0.10)"><i class="fas fa-shield-check"></i></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                  <span id="eligibilityBandDot" style="width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;"></span>
+                  <span class="card-value" style="font-size:22px !important;" id="eligibilityBandLabel">—</span>
+                </div>
+                <div id="eligibilityDetails" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;"></div>
+                <div id="eligibilityFirstLoan" style="display:none;background:#fff8ed;border-radius:10px;padding:8px 12px;font-size:12px;color:#d97706;font-weight:600;"></div>
+                <button onclick="window.location.href='/user-portal/?page=apply-loan'"
+                  style="margin-top:10px;width:100%;padding:10px;border:none;border-radius:12px;background:linear-gradient(135deg,#E7762E,#f08840);color:white;font-weight:700;font-size:13px;cursor:pointer;">
+                  Apply Now <i class="fas fa-arrow-right"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="quick-actions-section">
+              <div class="section-title-bar">
+                <h2>Quick Actions</h2>
+              </div>
+              <div class="quick-actions-grid">
+                <button class="action-card" onclick="createNewApplication()">
+                  <div class="action-icon-wrapper"><i class="fas fa-plus"></i></div>
+                  <div class="action-text-block">
+                    <div class="action-title">New Loan</div>
+                    <div class="action-subtitle">Apply for a new loan</div>
+                  </div>
+                </button>
+                
+                <button class="action-card" onclick="makePayment()">
+                  <div class="action-icon-wrapper"><i class="fas fa-wallet"></i></div>
+                  <div class="action-text-block">
+                    <div class="action-title">Make Payment</div>
+                    <div class="action-subtitle">Process a payment</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div class="loans-section">
+              <div class="section-title-bar">
+                <h2>Active Loans</h2>
+                <button class="btn-view-all" onclick="openLoansModule()">View All →</button>
+              </div>
+              <div id="activeLoansGridWrapper">
+                  <div class="loans-grid" id="activeLoansGrid"></div>
+              </div>
+            </div>
+
+            <div class="bottom-grid">
+              <div class="transactions-section">
+                <div class="section-title-bar">
+                  <h2>Recent Transactions</h2>
+                  <button class="btn-view-all" onclick="openTransactionsModule()">View All →</button>
+                </div>
+                <div class="transaction-list" id="transactionList"></div>
+              </div>
+
+              <div class="applications-section">
+                <div class="section-title-bar">
+                  <h2>Recent Applications</h2>
+                  <button class="btn-view-all" onclick="openApplicationsModule()">View All →</button>
+                </div>
+                <div class="application-list" id="applicationList"></div>
+              </div>
+            </div>
+
+            <div class="charts-section">
+              <div class="chart-card">
+                <div class="section-title-bar">
+                  <h2>Repayment Trends</h2>
+                  <div class="chart-period-selector">
+                    <button class="period-btn active" onclick="updateChartPeriod('6m')">6M</button>
+                    <button class="period-btn" onclick="updateChartPeriod('1y')">1Y</button>
+                    <button class="period-btn" onclick="updateChartPeriod('all')">All</button>
+                  </div>
+                </div>
+                <div class="chart-container">
+                  <canvas id="repaymentChart"></canvas>
+                </div>
+              </div>
+
+              <div class="chart-card">
+                <div class="section-title-bar">
+                  <h2>Loan Breakdown</h2>
+                </div>
+                <div class="chart-container">
+                  <canvas id="loanBreakdownChart"></canvas>
+                </div>
+              </div>
+            </div>
+        </div>
+        </div>
+    </div>
+  </div>
+</div>
+
+<div id="modern-universal-modal" class="modern-modal-overlay hidden">
+    <div class="modern-modal-panel" role="dialog" aria-modal="true">
+        <div class="modern-modal-header">
+            <button class="modern-modal-close" onclick="closeUniversalModal()">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <h2 class="modern-modal-title" id="modern-modal-title">Details</h2>
+            <div style="width: 44px;"></div> </div>
+        <div class="modern-modal-body" id="modern-modal-body">
+            </div>
+    </div>
+</div>
+
+<div id="edit-module-container" class="module-overlay hidden">
+  <div id="edit-module-content" class="module-content"></div>
+</div>
+
+<link rel="stylesheet" href="/user-portal/modules-css/edit-application.css">
+<script src="/lib/chart.min.js"></script>
+<script type="module" src="/user-portal/pages-js/dashboard.js"></script>

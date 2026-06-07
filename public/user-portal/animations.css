@@ -1,0 +1,487 @@
+/* ================================================================
+   ZwanePortal — Global Animations & Effects Layer
+   Applies on top of all page CSS. No overrides to layout/color.
+   ================================================================ */
+
+/* ── Timing tokens ───────────────────────────────────────────── */
+:root {
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth:  cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out:     cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast:     0.18s;
+  --dur-med:      0.32s;
+  --dur-slow:     0.55s;
+}
+
+/* ================================================================
+   1. PAGE ENTRANCE — every page fades + rises in
+   ================================================================ */
+.page-container {
+  animation: pageEnter var(--dur-med) var(--ease-smooth) both;
+}
+
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ================================================================
+   2. STAGGER REVEAL — driven by IntersectionObserver in JS
+   ================================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity  var(--dur-slow) var(--ease-smooth),
+    transform var(--dur-slow) var(--ease-smooth);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* stagger helpers set by JS via --reveal-delay */
+.reveal { transition-delay: var(--reveal-delay, 0s); }
+
+/* ================================================================
+   3. RIPPLE — pure CSS + tiny JS to inject .ripple-wave
+   ================================================================ */
+.ripple-host {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-wave {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.30);
+  pointer-events: none;
+  transform: scale(0);
+  animation: rippleExpand 0.55s var(--ease-out) forwards;
+}
+
+/* Darker ripple for light-background elements */
+.ripple-dark .ripple-wave {
+  background: rgba(15, 23, 42, 0.07);
+}
+
+@keyframes rippleExpand {
+  to { transform: scale(3.5); opacity: 0; }
+}
+
+/* ================================================================
+   4. 3-D CARD TILT — mouse tracking via CSS vars set by JS
+   ================================================================ */
+.tilt-card {
+  transform-style: preserve-3d;
+  transform:
+    perspective(900px)
+    rotateX(var(--tilt-x, 0deg))
+    rotateY(var(--tilt-y, 0deg))
+    translateZ(0);
+  transition: transform 0.12s var(--ease-out), box-shadow var(--dur-fast) ease;
+  will-change: transform;
+}
+
+.tilt-card:hover {
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.09) !important;
+}
+
+/* ================================================================
+   5. MAGNETIC CTA — button glides toward cursor
+   ================================================================ */
+.magnetic {
+  transition: transform 0.25s var(--ease-spring);
+  will-change: transform;
+}
+
+/* ================================================================
+   6. PRIMARY BUTTON GLOW PULSE
+   ================================================================ */
+.btn-primary,
+.action-btn.primary,
+button[class*="primary"],
+.notif-filter-btn.active,
+.apply-btn-main,
+.submit-btn {
+  position: relative;
+}
+
+.btn-primary::after,
+.action-btn.primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-primary, #E7762E);
+  opacity: 0;
+  animation: glowPulse 2.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0;    transform: scale(1);    }
+  50%       { opacity: 0.22; transform: scale(1.08); }
+}
+
+/* ================================================================
+   7. NOTIFICATION BADGE PING
+   ================================================================ */
+.notif-unread-badge,
+#notifBadge,
+.badge-count {
+  position: relative;
+}
+
+.notif-unread-badge::before,
+#notifBadge::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: var(--color-primary, #E7762E);
+  opacity: 0;
+  animation: badgePing 2s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes badgePing {
+  0%   { opacity: 0.6; transform: scale(1);   }
+  80%  { opacity: 0;   transform: scale(2.2); }
+  100% { opacity: 0;   transform: scale(2.2); }
+}
+
+/* ================================================================
+   8. SCORE / PROGRESS BAR FILL
+   ================================================================ */
+.score-fill,
+[class*="progress-fill"],
+[class*="loan-progress"] {
+  transition: width 1.2s var(--ease-out) !important;
+}
+
+/* ================================================================
+   9. BOTTOM NAV ACTIVE BOUNCE
+   ================================================================ */
+.bottom-nav-item.active .bottom-nav-icon,
+.mobile-nav-btn.active i,
+.nav-tab.active i {
+  animation: navBounce 0.4s var(--ease-spring) both;
+}
+
+@keyframes navBounce {
+  0%   { transform: translateY(0) scale(1);    }
+  40%  { transform: translateY(-6px) scale(1.2); }
+  70%  { transform: translateY(2px) scale(0.95); }
+  100% { transform: translateY(0) scale(1);    }
+}
+
+/* ================================================================
+   10. SKELETON SHIMMER — override with richer gradient
+   ================================================================ */
+.notif-skeleton,
+.page-skeleton .sk,
+[class*="skeleton"] {
+  background: linear-gradient(
+    105deg,
+    #f1f5f9 0%,
+    #f1f5f9 35%,
+    #e8edf5 50%,
+    #f1f5f9 65%,
+    #f1f5f9 100%
+  );
+  background-size: 300% 100%;
+  animation: richShimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes richShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ================================================================
+   11. METRIC CARD NUMBER HIGHLIGHT
+   ================================================================ */
+.card-value,
+.metric-value,
+.loan-amount,
+[class*="stat-value"],
+[class*="amount-value"] {
+  transition: color var(--dur-fast) ease;
+}
+
+.card-value.counting,
+.metric-value.counting {
+  color: var(--color-primary, #E7762E);
+}
+
+/* ================================================================
+   12. ACTION ICON WRAPPER SPIN-IN
+   ================================================================ */
+.action-card:hover .action-icon-wrapper,
+.metric-icon:hover {
+  animation: iconSpinIn var(--dur-med) var(--ease-spring) both;
+}
+
+@keyframes iconSpinIn {
+  from { transform: rotate(-25deg) scale(0.85); }
+  to   { transform: rotate(0deg)   scale(1);    }
+}
+
+/* ================================================================
+   13. SIDEBAR NAV LINK ACTIVE SLIDE-IN INDICATOR
+   ================================================================ */
+.sidebar-nav-link.active::before,
+.nav-link.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12%;
+  height: 76%;
+  width: 3px;
+  background: var(--color-primary, #E7762E);
+  border-radius: 0 4px 4px 0;
+  animation: indicatorSlide var(--dur-med) var(--ease-spring) both;
+}
+
+@keyframes indicatorSlide {
+  from { height: 0; top: 50%; opacity: 0; }
+  to   { height: 76%; top: 12%; opacity: 1; }
+}
+
+/* ================================================================
+   14. TOAST / ALERT SLIDE-IN
+   ================================================================ */
+.toast,
+.alert-toast,
+[class*="toast-"],
+[id*="toast"] {
+  animation: toastSlide 0.4s var(--ease-spring) both;
+}
+
+@keyframes toastSlide {
+  from { opacity: 0; transform: translateY(16px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);    }
+}
+
+/* ================================================================
+   15. MODAL ENTRANCE
+   ================================================================ */
+.modern-modal-panel,
+[class*="modal-panel"],
+[class*="modal-content"],
+.modal-box {
+  animation: modalPop var(--dur-med) var(--ease-spring) both;
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)     scale(1);    }
+}
+
+/* ================================================================
+   16. FILTER / TAB PILL ACTIVE TRANSITION
+   ================================================================ */
+.notif-filter-btn,
+.filter-btn,
+[class*="tab-btn"],
+[class*="filter-pill"] {
+  transition:
+    background var(--dur-fast) var(--ease-smooth),
+    color       var(--dur-fast) var(--ease-smooth),
+    border-color var(--dur-fast) var(--ease-smooth),
+    box-shadow  var(--dur-fast) var(--ease-smooth),
+    transform   var(--dur-fast) var(--ease-spring) !important;
+}
+
+.notif-filter-btn:active,
+.filter-btn:active {
+  transform: scale(0.94) !important;
+}
+
+/* ================================================================
+   17. LINK / BUTTON FOCUS RING (accessibility + style)
+   ================================================================ */
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2.5px solid var(--color-primary, #E7762E);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ================================================================
+   18. CUSTOM SCROLLBAR — orange accent
+   ================================================================ */
+#main-content::-webkit-scrollbar,
+.content-wrapper::-webkit-scrollbar,
+.dashboard-container::-webkit-scrollbar {
+  width: 5px;
+}
+
+#main-content::-webkit-scrollbar-track,
+.content-wrapper::-webkit-scrollbar-track,
+.dashboard-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#main-content::-webkit-scrollbar-thumb,
+.content-wrapper::-webkit-scrollbar-thumb,
+.dashboard-container::-webkit-scrollbar-thumb {
+  background: rgba(231, 118, 46, 0.22);
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+#main-content::-webkit-scrollbar-thumb:hover,
+.content-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(231, 118, 46, 0.50);
+}
+
+/* ================================================================
+   19. LOGO FLOAT (navbar brand)
+   ================================================================ */
+.navbar-brand img,
+.nav-logo,
+[class*="brand-logo"] {
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+.navbar-brand img:hover,
+.nav-logo:hover {
+  transform: scale(1.06) rotate(-1deg);
+}
+
+/* ================================================================
+   20. CARD LIST ITEM HOVER — consistent across pages
+   ================================================================ */
+.modern-list-item,
+.loan-card,
+.metric-card,
+.action-card,
+.notif-item {
+  transition:
+    transform  var(--dur-fast) var(--ease-spring),
+    box-shadow var(--dur-fast) ease !important;
+}
+
+/* ================================================================
+   21. SECTION HEADER H1 GRADIENT SHIMMER
+   ================================================================ */
+.minimal-header h1,
+.dashboard-header h1,
+.notifications-header h1 {
+  background: linear-gradient(
+    105deg,
+    var(--color-text, #0F172A) 0%,
+    var(--color-text, #0F172A) 40%,
+    rgba(231, 118, 46, 0.85) 55%,
+    var(--color-text, #0F172A) 70%,
+    var(--color-text, #0F172A) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: headingShimmer 5s ease-in-out infinite;
+}
+
+@keyframes headingShimmer {
+  0%, 100% { background-position: 100% 0; }
+  50%       { background-position:   0% 0; }
+}
+
+/* ================================================================
+   22. STATUS BADGE POP-IN
+   ================================================================ */
+.status-badge,
+.loan-status,
+.count-pill,
+[class*="-badge"] {
+  animation: badgePopIn 0.35s var(--ease-spring) both;
+}
+
+@keyframes badgePopIn {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* ================================================================
+   23. PROFILE AVATAR RING PULSE
+   ================================================================ */
+.user-avatar,
+.avatar-circle,
+[class*="avatar"] {
+  position: relative;
+}
+
+.user-avatar::after,
+.avatar-circle::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--color-primary, #E7762E);
+  opacity: 0;
+  animation: avatarRing 3.5s ease-in-out infinite 1.5s;
+  pointer-events: none;
+}
+
+@keyframes avatarRing {
+  0%, 100% { opacity: 0;    transform: scale(1);    }
+  30%       { opacity: 0.4;  transform: scale(1.06); }
+  60%       { opacity: 0;    transform: scale(1.12); }
+}
+
+/* ================================================================
+   24. FLOATING ORANGE ORBS (background atmosphere)
+   ================================================================ */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(80px);
+  opacity: 0.04;
+}
+
+body::before {
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, #E7762E 0%, transparent 70%);
+  top: -120px;
+  right: -80px;
+  animation: orbDrift 18s ease-in-out infinite;
+}
+
+body::after {
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, #E7762E 0%, transparent 70%);
+  bottom: -100px;
+  left: -60px;
+  animation: orbDrift 22s ease-in-out infinite reverse;
+}
+
+@keyframes orbDrift {
+  0%, 100% { transform: translate(0, 0)   scale(1);    }
+  33%       { transform: translate(30px, 20px) scale(1.08); }
+  66%       { transform: translate(-20px, 40px) scale(0.94); }
+}
+
+/* ================================================================
+   25. REDUCE MOTION — respect user OS preference
+   ================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,168 @@
+<aside class="sidebar">
+  <div class="sidebar-container">
+    <!-- Company Branding -->
+    <div class="sidebar-heading">
+      <img src="/shared/algolend-logo.svg" alt="Company logo" class="sidebar-logo-img" id="sidebar-logo-img" data-brand-logo>
+    </div>
+    
+    <!-- Menu Items -->
+    <nav class="sidebar-nav">
+      <ul class="nav-list">
+        <li class="nav-item">
+          <a href="#" class="nav-link" data-page="dashboard">
+            <i class="fa-solid fa-chart-line nav-icon"></i>
+            <span class="nav-label">Dashboard</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a href="#" class="nav-link" data-page="apply-loan">
+            <i class="fa-solid fa-file-contract nav-icon"></i>
+            <span class="nav-label">Apply for Loan</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a href="#" class="nav-link" data-page="loan-calculator">
+            <i class="fa-solid fa-calculator nav-icon"></i>
+            <span class="nav-label">Loan Calculator</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a href="#" class="nav-link" data-page="transcripts">
+            <i class="fa-solid fa-file-lines nav-icon"></i>
+            <span class="nav-label">Transcripts</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a href="#" class="nav-link" data-page="documents">
+            <i class="fa-solid fa-receipt nav-icon"></i>
+            <span class="nav-label">Transactions</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a href="#" class="nav-link" data-page="support">
+            <i class="fa-solid fa-headset nav-icon"></i>
+            <span class="nav-label">Support</span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a href="#" class="nav-link" data-page="profile">
+            <i class="fa-solid fa-user nav-icon"></i>
+            <span class="nav-label">Profile</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Bottom Section -->
+    <div class="sidebar-bottom">
+      <button class="logout-btn">
+        <i class="fa-solid fa-sign-out-alt"></i>
+        <span>Sign Out</span>
+      </button>
+      <div style="text-align:center;padding:10px 0 4px;opacity:0.45;font-size:10px;letter-spacing:0.04em;color:inherit;">
+        Powered by <strong style="opacity:0.8;">Mint Platforms</strong>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<nav class="luma-nav-container" id="lumaNav">
+  <div class="luma-glow" id="lumaGlow"></div>
+
+  <div class="luma-dock" id="lumaDock">
+    <button class="luma-item active" data-page="dashboard" onclick="lumaNavigate(this,'dashboard')">
+      <i class="fa-solid fa-house"></i>
+      <span class="luma-tooltip">Home</span>
+    </button>
+    <button class="luma-item" data-page="apply-loan" onclick="lumaNavigate(this,'apply-loan')">
+      <i class="fa-solid fa-file-contract"></i>
+      <span class="luma-tooltip">Apply</span>
+    </button>
+    <button class="luma-item" data-page="documents" onclick="lumaNavigate(this,'documents')">
+      <i class="fa-solid fa-receipt"></i>
+      <span class="luma-tooltip">Pay</span>
+    </button>
+    <button class="luma-item" data-page="transcripts" onclick="lumaNavigate(this,'transcripts')">
+      <i class="fa-solid fa-chart-line"></i>
+      <span class="luma-tooltip">Credit</span>
+    </button>
+    <button class="luma-item" data-page="support" onclick="lumaNavigate(this,'support')">
+      <i class="fa-solid fa-headset"></i>
+      <span class="luma-tooltip">Support</span>
+    </button>
+    <button class="luma-item" data-page="profile" onclick="lumaNavigate(this,'profile')">
+      <i class="fa-solid fa-user"></i>
+      <span class="luma-tooltip">Profile</span>
+    </button>
+  </div>
+</nav>
+
+<!-- Luma Bar JS lives in script.js (innerHTML doesn't execute scripts) -->
+
+<div id="fullScreenMenu" class="more-menu-overlay">
+  <div class="menu-header-wrapper">
+    <button class="close-menu-btn" id="closeMenu">
+      <i class="fa-solid fa-arrow-left"></i>
+    </button>
+    <div class="menu-title">MENU</div>
+  </div>
+  
+  <div class="menu-list-container">
+    <div class="menu-list-item" onclick="handleMenuNav('dashboard')">
+      <span class="menu-label">Dashboard</span>
+      <i class="fa-solid fa-chevron-right arrow-icon"></i>
+    </div>
+
+    <div class="menu-section">
+      <span class="section-heading">LOAN SERVICES</span>
+      <div class="menu-list-item" onclick="handleMenuNav('apply-loan')">
+        <span class="menu-label">Apply for Loan</span>
+        <i class="fa-solid fa-chevron-right arrow-icon"></i>
+      </div>
+      <div class="menu-list-item" onclick="handleMenuNav('loan-calculator')">
+        <span class="menu-label">Loan Calculator</span>
+        <i class="fa-solid fa-chevron-right arrow-icon"></i>
+      </div>
+    </div>
+
+    <div class="menu-section">
+      <span class="section-heading">ACCOUNT</span>
+      <div class="menu-list-item" onclick="handleMenuNav('profile')">
+        <span class="menu-label">Profile</span>
+        <i class="fa-solid fa-chevron-right arrow-icon"></i>
+      </div>
+      <div class="menu-list-item" onclick="handleMenuNav('transcripts')">
+        <span class="menu-label">Transcripts</span>
+        <i class="fa-solid fa-chevron-right arrow-icon"></i>
+      </div>
+      <div class="menu-list-item" onclick="handleMenuNav('documents')">
+        <span class="menu-label">Transactions</span>
+        <i class="fa-solid fa-chevron-right arrow-icon"></i>
+      </div>
+    </div>
+
+    <div class="menu-section">
+      <span class="section-heading">HELP</span>
+      <div class="menu-list-item" onclick="handleMenuNav('support')">
+        <span class="menu-label">Support & FAQ</span>
+        <i class="fa-solid fa-chevron-right arrow-icon"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="menu-footer">
+    <button class="menu-logout-btn">
+      <i class="fa-solid fa-sign-out-alt"></i>
+      <span>Sign Out</span>
+    </button>
+    <div style="text-align:center;padding:12px 0 4px;opacity:0.4;font-size:10px;letter-spacing:0.04em;">
+      Powered by <strong>Mint Platforms</strong>
+    </div>
+  </div>
+</div>

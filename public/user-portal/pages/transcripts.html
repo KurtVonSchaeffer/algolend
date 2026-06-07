@@ -1,0 +1,116 @@
+<div class="page-container">
+  <div class="content-wrapper">
+    <header class="minimal-header transcripts-header">
+      <div class="header-text">
+        <h1>Credit Transcripts</h1>
+        <p class="page-subtitle">Review bureau decisioning data and access supporting documents.</p>
+      </div>
+      <button id="refreshTranscriptsBtn" class="action-btn primary" style="height: 48px; padding: 0 24px; font-size: 14px; border-radius: 12px;">
+        <i class="fas fa-rotate"></i> 
+        <span id="refreshBtnText">Refresh Data</span>
+      </button>
+    </header>
+
+    <div id="transcriptsAlert" class="transcripts-alert info" style="display: none;">
+      <i class="fas fa-circle-notch fa-spin"></i>
+      <span id="alertMessage">Loading your credit data...</span>
+    </div>
+
+    <div class="transcripts-stack">
+      
+      <article class="card minimalist-score-card" id="creditSummaryCard">
+        <div class="msc-header">
+          <h2 class="msc-title">Credit Score</h2>
+          <span class="msc-date" id="creditCheckedAt">No record</span>
+        </div>
+        
+        <div class="msc-content">
+          <div class="msc-gauge-container" id="gaugeContainer">
+
+            <svg class="score-gauge" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+              <!-- Tick marks (JS-generated) -->
+              <g id="gaugeTicks"></g>
+              <!-- Background track arc -->
+              <circle class="gauge-track" cx="100" cy="100" r="80"
+                      transform="rotate(135, 100, 100)"/>
+              <!-- Animated glow layer -->
+              <circle class="gauge-glow" id="gaugeGlow" cx="100" cy="100" r="80"
+                      transform="rotate(135, 100, 100)"/>
+              <!-- Animated fill arc -->
+              <circle class="gauge-fill" id="gaugeArc" cx="100" cy="100" r="80"
+                      transform="rotate(135, 100, 100)"/>
+            </svg>
+
+            <!-- Centered content overlay -->
+            <div class="gauge-center">
+              <span class="gauge-score-label">SCORE</span>
+              <h3 class="msc-score" id="creditScoreValue">—</h3>
+              <span class="msc-risk" id="creditRiskValue">Pending</span>
+            </div>
+
+            <!-- Range end-point labels -->
+            <span class="gauge-label-min">300</span>
+            <span class="gauge-label-max">999</span>
+
+          </div>
+        </div>
+
+        <div class="msc-footer">
+          <i class="fas fa-info-circle"></i>
+          <span id="creditReasonValue">Upload a credit report to see insights.</span>
+        </div>
+      </article>
+
+      <nav class="quick-actions-row">
+        <button class="action-btn-item" onclick="openHistoryModal()">
+          <div class="action-icon-circle"><i class="fas fa-history"></i></div>
+          <span>History</span>
+        </button>
+        <button class="action-btn-item" onclick="openDocModal('payslip')">
+          <div class="action-icon-circle"><i class="fas fa-file-invoice-dollar"></i></div>
+          <span>Payslip</span>
+        </button>
+        <button class="action-btn-item" onclick="openDocModal('bank_statement')">
+          <div class="action-icon-circle"><i class="fas fa-building-columns"></i></div>
+          <span>Bank Stmt</span>
+        </button>
+        <button class="action-btn-item" onclick="window.location.href='/user-portal/?page=apply-loan'">
+          <div class="action-icon-circle"><i class="fas fa-id-card"></i></div>
+          <span>ID Doc</span>
+        </button>
+      </nav>
+
+      <!-- Score band ruler — where you stand -->
+      <div id="scoreBandRuler"></div>
+
+      <!-- Loan eligibility based on score -->
+      <div id="loanEligibility"></div>
+
+      <article class="card" id="creditDetailsCard" style="padding-top: 24px;">
+        <header class="card-header" style="margin-bottom: 20px;">
+          <h3>Detailed Metrics</h3>
+        </header>
+        <div id="creditMetricsGrid" class="metrics-grid"></div>
+      </article>
+
+      <!-- Tips to improve score -->
+      <div id="improvementTips"></div>
+
+      <!-- Score trend history chart -->
+      <div id="scoreHistory"></div>
+
+    </div>
+  </div>
+</div>
+
+<div id="modern-universal-modal" class="modern-modal-overlay hidden">
+    <div class="modern-modal-panel">
+        <div class="modern-modal-header">
+            <h2 id="modern-modal-title" class="modern-modal-title"></h2>
+            <button class="modern-modal-close" onclick="closeUniversalModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="modern-modal-body" class="modern-modal-body"></div>
+    </div>
+</div>
+
+<input type="file" id="hiddenDocUpload" style="display: none;" accept=".pdf,.png,.jpg,.jpeg">
