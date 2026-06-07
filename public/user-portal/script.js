@@ -27,7 +27,7 @@ const NAV_SEARCH_ITEMS = [
 let navSearchMatches = [];
 let navSearchActiveIndex = -1;
 let globalUserProfile = null;
-const DEFAULT_BRAND_LOGO = 'https://static.wixstatic.com/media/f82622_cde1fbd5680141c5b0fccca81fb92ad6~mv2.png';
+const DEFAULT_BRAND_LOGO = 'https://placehold.co/240x80/E7762E/ffffff?text=AlgoLend';
 const FALLBACK_SYSTEM_THEME = {
   primary_color: '#E7762E',
   secondary_color: '#F97316',

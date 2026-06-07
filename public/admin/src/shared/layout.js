@@ -4,7 +4,7 @@ import { ensureThemeLoaded, getCompanyName, DEFAULT_SYSTEM_SETTINGS } from './th
 const appShell = document.getElementById('app-shell');
 let userProfile = null;
 let userRole = 'borrower';
-const DEFAULT_BRAND_LOGO = 'https://static.wixstatic.com/media/f82622_cde1fbd5680141c5b0fccca81fb92ad6~mv2.png';
+const DEFAULT_BRAND_LOGO = 'https://placehold.co/240x80/E7762E/ffffff?text=AlgoLend';
 
 const escapeAttr = (value = '') => {
   if (!value) return '';

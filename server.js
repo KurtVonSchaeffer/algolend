@@ -213,7 +213,7 @@ async function getSureSystemsActivationStatus() {
 }
 
 const DEFAULT_AUTH_OVERLAY_COLOR = '#EA580C';
-const DEFAULT_COMPANY_NAME = 'Your Company';
+const DEFAULT_COMPANY_NAME = process.env.COMPANY_NAME || 'AlgoLend';
 
 const DEFAULT_CAROUSEL_SLIDES = [
     {
@@ -272,6 +272,7 @@ const normalizeHexColor = (value, fallback) => {
 };
 
 const normalizeCompanyName = (value) => {
+    if (process.env.COMPANY_NAME) return process.env.COMPANY_NAME;
     const name = typeof value === 'string' ? value.trim() : '';
     return name || DEFAULT_SYSTEM_SETTINGS.company_name;
 };

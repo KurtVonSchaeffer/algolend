@@ -1,4 +1,4 @@
-const DEFAULT_AUTH_OVERLAY_COLOR = '#7C3AED';
+const DEFAULT_AUTH_OVERLAY_COLOR = '#2B1551';
 
 const DEFAULT_COMPANY_NAME = '';
 
@@ -20,9 +20,9 @@ const DEFAULT_CAROUSEL_SLIDES = [
 const DEFAULT_SYSTEM_SETTINGS = {
   id: 'global',
   company_name: DEFAULT_COMPANY_NAME,
-  primary_color: '#7C3AED',
-  secondary_color: '#1A1F36',
-  tertiary_color: '#A78BFA',
+  primary_color: '#582AA8',
+  secondary_color: '#2B1551',
+  tertiary_color: '#9B6FE0',
   theme_mode: 'light',
   company_logo_url: null,
   auth_background_url: null,

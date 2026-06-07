@@ -8,8 +8,8 @@ let viewState = 'login'; // Options: 'login', 'signup', 'forgot'
 let formMessage = { type: '', text: '' }; 
 let brandingTheme = null;
 
-const DEFAULT_BRAND_LOGO = 'https://placehold.co/240x80?text=Your+Logo';
-const DEFAULT_AUTH_WALLPAPER = 'https://static.wixstatic.com/media/f82622_a05fcfc8600d48818feb2feeef4796fa~mv2.png';
+const DEFAULT_BRAND_LOGO = 'https://placehold.co/240x80/E7762E/ffffff?text=AlgoLend';
+const DEFAULT_AUTH_WALLPAPER = '';
 const DEFAULT_AUTH_OVERLAY_COLOR = DEFAULT_SYSTEM_SETTINGS.auth_overlay_color || '#212121ff';
 const DEFAULT_AUTH_OVERLAY_ENABLED = DEFAULT_SYSTEM_SETTINGS.auth_overlay_enabled !== false;
 const DEFAULT_CAROUSEL_SLIDES = (DEFAULT_SYSTEM_SETTINGS.carousel_slides || []).map((slide) => ({
@@ -184,12 +184,22 @@ function startCarousel() {
     const updateSlide = (index) => {
         titleEl.style.opacity = '0';
         textEl.style.opacity = '0';
-        
+
         setTimeout(() => {
             const activeSlides = getSlides();
             const safeIndex = index % activeSlides.length;
-            titleEl.innerText = activeSlides[safeIndex].title;
-            textEl.innerText = activeSlides[safeIndex].text;
+            const slide = activeSlides[safeIndex];
+            titleEl.innerText = slide.title;
+            if (Array.isArray(slide.bullets) && slide.bullets.length) {
+                textEl.innerHTML = slide.bullets.map(b =>
+                    `<span style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;">
+                        <span style="color:#9B6FE0;font-size:10px;margin-top:4px;flex-shrink:0;">&#9679;</span>
+                        <span>${b}</span>
+                    </span>`
+                ).join('');
+            } else {
+                textEl.innerText = slide.text || '';
+            }
             titleEl.style.opacity = '1';
             textEl.style.opacity = '1';
         }, 200);
@@ -207,7 +217,7 @@ function startCarousel() {
     carouselInterval = setInterval(() => {
         currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
         updateSlide(currentSlideIndex);
-    }, 20000); 
+    }, 8000); 
 
     window.setSlide = (index) => {
         currentSlideIndex = index;
@@ -230,7 +240,7 @@ function render() {
     if (!authContainer) return;
 
     const theme = brandingTheme || getCachedTheme() || {};
-    const brandLogo = (theme.company_logo_url || '').trim() || DEFAULT_BRAND_LOGO;
+    const brandLogo = (theme.company_logo_url || '').trim();
     const wallpaper = (theme.auth_background_url || '').trim() || DEFAULT_AUTH_WALLPAPER;
     const overlayEnabled = typeof theme.auth_overlay_enabled === 'undefined'
         ? DEFAULT_AUTH_OVERLAY_ENABLED
@@ -312,14 +322,28 @@ function render() {
 
         .auth-left-bg {
             position: absolute; inset: 0;
-            background-image: url('${wallpaperAttr}');
+            overflow: hidden;
+        }
+        .auth-slide {
+            position: absolute; inset: 0;
             background-size: cover; background-position: center;
-            animation: kenBurns 40s ease-in-out infinite alternate;
-            transform: scaleX(${wallpaperScaleX});
+            opacity: 0;
+            animation: slideFade 20s ease-in-out infinite;
+        }
+        .auth-slide:nth-child(1) { animation-delay: 0s;    background-image: url('/photo-piggybank.jpg'); }
+        .auth-slide:nth-child(2) { animation-delay: 5s;    background-image: url('/photo-newhome.jpg'); }
+        .auth-slide:nth-child(3) { animation-delay: 10s;   background-image: url('/photo-family.jpg'); }
+        .auth-slide:nth-child(4) { animation-delay: 15s;   background-image: url('/photo-finance.jpg'); }
+        @keyframes slideFade {
+            0%   { opacity: 0; transform: scale(1.05); }
+            5%   { opacity: 1; transform: scale(1.03); }
+            20%  { opacity: 1; transform: scale(1); }
+            28%  { opacity: 0; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1); }
         }
         .auth-left-overlay {
             position: absolute; inset: 0;
-            background: linear-gradient(160deg, rgba(15,23,42,0.72) 0%, rgba(231,118,46,0.35) 100%);
+            background: linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(43,21,81,0.45) 50%, rgba(15,23,42,0.70) 100%);
         }
         .auth-left-content {
             position: relative; z-index: 2;
@@ -327,16 +351,23 @@ function render() {
             height: 100%; padding: 48px;
         }
         .auth-brand-logo {
-            height: 44px; width: auto; object-fit: contain; object-position: left;
+            height: 70px; width: auto; max-width: 320px; object-fit: contain; object-position: left;
             filter: brightness(0) invert(1);
+        }
+        .auth-brand-wordmark {
+            display: inline-block;
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #ffffff;
             opacity: 0.95;
         }
         .auth-carousel-body { max-width: 440px; }
         .auth-carousel-tag {
             display: inline-block;
-            background: rgba(231,118,46,0.25);
+            background: rgba(88,42,168,0.25);
             color: rgba(255,255,255,0.9);
-            border: 1px solid rgba(231,118,46,0.4);
+            border: 1px solid rgba(88,42,168,0.45);
             font-size: 11px; font-weight: 700; letter-spacing: .1em;
             text-transform: uppercase;
             padding: 5px 14px; border-radius: 100px;
@@ -348,9 +379,9 @@ function render() {
             margin: 0 0 16px; letter-spacing: -0.5px;
         }
         #carousel-text {
-            font-size: 15px; font-weight: 400;
-            color: rgba(255,255,255,0.75); line-height: 1.7;
-            margin: 0 0 32px;
+            font-size: 13px; font-weight: 400;
+            color: rgba(255,255,255,0.80); line-height: 1.6;
+            margin: 0 0 24px;
         }
         #carousel-dots { display: flex; gap: 6px; }
         .carousel-dot {
@@ -449,8 +480,8 @@ function render() {
             border: none; border-radius: 12px;
             font-size: 15px; font-weight: 700;
             color: #fff; cursor: pointer;
-            background: linear-gradient(135deg, var(--color-primary, #E7762E) 0%, #f08840 100%);
-            box-shadow: 0 4px 16px rgba(231,118,46,0.30), 0 1px 3px rgba(0,0,0,0.08);
+            background: linear-gradient(135deg, #582AA8 0%, #7B3FD4 100%);
+            box-shadow: 0 4px 16px rgba(88,42,168,0.40), 0 1px 3px rgba(0,0,0,0.08);
             transition: transform .18s ease, box-shadow .18s ease;
             font-family: inherit;
             display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -503,11 +534,19 @@ function render() {
 
         <!-- Left: Brand panel -->
         <div class="auth-left">
-            <div class="auth-left-bg"></div>
+            <div class="auth-left-bg">
+                <div class="auth-slide"></div>
+                <div class="auth-slide"></div>
+                <div class="auth-slide"></div>
+                <div class="auth-slide"></div>
+            </div>
             <div class="auth-left-overlay"></div>
             <div class="auth-left-content">
                 <div>
-                    <img src="${brandLogoAttr}" alt="${companyName}" class="auth-brand-logo">
+                    ${brandLogo
+                        ? `<img src="${brandLogoAttr}" alt="${companyName}" class="auth-brand-logo">`
+                        : `<span class="auth-brand-wordmark">${companyName}</span>`
+                    }
                 </div>
                 <div class="auth-carousel-body">
                     <span class="auth-carousel-tag">Registered Credit Provider</span>

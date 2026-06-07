@@ -200,7 +200,7 @@ body, #main-content .page-container {
     .welcome-section, .quick-actions-row, .loans-section { padding: 0 24px; }
 
     /* Typography */
-    .main-title { font-size: 36px; font-weight: 700; letter-spacing: -1.5px; color: var(--text-main); margin: 0 0 4px 0; }
+    .main-title { font-size: 36px; font-weight: 700; letter-spacing: -1.5px; color: #582AA8; margin: 0 0 4px 0; text-shadow: 0 0 20px rgba(88,42,168,0.45), 0 0 40px rgba(88,42,168,0.25), 0 0 60px rgba(88,42,168,0.15); }
     .date-label { font-size: 15px; font-weight: 500; color: var(--text-muted); margin: 0; }
 
     /* Hero Carousel - Mathematically precise viewport fit */
