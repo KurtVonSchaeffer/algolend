@@ -88,7 +88,27 @@ export const DemoVideo: React.FC<DemoVideoProps> = ({ aspectRatio }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: '#090d16', overflow: 'hidden' }}>
       {/* Background Music - loops or plays throughout */}
-      <Audio src={staticFile('audio/background.mp3')} volume={0.25} />
+      <Audio src={staticFile('audio/background.mp3')} volume={0.15} />
+
+      {/* Voiceover Track */}
+      <Sequence from={0}>
+        <Audio src={staticFile('audio/scene1.m4a')} />
+      </Sequence>
+      <Sequence from={150}>
+        <Audio src={staticFile('audio/scene2.m4a')} />
+      </Sequence>
+      <Sequence from={450}>
+        <Audio src={staticFile('audio/scene3.m4a')} />
+      </Sequence>
+      <Sequence from={750}>
+        <Audio src={staticFile('audio/scene4.m4a')} />
+      </Sequence>
+      <Sequence from={1200}>
+        <Audio src={staticFile('audio/scene5.m4a')} />
+      </Sequence>
+      <Sequence from={1500}>
+        <Audio src={staticFile('audio/scene6.m4a')} />
+      </Sequence>
 
       {/* Scene 1: Welcome Intro Splash (0 - 5s, frames 0 - 150) */}
       <Sequence from={0} durationInFrames={150}>

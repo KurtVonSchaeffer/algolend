@@ -33,10 +33,20 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Global auth state listener - logs out user if session becomes invalid
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
-    // Only redirect if we're not already on login page
+  if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
     if (!window.location.pathname.includes('/auth/login')) {
-      console.log('🔒 Session expired or invalidated - redirecting to login');
+      console.log('🔒 Session expired - redirecting to login');
+      sessionStorage.clear();
+      window.location.replace('/auth/login.html');
+    }
+  }
+});
+
+// Clear stale sessions from other Supabase projects (400 on token refresh)
+supabase.auth.getSession().then(({ error }) => {
+  if (error?.status === 400 || error?.message?.includes('Invalid Refresh Token')) {
+    sessionStorage.clear();
+    if (!window.location.pathname.includes('/auth/login')) {
       window.location.replace('/auth/login.html');
     }
   }
