@@ -906,7 +906,7 @@ app.post('/api/notifications/status-change', async (req, res) => {
 
         const profile  = app.profiles || {};
         const to       = profile.cell_tel_no || profile.phone;
-        const company  = process.env.COMPANY_NAME || 'Zwane Financial Services';
+        const company  = process.env.COMPANY_NAME || 'AlgoLend';
         const name     = profile.full_name?.split(' ')[0] || 'Client';
         const ref      = app.loan_number || applicationId.slice(-8).toUpperCase();
         const amount   = Number(app.amount || 0);
@@ -2695,7 +2695,7 @@ app.post('/api/payouts/capitec-csv', async (req, res) => {
 
             // Fire disbursement notifications + auto-post to Cash Ledger (non-blocking)
             const settings = await getSystemTheme();
-            const company  = settings?.company_name || process.env.COMPANY_NAME || 'Zwane Financial';
+            const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
 
             // Auto-post each disbursement as a cash_out entry in the Cash Ledger
             const journalRows = apps.map(app => ({
@@ -3032,7 +3032,7 @@ app.get('/api/payment/banking-details', async (req, res) => {
             .maybeSingle();
 
         res.json({
-            company:        settings?.company_name            || process.env.COMPANY_NAME || 'Zwane Financial Services',
+            company:        settings?.company_name            || process.env.COMPANY_NAME || 'AlgoLend',
             bankName:       settings?.company_bank_name        || '',
             accountNo:      settings?.company_bank_account_no  || '',
             branchCode:     settings?.company_bank_branch_code || '',
@@ -3139,7 +3139,7 @@ app.post('/api/payment/submit-proof', async (req, res) => {
         const toPhone = profile?.cell_tel_no || profile?.phone;
         const toEmail = profile?.email;
         const clientFirst = (profile?.full_name || 'Client').split(' ')[0];
-        const co = process.env.COMPANY_NAME || 'Zwane Financial';
+        const co = process.env.COMPANY_NAME || 'AlgoLend';
         const typeStr = paymentType === 'settlement' ? 'settlement' : 'payment';
         const ackSms = `Hi ${clientFirst}, we've received your ${typeStr} proof of R${Number(amount).toLocaleString('en-ZA')} (Ref: ${reference || 'N/A'}). We'll confirm within 1 business day. – ${co}`;
         const ackWa  = `📋 *Proof Received* — ${co}\n\nHi ${clientFirst}, we've received your ${typeStr} proof of *R${Number(amount).toLocaleString('en-ZA')}*.\n\nReference: ${reference || 'N/A'}\n\nWe'll review and confirm within *1 business day*. You'll receive another notification once confirmed.`;
@@ -3244,7 +3244,7 @@ app.post('/api/admin/payment/confirm/:id', async (req, res) => {
         const fullName = payment.profiles?.full_name || 'Client';
         const name     = fullName.split(' ')[0];
         const settings = await getSystemTheme();
-        const company  = settings?.company_name || process.env.COMPANY_NAME || 'Zwane Financial';
+        const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
         const amtFmt   = `R ${Number(payment.amount).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
         const ref      = payment.reference || payment.id.slice(0,8).toUpperCase();
         const isSettle = payment.payment_type === 'settlement';
@@ -3878,7 +3878,7 @@ app.get('/api/contracts/:applicationId/preview', async (req, res) => {
         if (error || !app) return res.status(404).json({ error: 'Application not found' });
 
         const settings  = await getSystemTheme();
-        const company   = settings?.company_name   || process.env.COMPANY_NAME   || 'Zwane Financial Services';
+        const company   = settings?.company_name   || process.env.COMPANY_NAME   || 'AlgoLend';
         const ncrNumber = settings?.ncr_number      || process.env.COMPANY_NCR    || 'NCRCP13510';
         const companyReg= settings?.company_reg_number || '';
         const companyTel= settings?.company_phone   || '';
@@ -4284,7 +4284,7 @@ app.post('/api/messaging/otp', async (req, res) => {
         const { phone } = req.body;
         if (!phone) return res.status(400).json({ error: 'phone is required' });
         const settings  = await getSystemTheme();
-        const company   = settings?.company_name || process.env.COMPANY_NAME || 'Zwane Financial';
+        const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
         await messaging.sendOTPMessage({ to: phone, company });
         res.json({ success: true, message: 'OTP sent' });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -4332,7 +4332,7 @@ app.get('/api/statement/:applicationId', async (req, res) => {
             .order('created_at', { ascending: true });
 
         const settings = await getSystemTheme();
-        const company  = settings?.company_name || process.env.COMPANY_NAME || 'Zwane Financial Services';
+        const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
         const profile  = app.profiles || {};
         const loanRef  = app.loan_number || String(applicationId).slice(0,8).toUpperCase();
         const allPayments = [
@@ -4433,7 +4433,7 @@ app.post('/api/support/ticket', async (req, res) => {
         }
 
         // Email to credit provider / support team
-        const company = process.env.COMPANY_NAME || 'Zwane Financial Services';
+        const company = process.env.COMPANY_NAME || 'AlgoLend';
         const supportEmail = process.env.CREDIT_PROVIDER_EMAIL || process.env.RESEND_FROM_EMAIL;
         const clientName = profile?.full_name || user.email;
         const ticketRef  = ticket?.id?.slice(0,8)?.toUpperCase() || Date.now().toString(36).toUpperCase();
@@ -4532,7 +4532,7 @@ app.post('/api/push/test', async (req, res) => {
         if (!user) return res.status(401).json({ error: 'Invalid session' });
 
         const result = await pushNotifications.sendToUser(user.id, {
-            title: 'Zwane Financial Services',
+            title: 'AlgoLend',
             body:  'Push notifications are working! 🎉',
             url:   '/user-portal/?page=dashboard',
             tag:   'test-notification'
@@ -4561,7 +4561,7 @@ app.post('/api/messaging/registration-link', async (req, res) => {
         const { phone } = req.body;
         if (!phone) return res.status(400).json({ error: 'phone required' });
         const settings = await getSystemTheme();
-        const company  = settings?.company_name || process.env.COMPANY_NAME || 'Zwane Financial';
+        const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
         const link     = `${process.env.APP_URL || 'https://your-portal.vercel.app'}/auth/register.html?ref=${messaging.normaliseZANumber(phone)}`;
         await messaging.sendRegistrationLink({ to: phone, link, company });
         res.json({ success: true, link });

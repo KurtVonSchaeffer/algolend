@@ -32,3 +32,4 @@ scratch/
 *private*key*
 *pgp_key*
 .vercel
+.env*.local

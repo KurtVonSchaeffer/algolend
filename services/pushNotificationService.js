@@ -20,7 +20,7 @@ const sb = createClient(
 
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
-const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:info@zwanefinancial.co.za';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:info@algolend.co.za';
 
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
   webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);

@@ -334,7 +334,7 @@ function render() {
           <div class="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center font-black text-orange-600">1</div>
           <h2 class="font-bold text-gray-900">Upload Loan Book</h2>
         </div>
-        <p class="text-sm text-gray-500 mb-4">Upload the loan book CSV that Zwane provided. Auto-detects common column names.</p>
+        <p class="text-sm text-gray-500 mb-4">Upload the loan book CSV from AlgoLend. Auto-detects. Auto-detects common column names.</p>
         <input type="file" id="csv-upload" accept=".csv,.txt"
           class="block w-full text-sm border-2 border-dashed border-gray-200 rounded-xl p-6 cursor-pointer hover:border-orange-300 hover:bg-orange-50/30 transition-colors">
         <p class="text-xs text-gray-400 mt-2">Max 50MB. CSV with header row required.</p>

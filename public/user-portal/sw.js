@@ -17,15 +17,15 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data?.json() || {};
   } catch (err) {
-    data = { title: 'Zwane Financial', body: event.data?.text() || 'New notification' };
+    data = { title: 'AlgoLend', body: event.data?.text() || 'New notification' };
   }
 
-  const title   = data.title  || 'Zwane Financial';
+  const title   = data.title  || 'AlgoLend';
   const options = {
     body:    data.body  || '',
     icon:    data.icon  || '/user-portal/icon-192.png',
     badge:   data.badge || '/user-portal/badge-72.png',
-    tag:     data.tag   || 'zwane-' + Date.now(),
+    tag:     data.tag   || 'algolend-' + Date.now(),
     data:    { url: data.url || '/user-portal/', ...(data.data || {}) },
     vibrate: [200, 100, 200],
     actions: data.actions || [{ action: 'open', title: 'View' }],

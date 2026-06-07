@@ -3,10 +3,10 @@
  * Handles service worker registration, permission request, and subscription.
  *
  * Exposes:
- *   window.zwanePush.askPermission()  — prompt user for permission + subscribe
- *   window.zwanePush.isSubscribed()   — check current subscription state
- *   window.zwanePush.unsubscribe()    — remove subscription
- *   window.zwanePush.sendTest()       — send a test notification
+ *   window.algolendPush.askPermission()  — prompt user for permission + subscribe
+ *   window.algolendPush.isSubscribed()   — check current subscription state
+ *   window.algolendPush.unsubscribe()    — remove subscription
+ *   window.algolendPush.sendTest()       — send a test notification
  */
 (function () {
   // Don't run on auth pages
@@ -182,7 +182,7 @@
   }
 
   // Expose API on window
-  window.zwanePush = {
+  window.algolendPush = {
     askPermission,
     isSubscribed,
     unsubscribe,

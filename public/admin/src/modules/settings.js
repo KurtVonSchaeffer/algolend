@@ -862,7 +862,7 @@ async function renderSystemSettingsTab() {
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Account Holder Name</label>
                         <input type="text" id="bank-holder-input" value="${escapeHtmlAttr(systemSettingsDraft.company_bank_account_holder || '')}"
-                            class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:ring-orange-500 focus:border-orange-500" placeholder="e.g. Zwane Financial Services">
+                            class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:ring-orange-500 focus:border-orange-500" placeholder="e.g. AlgoLend">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Account Number</label>

@@ -1119,7 +1119,7 @@ window.makePayment = async () => {
     // Fetch active loan details for banking reference
     const { supabase } = await import('/Services/supabaseClient.js');
     const { data: { session } } = await supabase.auth.getSession();
-    const companyName = window.__systemTheme?.company_name || 'Zwane Financial Services';
+    const companyName = window.__systemTheme?.company_name || 'AlgoLend';
     const companyBank = window.__systemTheme?.company_bank_name || 'Standard Bank';
     const companyAcc  = window.__systemTheme?.company_bank_account || '';
     const companyBranch = window.__systemTheme?.company_branch_code || '';

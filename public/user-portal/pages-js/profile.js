@@ -1921,13 +1921,13 @@ async function refreshPushUI() {
     const testBtn = document.getElementById('push-test-btn');
     if (!label || !btn) return;
 
-    if (!window.zwanePush?.supported) {
+    if (!window.algolendPush?.supported) {
         label.textContent = 'Not supported in this browser';
         btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Unavailable';
         return;
     }
 
-    const subscribed = await window.zwanePush.isSubscribed();
+    const subscribed = await window.algolendPush.isSubscribed();
     const permission = Notification.permission;
 
     if (subscribed && permission === 'granted') {
@@ -1955,19 +1955,19 @@ async function refreshPushUI() {
 }
 
 window.togglePushNotifications = async function() {
-    if (!window.zwanePush) return;
-    const subscribed = await window.zwanePush.isSubscribed();
+    if (!window.algolendPush) return;
+    const subscribed = await window.algolendPush.isSubscribed();
     if (subscribed) {
-        await window.zwanePush.unsubscribe();
+        await window.algolendPush.unsubscribe();
     } else {
-        await window.zwanePush.askPermission();
+        await window.algolendPush.askPermission();
     }
     setTimeout(refreshPushUI, 300);
 };
 
 window.testPushNotification = async function() {
     try {
-        const r = await window.zwanePush.sendTest();
+        const r = await window.algolendPush.sendTest();
         if (r.sent > 0) {
             // visual feedback
         } else if (r.reason) {
