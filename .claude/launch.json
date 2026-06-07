@@ -2,10 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "zwane-portal",
+      "name": "algolend",
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
-      "port": 3002
+      "port": 3010,
+      "autoPort": false
     }
   ]
 }

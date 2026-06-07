@@ -33,3 +33,4 @@ scratch/
 *pgp_key*
 .vercel
 .env*.local
+demo-video/
