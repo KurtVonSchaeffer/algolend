@@ -1,8 +1,8 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/+esm';
 
-const supabaseUrl = import.meta?.env?.VITE_SUPABASE_URL ||"https://jmnjkxfxenrudpvjprcu.supabase.co" ;
+const supabaseUrl = import.meta?.env?.VITE_SUPABASE_URL ||"https://yakhrwrfmdrnhfgzfiwm.supabase.co" ;
 //"
-const supabaseAnonKey = import.meta?.env?.VITE_SUPABASE_ANON_KEY|| "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptbmpreGZ4ZW5ydWRwdmpwcmN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODkzNzUsImV4cCI6MjA4MDc2NTM3NX0.X4ZdxzHF0b9GnHklObpIHqnhWvtKjdZnLoah0EVTvHs" ;
+const supabaseAnonKey = import.meta?.env?.VITE_SUPABASE_ANON_KEY|| "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlha2hyd3JmbWRybmhmZ3pmaXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjAwMTYsImV4cCI6MjA5NTg5NjAxNn0.lgm1jvglC16RtqbGdiDNJcyLfobX-4F5AlKmoHZPCG4" ;
 //
 // --- Sanity Check ---
 // This check ensures the variables are filled.
