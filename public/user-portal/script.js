@@ -251,15 +251,16 @@ setInterval(async () => {
 // ================================================================
 document.addEventListener('DOMContentLoaded', async () => {
   // Check authentication first
-  const userProfile = await checkAuth(); 
+  const userProfile = await checkAuth();
+  if (!userProfile) return; // auth failed — redirect already in progress
   globalUserProfile = userProfile;
   window.globalUserProfile = userProfile;
-  
+
   // Load navbar & sidebar
-  await loadNavbar(); 
-  setNavbarOffset(); 
-  await loadSidebar(); 
-  setNavbarOffset(); 
+  await loadNavbar();
+  setNavbarOffset();
+  await loadSidebar();
+  setNavbarOffset();
   
   // Populate user info (Initials & Dropdown data)
   if (userProfile) {
