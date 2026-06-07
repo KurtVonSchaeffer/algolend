@@ -2096,6 +2096,10 @@ app.use(express.static(path.join(__dirname, 'public'), publicStaticOptions));
 
 // --- 6. Root Redirect & Auth Helpers ---
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'showcase.html'));
+});
+
+app.get('/login', (req, res) => {
     res.redirect('/auth/login.html');
 });
 

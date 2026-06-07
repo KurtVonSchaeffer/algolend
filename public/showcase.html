@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AlgoLend — Bespoke Digital Credit & Risk Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple:      #582AA8;
+      --purple-mid:  #7B3FD4;
+      --purple-light:#9B6FE0;
+      --purple-deep: #2B1551;
+      --bg:          #0D0A1A;
+      --surface:     #150E2E;
+      --surface-2:   #1E1540;
+      --text:        #F0EEF8;
+      --muted:       #9A8FC0;
+      --border:      rgba(155,111,224,0.18);
+      --glass:       rgba(21,14,46,0.60);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Open Sans', system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── AMBIENT BG ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(88,42,168,0.22) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 90%, rgba(43,21,81,0.35) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      width: min(92%, 1200px);
+      background: var(--glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      z-index: 100;
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none;
+    }
+    .nav-logo img { height: 36px; width: auto; filter: brightness(0) invert(1); }
+    .nav-logo-text {
+      font-family: 'Poppins', sans-serif;
+      font-size: 20px; font-weight: 700;
+      color: var(--text);
+    }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 8px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--muted); text-decoration: none;
+      font-size: 14px; font-weight: 500;
+      padding: 8px 14px; border-radius: 8px;
+      transition: color .2s, background .2s;
+      cursor: pointer;
+    }
+    .nav-links a:hover { color: var(--text); background: rgba(155,111,224,0.12); }
+
+    .btn-nav {
+      background: var(--purple);
+      color: #fff !important;
+      padding: 9px 20px !important;
+      border-radius: 10px !important;
+      font-weight: 600 !important;
+      transition: background .2s, transform .15s !important;
+    }
+    .btn-nav:hover { background: var(--purple-mid) !important; transform: translateY(-1px); }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+    }
+
+    /* ── SECTIONS ── */
+    section { position: relative; z-index: 1; }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 140px 24px 100px;
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(88,42,168,0.2);
+      border: 1px solid rgba(88,42,168,0.45);
+      border-radius: 100px;
+      padding: 6px 18px;
+      font-size: 13px; font-weight: 600;
+      color: var(--purple-light);
+      letter-spacing: .05em; text-transform: uppercase;
+      margin-bottom: 32px;
+    }
+    .hero-badge span { width: 6px; height: 6px; border-radius: 50%; background: var(--purple-light); display: inline-block; animation: pulse 2s ease-in-out infinite; }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .5; transform: scale(1.3); }
+    }
+
+    .hero h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: clamp(36px, 6vw, 72px);
+      font-weight: 900;
+      line-height: 1.08;
+      letter-spacing: -2px;
+      max-width: 900px;
+      margin-bottom: 12px;
+    }
+
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, #9B6FE0 0%, #ffffff 50%, #9B6FE0 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 4s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 0% center; }
+      100% { background-position: 200% center; }
+    }
+
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 20px);
+      color: var(--muted);
+      max-width: 620px;
+      margin: 20px auto 48px;
+      line-height: 1.7;
+    }
+
+    .hero-ctas {
+      display: flex; flex-wrap: wrap; gap: 14px;
+      justify-content: center;
+      margin-bottom: 72px;
+    }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: linear-gradient(135deg, var(--purple), var(--purple-mid));
+      color: #fff;
+      padding: 16px 36px;
+      border-radius: 14px;
+      font-size: 16px; font-weight: 700;
+      text-decoration: none;
+      border: none; cursor: pointer;
+      box-shadow: 0 8px 32px rgba(88,42,168,0.45);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(88,42,168,0.60); }
+
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: transparent;
+      color: var(--text);
+      padding: 16px 36px;
+      border-radius: 14px;
+      font-size: 16px; font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: background .2s, border-color .2s, transform .2s;
+    }
+    .btn-secondary:hover { background: rgba(155,111,224,0.1); border-color: var(--purple-light); transform: translateY(-2px); }
+
+    /* ── STATS ── */
+    .hero-stats {
+      display: flex; flex-wrap: wrap; gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      overflow: hidden;
+    }
+    .stat {
+      padding: 28px 40px;
+      flex: 1; min-width: 150px;
+      border-right: 1px solid var(--border);
+      text-align: center;
+    }
+    .stat:last-child { border-right: none; }
+    .stat-num {
+      font-family: 'Poppins', sans-serif;
+      font-size: 32px; font-weight: 800;
+      color: var(--purple-light);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .stat-label { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+    /* ── SECTION HEADERS ── */
+    .section-header {
+      text-align: center;
+      max-width: 680px;
+      margin: 0 auto 64px;
+      padding: 0 24px;
+    }
+    .section-tag {
+      display: inline-block;
+      background: rgba(88,42,168,0.2);
+      border: 1px solid rgba(88,42,168,0.35);
+      border-radius: 100px;
+      padding: 5px 16px;
+      font-size: 12px; font-weight: 700;
+      color: var(--purple-light);
+      letter-spacing: .08em; text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .section-header h2 {
+      font-family: 'Poppins', sans-serif;
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+    .section-header p { color: var(--muted); font-size: 17px; line-height: 1.7; }
+
+    /* ── CAPABILITIES ── */
+    .capabilities { padding: 100px 24px; }
+    .caps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .cap-card {
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      transition: transform .25s, border-color .25s, box-shadow .25s;
+      cursor: default;
+    }
+    .cap-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(155,111,224,0.45);
+      box-shadow: 0 16px 48px rgba(88,42,168,0.25);
+    }
+    .cap-icon {
+      width: 52px; height: 52px;
+      background: linear-gradient(135deg, rgba(88,42,168,0.3), rgba(43,21,81,0.5));
+      border: 1px solid rgba(88,42,168,0.4);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 20px;
+    }
+    .cap-icon svg { width: 24px; height: 24px; color: var(--purple-light); }
+    .cap-card h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 18px; font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .cap-card p { color: var(--muted); font-size: 14px; line-height: 1.65; }
+    .cap-bullets {
+      margin-top: 16px; list-style: none;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .cap-bullets li {
+      font-size: 13px; color: var(--muted);
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .cap-bullets li::before {
+      content: '';
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--purple-light);
+      flex-shrink: 0; margin-top: 6px;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .how { padding: 100px 24px; background: linear-gradient(180deg, transparent, rgba(43,21,81,0.15), transparent); }
+    .steps {
+      display: flex; flex-wrap: wrap; gap: 0;
+      max-width: 1000px; margin: 0 auto;
+      position: relative;
+    }
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 32px; left: 40px; right: 40px; height: 2px;
+      background: linear-gradient(90deg, var(--purple), var(--purple-light), var(--purple));
+      opacity: .35;
+    }
+    @media (max-width: 768px) { .steps::before { display: none; } }
+
+    .step {
+      flex: 1; min-width: 200px;
+      text-align: center;
+      padding: 0 24px;
+      position: relative;
+    }
+    .step-num {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--purple), var(--purple-deep));
+      border: 2px solid rgba(155,111,224,0.4);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 22px; font-weight: 800;
+      color: #fff;
+      box-shadow: 0 0 24px rgba(88,42,168,0.45);
+      position: relative; z-index: 1;
+    }
+    .step h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 17px; font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .step p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    /* ── PLATFORM PREVIEW ── */
+    .preview { padding: 100px 24px; }
+    .preview-container {
+      max-width: 1100px; margin: 0 auto;
+      background: var(--glass);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(155,111,224,0.1);
+    }
+    .preview-bar {
+      background: rgba(21,14,46,0.9);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #FF5F57; }
+    .dot-y { background: #FEBC2E; }
+    .dot-g { background: #28C840; }
+    .preview-url {
+      flex: 1; max-width: 320px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px; color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .preview-tabs {
+      display: flex; gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: rgba(13,10,26,0.6);
+      overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 14px 24px;
+      font-size: 13px; font-weight: 600;
+      color: var(--muted);
+      border: none; background: transparent;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color .2s, border-color .2s;
+      white-space: nowrap;
+    }
+    .tab-btn.active { color: var(--purple-light); border-bottom-color: var(--purple-light); }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    .preview-content { padding: 40px; min-height: 380px; }
+    .tab-panel { display: none; animation: fadeIn .3s ease; }
+    .tab-panel.active { display: block; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .mock-header {
+      font-family: 'Poppins', sans-serif;
+      font-size: 28px; font-weight: 800;
+      margin-bottom: 24px;
+      background: linear-gradient(90deg, #9B6FE0, #fff, #9B6FE0);
+      background-size: 200% auto;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 4s linear infinite;
+    }
+
+    .mock-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px; margin-bottom: 28px;
+    }
+    .mock-card {
+      background: rgba(30,21,64,0.7);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .mock-card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+    .mock-card-val {
+      font-family: 'Poppins', sans-serif;
+      font-size: 26px; font-weight: 800; color: var(--text);
+    }
+    .mock-card-sub { font-size: 12px; color: var(--purple-light); margin-top: 4px; }
+
+    .mock-table {
+      background: rgba(30,21,64,0.5);
+      border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+    }
+    .mock-table-row {
+      display: flex; align-items: center; gap: 16px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .mock-table-row:last-child { border-bottom: none; }
+    .mock-table-row.head { background: rgba(88,42,168,0.12); font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .mock-col { flex: 1; }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px; border-radius: 6px;
+      font-size: 11px; font-weight: 700;
+    }
+    .badge-green  { background: rgba(16,185,129,0.15); color: #10b981; }
+    .badge-yellow { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .badge-purple { background: rgba(88,42,168,0.25);  color: var(--purple-light); }
+
+    /* ── CTA SECTION ── */
+    .cta-section {
+      padding: 100px 24px;
+      text-align: center;
+    }
+    .cta-box {
+      max-width: 760px; margin: 0 auto;
+      background: linear-gradient(135deg, rgba(88,42,168,0.25), rgba(43,21,81,0.4));
+      border: 1px solid rgba(155,111,224,0.3);
+      border-radius: 32px;
+      padding: 72px 48px;
+      backdrop-filter: blur(16px);
+      position: relative; overflow: hidden;
+    }
+    .cta-box::before {
+      content: '';
+      position: absolute; top: -60px; right: -60px;
+      width: 240px; height: 240px;
+      background: radial-gradient(circle, rgba(88,42,168,0.35), transparent 70%);
+      border-radius: 50%;
+    }
+    .cta-box::after {
+      content: '';
+      position: absolute; bottom: -60px; left: -60px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(43,21,81,0.5), transparent 70%);
+      border-radius: 50%;
+    }
+    .cta-box h2 {
+      font-family: 'Poppins', sans-serif;
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+      position: relative; z-index: 1;
+    }
+    .cta-box p { color: var(--muted); font-size: 17px; margin-bottom: 40px; position: relative; z-index: 1; }
+    .cta-inputs {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      justify-content: center;
+      position: relative; z-index: 1;
+    }
+    .cta-input {
+      padding: 15px 20px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 15px; font-family: inherit;
+      width: 240px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .cta-input::placeholder { color: var(--muted); }
+    .cta-input:focus { border-color: var(--purple-light); }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 48px 24px 32px;
+      position: relative; z-index: 1;
+    }
+    .footer-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; flex-wrap: wrap; gap: 32px;
+      align-items: center; justify-content: space-between;
+    }
+    .footer-logo {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .footer-logo img { height: 32px; filter: brightness(0) invert(1); }
+    .footer-logo span {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700; font-size: 18px;
+    }
+    .footer-links {
+      display: flex; flex-wrap: wrap; gap: 24px; list-style: none;
+    }
+    .footer-links a { color: var(--muted); text-decoration: none; font-size: 14px; transition: color .2s; }
+    .footer-links a:hover { color: var(--text); }
+    .footer-copy { color: var(--muted); font-size: 13px; width: 100%; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      .hero { padding: 120px 20px 80px; }
+      .stat { padding: 20px 16px; }
+      .stat-num { font-size: 24px; }
+      .cta-box { padding: 48px 24px; }
+      .cta-input { width: 100%; }
+      .preview-content { padding: 24px; }
+      .steps::before { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <img src="/algolend-logo.png" alt="AlgoLend logo" />
+    <span class="nav-logo-text">AlgoLend</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#capabilities">Capabilities</a></li>
+    <li><a href="#platform">Platform</a></li>
+    <li><a href="#how">How it works</a></li>
+    <li><a href="/auth/login.html">Login</a></li>
+    <li><a href="#book" class="btn-nav">Book a Demo</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">
+    <span></span>
+    Registered Credit Provider · NCR CP13510
+  </div>
+  <h1>
+    <span class="gradient">Bespoke</span> Digital Credit<br />& Risk Management
+  </h1>
+  <p class="hero-sub">
+    A fully customised end-to-end lending platform built around your credit policy,
+    compliance framework, and client journey. Deploy in weeks, not years.
+  </p>
+  <div class="hero-ctas">
+    <a href="#book" class="btn-primary">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Book a Demo
+    </a>
+    <a href="/auth/login.html" class="btn-secondary">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+      View Live Platform
+    </a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Bespoke Configuration</div></div>
+    <div class="stat"><div class="stat-num">360°</div><div class="stat-label">Credit Lifecycle</div></div>
+    <div class="stat"><div class="stat-num">Real-time</div><div class="stat-label">Open Banking</div></div>
+    <div class="stat"><div class="stat-num">NCR</div><div class="stat-label">Compliant</div></div>
+  </div>
+</section>
+
+<!-- CAPABILITIES -->
+<section class="capabilities" id="capabilities">
+  <div class="section-header">
+    <div class="section-tag">Platform Capabilities</div>
+    <h2>Everything your lending operation needs</h2>
+    <p>From application intake to final settlement — one platform, fully branded to your business.</p>
+  </div>
+  <div class="caps-grid">
+
+    <div class="cap-card">
+      <div class="cap-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <h3>Identity & Compliance</h3>
+      <p>Automated verification at point of application — no manual intervention required.</p>
+      <ul class="cap-bullets">
+        <li>Biometric liveness & ID verification</li>
+        <li>Real-time CIPC company registration</li>
+        <li>AML, PEP & sanctions screening</li>
+        <li>Beneficial ownership capture</li>
+      </ul>
+    </div>
+
+    <div class="cap-card">
+      <div class="cap-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 10h18M3 14h18M10 3l-7 7 7 7M14 3l7 7-7 7"/></svg>
+      </div>
+      <h3>Open Banking Intelligence</h3>
+      <p>Secure TruID integration gives you real-time insight into business cash flow.</p>
+      <ul class="cap-bullets">
+        <li>Real-time bank statement retrieval</li>
+        <li>Automated income categorisation</li>
+        <li>Cash flow trends & debt servicing</li>
+        <li>Bank-level risk analytics</li>
+      </ul>
+    </div>
+
+    <div class="cap-card">
+      <div class="cap-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      </div>
+      <h3>Credit & Underwriting Engine</h3>
+      <p>Configurable scorecards and decisioning logic tailored to your risk appetite.</p>
+      <ul class="cap-bullets">
+        <li>Customisable credit scorecards</li>
+        <li>Automated approvals & referrals</li>
+        <li>Risk-based pricing logic</li>
+        <li>Full audit trail of all decisions</li>
+      </ul>
+    </div>
+
+    <div class="cap-card">
+      <div class="cap-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+      </div>
+      <h3>Portfolio Management</h3>
+      <p>Centralised loan book with live analytics, arrears monitoring, and collections workflow.</p>
+      <ul class="cap-bullets">
+        <li>Real-time loan book dashboard</li>
+        <li>Arrears & early warning indicators</li>
+        <li>Collections workflow management</li>
+        <li>Risk concentration reporting</li>
+      </ul>
+    </div>
+
+    <div class="cap-card">
+      <div class="cap-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      </div>
+      <h3>E-Contracts & Documents</h3>
+      <p>Instant contract generation and secure digital signing — no paper, no delays.</p>
+      <ul class="cap-bullets">
+        <li>Instant e-contract generation</li>
+        <li>Secure digital signing (DocuSeal)</li>
+        <li>Automated distribution to both parties</li>
+        <li>Document vault per account</li>
+      </ul>
+    </div>
+
+    <div class="cap-card">
+      <div class="cap-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      </div>
+      <h3>Team & Access Control</h3>
+      <p>Multi-branch management with role-based access and full governance audit logs.</p>
+      <ul class="cap-bullets">
+        <li>Multi-branch management</li>
+        <li>Least-privilege access control</li>
+        <li>Approval hierarchies</li>
+        <li>Full audit logs for governance</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="section-header">
+    <div class="section-tag">Implementation</div>
+    <h2>Live in weeks, not years</h2>
+    <p>Each implementation is bespoke. We configure everything to your model, brand, and workflows.</p>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <h3>Discovery Session</h3>
+      <p>We map your credit policy, compliance requirements, and operational workflows.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <h3>Custom Configuration</h3>
+      <p>Platform is configured to your brand, scoring model, and product structure.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <h3>Integration & Testing</h3>
+      <p>Connect your bureau, banking, and communication providers. Full UAT.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <h3>Go Live</h3>
+      <p>Deploy to production with full onboarding support and dedicated account management.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PLATFORM PREVIEW -->
+<section class="preview" id="platform">
+  <div class="section-header">
+    <div class="section-tag">Live Platform</div>
+    <h2>See it in action</h2>
+    <p>A real working platform — not a mockup. Login to explore the full experience.</p>
+  </div>
+  <div class="preview-container">
+    <div class="preview-bar">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <div class="preview-url">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        algolend-opal.vercel.app
+      </div>
+    </div>
+    <div class="preview-tabs">
+      <button class="tab-btn active" onclick="switchTab('admin')">Admin Dashboard</button>
+      <button class="tab-btn" onclick="switchTab('applications')">Applications</button>
+      <button class="tab-btn" onclick="switchTab('portal')">Client Portal</button>
+    </div>
+    <div class="preview-content">
+
+      <div class="tab-panel active" id="tab-admin">
+        <div class="mock-header">Portfolio Overview</div>
+        <div class="mock-grid">
+          <div class="mock-card"><div class="mock-card-label">Active Loans</div><div class="mock-card-val">142</div><div class="mock-card-sub">↑ 12 this month</div></div>
+          <div class="mock-card"><div class="mock-card-label">Book Value</div><div class="mock-card-val">R 4.2M</div><div class="mock-card-sub">↑ 8.3% MoM</div></div>
+          <div class="mock-card"><div class="mock-card-label">Avg Approval</div><div class="mock-card-val">4.2h</div><div class="mock-card-sub">Down from 6h</div></div>
+          <div class="mock-card"><div class="mock-card-label">In Arrears</div><div class="mock-card-val">3.1%</div><div class="mock-card-sub">Below threshold</div></div>
+        </div>
+        <div class="mock-table">
+          <div class="mock-table-row head"><span class="mock-col">Client</span><span class="mock-col">Amount</span><span class="mock-col">Term</span><span class="mock-col">Status</span></div>
+          <div class="mock-table-row"><span class="mock-col">Tshepo Holdings</span><span class="mock-col">R 250,000</span><span class="mock-col">24 months</span><span class="mock-col"><span class="badge badge-green">Active</span></span></div>
+          <div class="mock-table-row"><span class="mock-col">Nkosi Enterprises</span><span class="mock-col">R 180,000</span><span class="mock-col">18 months</span><span class="mock-col"><span class="badge badge-yellow">Review</span></span></div>
+          <div class="mock-table-row"><span class="mock-col">Dlamini Logistics</span><span class="mock-col">R 95,000</span><span class="mock-col">12 months</span><span class="mock-col"><span class="badge badge-purple">Pending</span></span></div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-applications">
+        <div class="mock-header">Applications Queue</div>
+        <div class="mock-table">
+          <div class="mock-table-row head"><span class="mock-col">Applicant</span><span class="mock-col">Amount</span><span class="mock-col">Score</span><span class="mock-col">Decision</span><span class="mock-col">Action</span></div>
+          <div class="mock-table-row"><span class="mock-col">Bongani Mokoena</span><span class="mock-col">R 120,000</span><span class="mock-col">742</span><span class="mock-col"><span class="badge badge-green">Auto-Approve</span></span><span class="mock-col" style="color:var(--purple-light);font-weight:600;cursor:pointer;">Review →</span></div>
+          <div class="mock-table-row"><span class="mock-col">Zanele Dube</span><span class="mock-col">R 75,000</span><span class="mock-col">618</span><span class="mock-col"><span class="badge badge-yellow">Refer</span></span><span class="mock-col" style="color:var(--purple-light);font-weight:600;cursor:pointer;">Review →</span></div>
+          <div class="mock-table-row"><span class="mock-col">Sipho Zulu</span><span class="mock-col">R 200,000</span><span class="mock-col">791</span><span class="mock-col"><span class="badge badge-green">Auto-Approve</span></span><span class="mock-col" style="color:var(--purple-light);font-weight:600;cursor:pointer;">Review →</span></div>
+          <div class="mock-table-row"><span class="mock-col">Nomsa Khumalo</span><span class="mock-col">R 50,000</span><span class="mock-col">498</span><span class="mock-col"><span class="badge badge-yellow">Manual Review</span></span><span class="mock-col" style="color:var(--purple-light);font-weight:600;cursor:pointer;">Review →</span></div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-portal">
+        <div class="mock-header">My Portfolio</div>
+        <div class="mock-grid">
+          <div class="mock-card"><div class="mock-card-label">Outstanding Balance</div><div class="mock-card-val">R 0,00</div><div class="mock-card-sub">Total principal remaining</div></div>
+          <div class="mock-card"><div class="mock-card-label">Next Payment</div><div class="mock-card-val">R 0,00</div><div class="mock-card-sub">No upcoming payment</div></div>
+          <div class="mock-card"><div class="mock-card-label">Total Borrowed</div><div class="mock-card-val">R 0,00</div><div class="mock-card-sub">Lifetime capacity</div></div>
+          <div class="mock-card"><div class="mock-card-label">Credit Score</div><div class="mock-card-val">—</div><div class="mock-card-sub">Run a credit check</div></div>
+        </div>
+        <div style="text-align:center;margin-top:28px;">
+          <a href="/auth/login.html" class="btn-primary" style="display:inline-flex;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+            Access Live Portal
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="book">
+  <div class="cta-box">
+    <div class="section-tag" style="position:relative;z-index:1;">Book a Session</div>
+    <h2>Ready to see AlgoLend in action?</h2>
+    <p>Schedule a personalised demo and we'll walk you through the full platform tailored to your lending model.</p>
+    <div class="cta-inputs">
+      <input class="cta-input" type="text" placeholder="Your name" />
+      <input class="cta-input" type="email" placeholder="Work email" />
+      <a href="mailto:info@algolend.co.za?subject=Demo Request&body=Hi, I would like to book a demo of AlgoLend." class="btn-primary">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        Request Demo
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">
+      <img src="/algolend-logo.png" alt="AlgoLend" />
+      <span>AlgoLend</span>
+    </div>
+    <ul class="footer-links">
+      <li><a href="#capabilities">Capabilities</a></li>
+      <li><a href="#platform">Platform</a></li>
+      <li><a href="#how">Implementation</a></li>
+      <li><a href="#book">Contact</a></li>
+      <li><a href="/auth/login.html">Login</a></li>
+    </ul>
+  </div>
+  <div class="footer-copy">
+    © 2026 AlgoLend. All rights reserved. · NCR Registered · FSP 53423 · NCRCP13510
+  </div>
+</footer>
+
+<script>
+  function switchTab(id) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('tab-' + id).classList.add('active');
+  }
+
+  // Smooth scroll for anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  });
+</script>
+
+</body>
+</html>
