@@ -934,9 +934,14 @@ window.startCreditCheckSilent = async function(button) {
       .eq('user_id', session.user.id)
       .maybeSingle();
 
+    // Fall back to user_metadata if RLS blocks the declarations table read
+    const metaDeclCC = (() => { try { const s = session?.user?.user_metadata?.declarations; return s ? (typeof s === 'object' ? s : JSON.parse(s)) : null; } catch(_){return null;} })();
+
     const alreadyConsented =
       declaration?.credit_check_consent_accepted === true ||
-      declaration?.metadata?.credit_check_consent_accepted === true;
+      declaration?.metadata?.credit_check_consent_accepted === true ||
+      metaDeclCC?.accepted_std_conditions === true ||
+      session?.user?.user_metadata?.credit_check_consent === true;
 
     if (!alreadyConsented) {
       await persistCreditConsent(supabase, session.user.id);

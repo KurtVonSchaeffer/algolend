@@ -27,20 +27,17 @@ function toggleFAQ(element) {
 }
 
 function openResource(type) {
-  const resourceNames = {
-    'user-guide': 'User Guide',
-    'terms': 'Terms & Conditions',
-    'privacy': 'Privacy Policy'
+  const pageMap = {
+    'privacy': 'privacy-policy',
+    'terms':   'terms',
   };
-  
-  const name = resourceNames[type] || type;
-  
-  if (typeof showToast === 'function') {
-    showToast('Coming Soon', `${name} document will be available soon.`, 'info', 3000);
-  } else {
-    alert(`${name} document will be available soon.`);
+  if (pageMap[type] && typeof loadPage === 'function') {
+    loadPage(pageMap[type]);
+    return false;
   }
-  
+  if (typeof showToast === 'function') {
+    showToast('Coming Soon', 'This document will be available soon.', 'info', 3000);
+  }
   return false;
 }
 

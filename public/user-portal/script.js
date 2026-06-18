@@ -331,7 +331,10 @@ async function checkAuth() {
     .maybeSingle();
   
   profile.hasFinancialProfile = !!financialProfile && financialProfile.monthly_income > 0;
-  profile.hasDeclarations = !!declarations && declarations.accepted_std_conditions === true;
+  // Fall back to auth user_metadata if RLS blocks declarations table read
+  const _metaDecl = (() => { try { const s = session?.user?.user_metadata?.declarations; return s ? JSON.parse(s) : null; } catch(_){return null;} })();
+  profile.hasDeclarations = (!!declarations && declarations.accepted_std_conditions === true)
+    || (_metaDecl?.accepted_std_conditions === true);
   profile.isProfileComplete = profile.hasFinancialProfile && profile.hasDeclarations;
 
   // Track last active time (non-blocking)

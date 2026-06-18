@@ -245,12 +245,13 @@ function renderSidebarNav(role) {
           </ul>
         </li>
         ${navLink('/admin/applications', 'assignment', 'Applications')}
+        ${navLink('/admin/reminders',   'notifications_active', 'Reminders')}
       ` : ''}
 
       ${isAdmin ? `
         ${navSection('Finance')}
         ${navLink('/admin/users', 'group', 'Users')}
-        ${navLink('/admin/mandates.html', 'receipt_long', 'Mandates')}
+        ${navLink('/admin/mandates', 'receipt_long', 'Mandates')}
         <li>
           <button type="button" id="payments-toggle" class="nav-link w-full flex items-center justify-between gap-4 px-4 py-3 rounded-xl transition-all duration-200 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface text-sm font-medium">
             <span class="flex items-center gap-4">

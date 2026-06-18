@@ -95,8 +95,8 @@ async function checkLoanHistory() {
       .eq('user_id', session.user.id)
       .in('status', ['DISBURSED', 'OFFER_ACCEPTED', 'READY_TO_DISBURSE', 'ACTIVE', 'CONTRACT_SIGN', 'DEBICHECK_AUTH']);
 
-    if (allLoansError) {
-      console.error('Error checking loan history:', allLoansError);
+    if (error) {
+      console.error('Error checking loan history:', error);
       return;
     }
 

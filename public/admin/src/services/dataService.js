@@ -108,37 +108,46 @@ export async function createWalkInClient(clientData) {
   return { data, error };
 }
 
+async function fetchLoanAppsViaServer(selectFields = '') {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const url = selectFields
+    ? `/api/admin/loan-applications?select=${encodeURIComponent(selectFields)}`
+    : '/api/admin/loan-applications';
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export async function fetchDashboardData() {
   try {
-    const { data: stats } = await supabase.rpc('get_dashboard_stats').single();
-    // Use manual_payments (confirmed) as the source of collected payments
-    const { data: payments } = await supabase.from('manual_payments').select('amount').eq('status', 'confirmed');
-    const { data: loans } = await supabase.from('loans').select('principal_amount, status');
+    // Derive financials directly from loan_applications via server (bypasses RLS)
+    const apps = await fetchLoanAppsViaServer('offer_principal,offer_total_repayment,offer_monthly_repayment,status');
 
-    const totalCollected = payments?.reduce((sum, p) => sum + (Number(p.amount) || 0), 0) || 0;
-    const totalDisbursed = loans?.reduce((sum, l) => sum + (Number(l.principal_amount) || 0), 0) || 0;
-    
-    let activeCount = 0, defaultCount = 0, repaidCount = 0;
-    loans?.forEach(l => {
-      const s = (l.status || '').toLowerCase();
-      if (s === 'active') activeCount++;
-      else if (s === 'default' || s === 'arrears') defaultCount++;
-      else if (s === 'repaid' || s === 'settled') repaidCount++;
-    });
+    const rows = Array.isArray(apps) ? apps : [];
+    const disbursedApps   = rows.filter(r => ['DISBURSED', 'IN_ARREARS', 'IN_DEFAULT', 'REPAID', 'SETTLED'].includes(r.status));
+    const activeApps      = rows.filter(r => ['DISBURSED', 'IN_ARREARS', 'IN_DEFAULT'].includes(r.status));
+    const pendingApps     = rows.filter(r => ['STARTED', 'BUREAU_CHECKING', 'BUREAU_OK', 'BUREAU_REFER', 'OFFERED', 'OFFER_ACCEPTED', 'CONTRACT_SIGN'].includes(r.status));
+
+    const totalDisbursed  = disbursedApps.reduce((s, r) => s + (Number(r.offer_principal) || 0), 0);
+    const totalRepayable  = disbursedApps.reduce((s, r) => s + (Number(r.offer_total_repayment) || 0), 0);
+    const realizedCashFlow = totalRepayable - totalDisbursed;
+
+    const statusCounts = rows.reduce((acc, r) => { acc[r.status] = (acc[r.status] || 0) + 1; return acc; }, {});
 
     return {
       financials: {
-        total_disbursed: totalDisbursed,
-        total_collected: totalCollected,
-        profit_margin: totalDisbursed > 0 ? (((totalCollected - totalDisbursed) / totalDisbursed) * 100).toFixed(1) : 0,
-        active_loans_count: activeCount,
-        pending_apps: stats?.pending_applications || 0
+        total_disbursed:    totalDisbursed,
+        total_collected:    totalRepayable,
+        realized_cash_flow: realizedCashFlow,
+        profit_margin:      totalDisbursed > 0 ? (((totalRepayable - totalDisbursed) / totalDisbursed) * 100).toFixed(1) : 0,
+        active_loans_count: activeApps.length,
+        pending_apps:       pendingApps.length,
       },
-      portfolioStatus: [
-        { name: 'Active', value: activeCount },
-        { name: 'Default', value: defaultCount },
-        { name: 'Repaid', value: repaidCount }
-      ],
+      portfolioStatus: Object.entries(statusCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 6),
       error: null
     };
   } catch (error) {
@@ -147,19 +156,26 @@ export async function fetchDashboardData() {
 }
 
 export async function fetchPipelineApplications() {
-  const { data, error } = await supabase
-    .from('loan_applications')
-    .select('id, amount, status, created_at, profiles:user_id(full_name)') // Read from View
-    .not('status', 'in', '(DISBURSED,DECLINED)')
-    .order('created_at', { ascending: false });
-  return { data, error: error ? error.message : null };
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/admin/loan-applications/pipeline', {
+      headers: { Authorization: `Bearer ${session?.access_token}` }
+    });
+    const data = res.ok ? await res.json() : [];
+    return { data, error: null };
+  } catch (e) {
+    return { data: [], error: e.message };
+  }
 }
 
 export async function fetchLoanApplications() {
-  return supabase
-    .from('loan_applications')
-    .select('*, profiles:user_id(full_name, identity_number)')
-    .order('created_at', { ascending: false });
+  try {
+    const data = await fetchLoanAppsViaServer('*');
+    const sorted = Array.isArray(data) ? data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)) : [];
+    return { data: sorted, error: null };
+  } catch (e) {
+    return { data: [], error: e };
+  }
 }
 
 export async function fetchApplicationDetail(applicationId) {
@@ -281,7 +297,7 @@ export async function updateApplicationStatus(applicationId, newStatus) {
 export const fetchUsers = async () => {
     const { data, error } = await supabase
         .from('profiles')
-        .select('*, branches(id, name)')
+        .select('*')
         .order('created_at', { ascending: false });
     return error ? [] : data;
 };
@@ -662,35 +678,28 @@ export async function fetchAnalyticsData() {
 }
 
 export async function fetchMonthlyLoanPerformance() {
-    const { data, error } = await supabase
-        .from('loan_applications')
-        .select('created_at, offer_principal, offer_total_repayment, offer_monthly_repayment, status, term_months')
-        .order('created_at', { ascending: true });
-    if (error) return { data: [] };
+    const apps = await fetchLoanAppsViaServer('created_at,offer_principal,offer_total_repayment,offer_monthly_repayment,status,term_months');
+    const rows = Array.isArray(apps) ? apps.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) : [];
 
     const byMonth = {};
-    for (const row of data || []) {
+    for (const row of rows) {
         const month = (row.created_at || '').slice(0, 7);
         if (!month) continue;
-        if (!byMonth[month]) byMonth[month] = { month, originated: 0, disbursed: 0, repaid: 0, defaulted: 0, count: 0 };
+        if (!byMonth[month]) byMonth[month] = { month_year: month, disbursed_amount: 0, repaid_amount: 0, count: 0 };
         byMonth[month].count++;
-        byMonth[month].originated += Number(row.offer_principal) || 0;
-        if (row.status === 'DISBURSED')   byMonth[month].disbursed  += Number(row.offer_principal) || 0;
-        if (row.status === 'REPAID')      byMonth[month].repaid     += Number(row.offer_total_repayment) || 0;
-        if (row.status === 'IN_DEFAULT')  byMonth[month].defaulted  += Number(row.offer_principal) || 0;
+        // Count all originated loans as "disbursed" for cash flow chart
+        byMonth[month].disbursed_amount += Number(row.offer_principal) || 0;
+        byMonth[month].repaid_amount    += Number(row.offer_total_repayment) || 0;
     }
     return { data: Object.values(byMonth) };
 }
 
 export async function fetchFinancialsData(branchId = null) {
-    let query = supabase
-        .from('loan_applications')
-        .select('offer_principal, offer_total_repayment, offer_monthly_repayment, offer_total_interest, offer_total_initiation_fees, offer_total_admin_fees, status, branch_id');
-    if (branchId && branchId !== 'all') query = query.eq('branch_id', branchId);
-    const { data, error } = await query;
-    if (error) return { data: null, error };
+    const apps = await fetchLoanAppsViaServer('offer_principal,offer_total_repayment,offer_monthly_repayment,offer_total_interest,offer_total_initiation_fees,offer_total_admin_fees,status,branch_id');
+    if (!Array.isArray(apps)) return { data: null, error: 'fetch failed' };
 
-    const rows = data || [];
+    let rows = apps;
+    if (branchId && branchId !== 'all') rows = rows.filter(r => r.branch_id === branchId);
     const sum = (field) => rows.reduce((a, r) => a + (Number(r[field]) || 0), 0);
     const withStatus = (s) => rows.filter(r => r.status === s);
 
@@ -727,13 +736,8 @@ export async function fetchFinancialsData(branchId = null) {
 }
 
 export async function fetchPortfolioAnalytics() {
-    const { data, error } = await supabase
-        .from('loan_applications')
-        .select('created_at, status, offer_principal, term_months, bureau_score_band')
-        .order('created_at', { ascending: true });
-    if (error) return { data: null };
-
-    const rows = data || [];
+    const apps = await fetchLoanAppsViaServer('created_at,status,offer_principal,term_months,bureau_score_band');
+    const rows = Array.isArray(apps) ? apps.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) : [];
     const statusCounts = rows.reduce((acc, r) => {
         acc[r.status] = (acc[r.status] || 0) + 1;
         return acc;
@@ -768,23 +772,15 @@ export async function fetchPortfolioAnalytics() {
 }
 
 export async function fetchFinancialTrends() {
-    const { data, error } = await supabase
-        .from('loan_applications')
-        .select('created_at, offer_principal, offer_total_repayment, offer_monthly_repayment, status')
-        .order('created_at', { ascending: true });
-    if (error) return { data: [] };
-
-    // Aggregate by month: { month: 'YYYY-MM', disbursed, repayments, count }
+    const apps = await fetchLoanAppsViaServer('created_at,offer_principal,offer_total_repayment,offer_total_interest,status');
     const byMonth = {};
-    for (const row of data || []) {
+    for (const row of Array.isArray(apps) ? apps.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)) : []) {
         const month = (row.created_at || '').slice(0, 7);
         if (!month) continue;
-        if (!byMonth[month]) byMonth[month] = { month, disbursed: 0, repayments: 0, count: 0 };
-        byMonth[month].count++;
-        if (row.status === 'DISBURSED' || row.status === 'REPAID') {
-            byMonth[month].disbursed  += Number(row.offer_principal) || 0;
-            byMonth[month].repayments += Number(row.offer_total_repayment) || 0;
-        }
+        if (!byMonth[month]) byMonth[month] = { month, total_principal: 0, projected_interest: 0, active_loans: 0 };
+        byMonth[month].total_principal    += Number(row.offer_principal) || 0;
+        byMonth[month].projected_interest += Number(row.offer_total_interest) || 0;
+        byMonth[month].active_loans++;
     }
     return { data: Object.values(byMonth) };
 }
@@ -792,7 +788,7 @@ export async function fetchFinancialTrends() {
 export const getCurrentAdminProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
-    const { data, error } = await supabase.from('profiles').select('*, branches(id, name)').eq('id', user.id).single();
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
     return error ? null : data;
 };
 

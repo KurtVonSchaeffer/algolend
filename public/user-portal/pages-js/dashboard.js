@@ -493,18 +493,28 @@ function populateApplications() {
         const editLockReason = app.status === 'AFFORD_OK' ? 'Edit locked' : app.status === 'APPROVED' ? 'Edit locked' : 'Edit locked after 2 hours';
         const deleteLockReason = app.status === 'APPROVED' ? 'Delete locked' : 'Delete locked after 2 hours';
 
+        const isOffered = ['OFFERED', 'CONTRACT_SIGN'].includes(app.status);
+        const signBtn = isOffered ? `
+            <button onclick="openContractSign('${app.rawId}')"
+              style="display:flex;align-items:center;gap:6px;background:#7c3aed;color:#fff;border:none;
+                     padding:7px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;
+                     box-shadow:0 2px 8px rgba(124,58,237,.3);white-space:nowrap;flex-shrink:0;">
+              <i class="fas fa-file-signature" style="font-size:11px;"></i> Sign Contract
+            </button>` : '';
+
         return `
-        <div class="application-item">
+        <div class="application-item" style="${isOffered ? 'border:1.5px solid rgba(124,58,237,.2);border-radius:14px;background:rgba(124,58,237,.03);' : ''}">
             <div class="application-icon ${app.status.toLowerCase()}"><i class="fas fa-${app.status === 'Approved' ? 'check' : app.status === 'Pending' ? 'clock' : 'times'}"></i></div>
             <div class="item-details"><div class="item-title">${app.type}</div><div class="item-date">${app.date}</div></div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                ${window.renderStatusBadge(app.status)}
-                <button class="app-action-btn ${!canEdit ? 'locked' : ''}" onclick="editApplication('${app.rawId}')" ${!canEdit ? 'disabled' : ''} title="${!canEdit ? editLockReason : 'Edit'}">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap:wrap; justify-content:flex-end;">
+                ${signBtn}
+                ${!isOffered ? window.renderStatusBadge(app.status) : ''}
+                ${!isOffered ? `<button class="app-action-btn ${!canEdit ? 'locked' : ''}" onclick="editApplication('${app.rawId}')" ${!canEdit ? 'disabled' : ''} title="${!canEdit ? editLockReason : 'Edit'}">
                     <i class="fas fa-${!canEdit ? 'lock' : 'edit'}"></i>
                 </button>
                 <button class="app-action-btn delete ${!canDelete ? 'locked' : ''}" onclick="deleteApplication('${app.rawId}')" ${!canDelete ? 'disabled' : ''} title="${!canDelete ? deleteLockReason : 'Delete'}">
                     <i class="fas fa-${!canDelete ? 'lock' : 'trash'}"></i>
-                </button>
+                </button>` : ''}
             </div>
         </div>`;
     }).join('');
@@ -804,10 +814,12 @@ async function loadDashboardData() {
             latestPaymentDate = payments[0].payment_date;
         }
 
-        const paymentsByLoan = (payments || []).reduce((acc, payment) => {
-            acc[payment.loan_id] = (acc[payment.loan_id] || 0) + (Number(payment.amount) || 0); return acc;
+        const safePayments = Array.isArray(payments) ? payments : [];
+        const paymentsByLoan = safePayments.reduce((acc, payment) => {
+            acc[payment.loan_id] = (acc[payment.loan_id] || 0) + (Number(payment.amount) || 0);
+            return acc;
         }, {});
-        const totalRepaidAllLoans = (payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        const totalRepaidAllLoans = safePayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
         const { data: loans } = await supabase.from('loans').select('*').eq('user_id', session.user.id).eq('status', 'active').order('created_at', { ascending: false });
         
@@ -1043,6 +1055,12 @@ window.openTransactionsModule = function() {
 };
 
 // Mobile Full Screen Modals (Bottom Sheet) Overrides
+window.openContractSign = function(appId) {
+    sessionStorage.setItem('contractSignAppId', appId);
+    if (typeof loadPage === 'function') loadPage('contract-sign');
+    else window.location.href = '/user-portal/?page=contract-sign&appId=' + appId;
+};
+
 window.openFullScreenModal = function(type) {
     const modal = document.getElementById('fullScreenModal');
     const title = document.getElementById('modalTitle');

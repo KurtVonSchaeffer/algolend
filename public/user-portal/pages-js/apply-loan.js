@@ -180,7 +180,10 @@ async function refreshKycStatus() {
 }
 
 async function handleKycButtonClick() {
-  // Gate: if declarations haven't been completed, show popup first  
+  // Gate: if declarations haven't been completed, show popup first
+  if (!declarationsCompleted) {
+    await ensureDeclarationsKnown();
+  }
   if (!declarationsCompleted) {
     pendingActionAfterDeclarations = () => {
       activateConsentUI();
@@ -1127,9 +1130,23 @@ async function handlePopupDeclarationsSave(e) {
       updated_at: new Date().toISOString()
     };
 
-    const { error: declErr } = await supabase
+    const { data: existingDecl } = await supabase
       .from('declarations')
-      .upsert([payload], { onConflict: 'user_id' });
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    let declErr;
+    if (existingDecl?.id) {
+      ({ error: declErr } = await supabase
+        .from('declarations')
+        .update(payload)
+        .eq('user_id', userId));
+    } else {
+      ({ error: declErr } = await supabase
+        .from('declarations')
+        .insert([payload]));
+    }
 
     if (declErr) throw declErr;
 
@@ -1248,7 +1265,10 @@ async function checkDeclarationsStatus() {
         && profileResult?.data?.postal_code
       );
       const hasFinancial = (Number(financialResult?.data?.monthly_income) || 0) > 0;
-      const hasStdConditions = declarationResult?.data?.accepted_std_conditions === true;
+      // Fall back to auth user_metadata if RLS blocks the declarations table read
+      const metaDecl = (() => { try { const s = session?.user?.user_metadata?.declarations; return s ? (typeof s === 'object' ? s : JSON.parse(s)) : null; } catch(_){return null;} })();
+      const hasStdConditions = declarationResult?.data?.accepted_std_conditions === true
+        || metaDecl?.accepted_std_conditions === true;
 
       declarationsCompleted = hasId && hasExperianProfile && hasFinancial && hasStdConditions;
     } catch (err) {
@@ -1283,12 +1303,155 @@ function bootApplyLoanPage() {
   initKycButton().catch(err => {
     console.error('Failed to initialize KYC button:', err);
   });
+  initIdmnButton().catch(err => {
+    console.error('Failed to initialize IDMN button:', err);
+  });
 }
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootApplyLoanPage, { once: true });
 } else {
   bootApplyLoanPage();
+}
+
+// ── IDMN Biometric Verification ──────────────────────────────────────────────
+
+let idmnPollInterval = null;
+
+function setIdmnStatus(variant, label) {
+  const chip = document.getElementById('idmnBtnStatus');
+  const btn  = document.getElementById('idmnBtn');
+  if (!chip) return;
+  chip.className = 'document-status';
+  if (variant) chip.classList.add(variant);
+  chip.textContent = label || '';
+  if (variant === 'ready' && btn) {
+    btn.classList.add('completed');
+    btn.setAttribute('aria-disabled', 'true');
+    btn.onclick = null;
+  }
+}
+
+async function getActiveApplicationId() {
+  const supabase = await getSupabaseClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user?.id) return null;
+  const { data } = await supabase
+    .from('loan_applications')
+    .select('id, idmn_status, idmn_transaction_id, idmn_token')
+    .eq('user_id', session.user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  return data || null;
+}
+
+async function checkIdmnStatus() {
+  try {
+    const app = await getActiveApplicationId();
+    if (!app) return;
+
+    if (app.idmn_status === 'completed') {
+      setIdmnStatus('ready', 'Verified');
+      clearInterval(idmnPollInterval);
+      idmnPollInterval = null;
+      return;
+    }
+
+    // If a workflow is pending, try to collect results
+    if (app.idmn_status === 'pending' && app.idmn_transaction_id && app.idmn_token) {
+      const res = await fetch('/api/idmn/collect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId: app.idmn_transaction_id,
+          token: app.idmn_token,
+          applicationId: app.id,
+        }),
+      });
+      const result = await res.json();
+      if (result.status === 'completed') {
+        const passed = result.result?.liveness_passed && result.result?.aml_clear !== false;
+        setIdmnStatus(passed ? 'ready' : 'error', passed ? 'Verified' : 'Failed — retry');
+        clearInterval(idmnPollInterval);
+        idmnPollInterval = null;
+      }
+    }
+  } catch (err) {
+    console.warn('[IDMN] poll error:', err.message);
+  }
+}
+
+window.startIdmnVerification = async function() {
+  const btn = document.getElementById('idmnBtn');
+  if (btn?.classList.contains('completed')) return;
+
+  setIdmnStatus('partial', 'Starting…');
+  if (btn) btn.disabled = true;
+
+  try {
+    const supabase = await getSupabaseClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user?.id) throw new Error('Not logged in');
+
+    // Get profile data for the request
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('first_name, last_name, id_number')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!profile?.id_number) throw new Error('Please complete your profile with your ID number first');
+
+    const app = await getActiveApplicationId();
+    if (!app?.id) throw new Error('No active application found — please start an application first');
+
+    const res = await fetch('/api/idmn/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identityNumber: profile.id_number,
+        name:           profile.first_name || '',
+        surname:        profile.last_name  || '',
+        applicationId:  app.id,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'IDMN start failed');
+
+    // Open the biometric flow in a new tab
+    window.open(data.url, '_blank');
+    setIdmnStatus('partial', 'Awaiting completion…');
+    if (btn) btn.disabled = false;
+
+    // Poll every 8 seconds for up to 5 minutes
+    clearInterval(idmnPollInterval);
+    idmnPollInterval = setInterval(checkIdmnStatus, 8000);
+
+  } catch (err) {
+    console.error('[IDMN] error:', err.message);
+    setIdmnStatus('error', 'Error — retry');
+    if (btn) btn.disabled = false;
+    if (typeof window.showToast === 'function') {
+      window.showToast('Biometric Verification', err.message, 'error');
+    }
+  }
+};
+
+async function initIdmnButton() {
+  const app = await getActiveApplicationId().catch(() => null);
+  if (!app) return;
+
+  if (app.idmn_status === 'completed') {
+    setIdmnStatus('ready', 'Verified');
+  } else if (app.idmn_status === 'pending') {
+    setIdmnStatus('partial', 'Awaiting completion…');
+    clearInterval(idmnPollInterval);
+    idmnPollInterval = setInterval(checkIdmnStatus, 8000);
+  } else {
+    setIdmnStatus('', 'Start');
+  }
 }
 
 window.addEventListener('pageLoaded', (event) => {
@@ -1301,12 +1464,19 @@ window.addEventListener('pageLoaded', (event) => {
     initKycButton().catch(err => {
       console.error('Failed to initialize KYC button after SPA navigation:', err);
     });
+    initIdmnButton().catch(err => {
+      console.error('Failed to initialize IDMN button:', err);
+    });
   } else {
     detachDocumentUploadedListener();
     // Clean up KYC polling when leaving the page
     if (kycStatusInterval) {
       clearInterval(kycStatusInterval);
       kycStatusInterval = null;
+    }
+    if (idmnPollInterval) {
+      clearInterval(idmnPollInterval);
+      idmnPollInterval = null;
     }
   }
 });

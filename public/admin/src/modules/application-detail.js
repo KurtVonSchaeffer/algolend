@@ -11,17 +11,7 @@ import {
   updateApplicationNotes
 } from '../services/dataService.js';
 import { supabase } from '../services/supabaseClient.js'; 
-import { 
-  sendContract, 
-  getSubmissionStatus, 
-  getApplicationSubmissions, 
-  getEmbedUrl, 
-  resendContract, 
-  voidSubmission, 
-  isDocuSealConfigured,
-  getSubmitterIdFromSubmission,
-  getSubmitterDetails
-} from '../services/docusealService.js';
+// DocuSeal removed — contracts are now signed in-app
 
 let currentApplication = null;
 let actionToConfirm = null;
@@ -775,357 +765,57 @@ const showFeedback = (message, type = 'success') => {
 };
 
 // --- 3. Logic Implementation ---
-// ===== DocuSeal Functions =====
+// ===== In-App Contract Card =====
 const initDocuSealCard = async () => {
   const emptyState = document.getElementById('contract-status-empty');
   const statusSection = document.getElementById('contract-status-section');
+  if (!emptyState) return;
 
-  // Check if DocuSeal is configured
-  if (!isDocuSealConfigured()) {
-    stopContractStatusPolling();
-    if (statusSection) statusSection.classList.add('hidden');
-    if (emptyState) {
-      emptyState.classList.remove('hidden');
-      emptyState.innerHTML = `
-        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-left">
-          <div class="flex items-start gap-3">
-            <span class="material-symbols-outlined text-yellow-600 text-xl mt-0.5">warning</span>
-            <div>
-              <h4 class="font-semibold text-yellow-900 mb-1">DocuSeal Not Configured</h4>
-              <p class="text-sm text-yellow-700">
-                E-signature features are currently disabled. Please configure DocuSeal API credentials to enable contract tracking.
-              </p>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-    return;
-  }
+  const od = currentApplication?.offer_details || {};
+  const signedAt = currentApplication?.contract_signed_at || od.contract_signed_at;
+  const signerName = od.contract_signed_name;
+  const sigImg = od.signature_data_url;
 
-  if (emptyState) {
+  if (!signedAt) {
     emptyState.classList.remove('hidden');
-    emptyState.textContent = 'No contracts sent yet.';
-  }
-
-  await loadContractStatus();
-};
-
-const handleSendContract = async (triggerButton = null) => {
-  if (!currentApplication || !currentApplication.profiles) {
-    alert('Error: Application data not loaded');
+    emptyState.innerHTML = `
+      <div class="flex flex-col items-center gap-2 py-2">
+        <span class="material-symbols-outlined text-3xl text-outline">draw</span>
+        <p class="text-sm text-outline">Awaiting client signature</p>
+        <p class="text-xs text-outline-variant">The client will sign in the app once an offer is accepted.</p>
+      </div>`;
+    if (statusSection) statusSection.classList.add('hidden');
     return;
   }
-  const btn = triggerButton || document.getElementById('btn-send-contract');
-  const originalHTML = btn ? btn.innerHTML : '';
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin align-middle">progress_activity</span> Sending...';
-  }
-  try {
-    const submission = await sendContract(currentApplication, currentApplication.profiles);
-    // Show success message
-    alert(`✅ Contract sent successfully to ${currentApplication.profiles.email}`);
-    await updateApplicationStatus(currentApplication.id, 'OFFERED');
-    // Reload contract status
-    await loadContractStatus();
-    await loadApplicationData();
-  } catch (error) {
-    console.error('Send contract error:', error);
-    alert(`❌ Failed to send contract: ${error.message}`);
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = originalHTML;
-    }
-  }
-};
 
-const handlePreviewContract = () => {
-  if (!currentApplication?.id) return;
-  // Open full NCA pre-agreement quote in new tab (print-ready)
-  window.open(`/api/contracts/${currentApplication.id}/preview`, '_blank');
-};
+  const signedDate = new Date(signedAt).toLocaleString('en-ZA', {
+    day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
 
-const shouldPollContractStatus = () => {
-  if (!currentApplication) return false;
-  const status = currentApplication.status || '';
-  return ['OFFERED'].includes(status);
-};
-
-const startContractStatusPolling = () => {
-  if (contractStatusPoller || !shouldPollContractStatus()) return;
-  contractStatusPoller = setInterval(() => {
-    loadContractStatus(true);
-  }, CONTRACT_POLL_INTERVAL);
-};
-
-const stopContractStatusPolling = () => {
-  if (contractStatusPoller) {
-    clearInterval(contractStatusPoller);
-    contractStatusPoller = null;
-  }
-};
-
-const handleContractCompleted = async () => {
-  if (isHandlingContractCompletion || hasAutoAdvancedToSigned || !currentApplication) return;
-  isHandlingContractCompletion = true;
-  hasAutoAdvancedToSigned = true;
-  stopContractStatusPolling();
-  try {
-    let statusChangedToOfferAccepted = false;
-    if (currentApplication.status !== 'OFFER_ACCEPTED') {
-      const { error } = await updateApplicationStatus(currentApplication.id, 'OFFER_ACCEPTED');
-      if (error) {
-        console.error('Auto advance to Contract Signed failed:', error);
-        hasAutoAdvancedToSigned = false;
-        return;
-      }
-      currentApplication.status = 'OFFER_ACCEPTED';
-      currentApplication.contract_signed_at = new Date().toISOString();
-      statusChangedToOfferAccepted = true;
-    }
-
-    if (statusChangedToOfferAccepted) {
-      try {
-        const activationResponse = await fetch('/api/suresystems/activate-application', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ applicationId: currentApplication.id })
-        });
-        const activationPayload = await activationResponse.json().catch(() => ({}));
-        if (!activationResponse.ok || activationPayload?.success === false) {
-          const activationError = new Error(activationPayload?.error || activationPayload?.message || 'SureSystems mandate activation failed');
-          activationError.details = activationPayload?.details || null;
-          throw activationError;
-        }
-      } catch (activationError) {
-        console.error('SureSystems activation failed during contract auto-complete:', {
-          message: activationError?.message || 'Unknown activation error',
-          details: activationError?.details || null
-        });
-        showFeedback(activationError?.message || 'SureSystems mandate activation failed', 'error');
-      }
-    }
-
-    renderSidePanel(currentApplication);
-    updateHeaderStatusBadge('OFFER_ACCEPTED');
-    showFeedback('Contract signed! Advanced to approval phase.', 'success');
-    await loadApplicationData();
-  } catch (error) {
-    console.error('handleContractCompleted error:', error);
-    hasAutoAdvancedToSigned = false;
-  } finally {
-    isHandlingContractCompletion = false;
-  }
-};
-
-const loadContractStatus = async (isPoll = false) => {
-  if (!currentApplication?.id) return;
-  try {
-    const submissions = await getApplicationSubmissions(currentApplication.id);
-    const statusSection = document.getElementById('contract-status-section');
-    const emptyState = document.getElementById('contract-status-empty');
-    if (submissions.length === 0) {
-      if (statusSection) statusSection.classList.add('hidden');
-      if (emptyState) {
-        emptyState.classList.remove('hidden');
-        emptyState.textContent = 'No contracts sent yet.';
-      }
-      stopContractStatusPolling();
-      markContractDeclinedState(false);
-      return;
-    }
-    if (emptyState) emptyState.classList.add('hidden');
-    if (statusSection) statusSection.classList.remove('hidden');
-    // Render submissions
-    renderContractSubmissions(submissions);
-    const latestStatus = submissions[0]?.status?.toLowerCase?.() || '';
-    markContractDeclinedState(latestStatus === 'declined');
-    if (latestStatus === 'completed' && !hasAutoAdvancedToSigned) {
-      await handleContractCompleted();
-    } else if (latestStatus !== 'completed' && !isPoll) {
-      startContractStatusPolling();
-    }
-  } catch (error) {
-    console.error('Load contract status error:', error);
-  }
-};
-
-const renderContractSubmissions = (submissions) => {
-  const container = document.getElementById('contract-status-content');
-  if (!container) return;
-  container.innerHTML = submissions.map(sub => {
-    const statusColor = getSubmissionStatusColor(sub.status);
-    const statusIcon = getSubmissionStatusIcon(sub.status);
-    return `
-      <div class="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl ${statusColor.bg} ${statusColor.text} flex items-center justify-center">
-              <span class="material-symbols-outlined text-[20px]">${statusIcon}</span>
-            </div>
-            <div>
-              <div class="font-semibold text-on-surface text-sm">Contract #${sub.submission_id.slice(-8)}</div>
-              <div class="text-xs text-outline">Sent ${formatDate(sub.created_at)}</div>
-            </div>
-          </div>
-          <span class="px-3 py-1 text-xs font-semibold rounded-full ${statusColor.badge}">${sub.status}</span>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="window.viewSubmission('${sub.slug || ''}', '${sub.submitter_id || ''}', '${sub.embed_src || ''}')" class="flex-1 px-3 py-2 bg-surface-container border border-outline-variant/30 text-on-surface-variant rounded-xl hover:bg-surface-container-low text-xs font-semibold flex items-center justify-center gap-1">
-            <span class="material-symbols-outlined text-[14px]">visibility</span> View
-          </button>
-          ${sub.status === 'pending' ? `
-            <button onclick="window.resendSubmission('${sub.submitter_id}', '${sub.submission_id}')" class="flex-1 px-3 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl hover:bg-blue-100 text-xs font-semibold flex items-center justify-center gap-1">
-              <span class="material-symbols-outlined text-[14px]">send</span> Resend
-            </button>
-          ` : ''}
-          ${sub.status !== 'completed' && sub.status !== 'voided' ? `
-            <button onclick="window.voidSubmission('${sub.submission_id}')" class="px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-xl hover:bg-red-100 text-xs font-semibold flex items-center gap-1">
-              <span class="material-symbols-outlined text-[14px]">block</span> Void
-            </button>
-          ` : ''}
+  emptyState.classList.remove('hidden');
+  emptyState.innerHTML = `
+    <div class="space-y-3">
+      <div class="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl">
+        <span class="material-symbols-outlined text-green-600 text-[18px]">verified</span>
+        <div class="flex-1">
+          <p class="text-sm font-semibold text-green-800">Contract Signed</p>
+          <p class="text-xs text-green-600">${signerName ? `By ${signerName} · ` : ''}${signedDate}</p>
         </div>
       </div>
-    `;
-  }).join('');
+      ${sigImg ? `
+      <div>
+        <p class="text-[10px] font-semibold text-outline uppercase tracking-widest mb-2">Client Signature</p>
+        <div class="border border-outline-variant/30 rounded-xl bg-white p-3">
+          <img src="${sigImg}" alt="Client signature" class="w-full h-24 object-contain">
+        </div>
+      </div>` : ''}
+    </div>`;
+  if (statusSection) statusSection.classList.add('hidden');
 };
 
-const markContractDeclinedState = (isDeclined) => {
-  if (typeof isDeclined !== 'boolean' || !currentApplication) return;
-
-  if (isDeclined === isContractDeclinedUI) return;
-  isContractDeclinedUI = isDeclined;
-
-  const bannerId = 'contract-declined-banner';
-  const existingBanner = document.getElementById(bannerId);
-  const contractCard = document.getElementById('contract-status-card');
-
-  if (isDeclined) {
-    if (!originalStatusBeforeDecline && currentApplication.status !== 'DECLINED') {
-      originalStatusBeforeDecline = currentApplication.status;
-    }
-    currentApplication.status = 'DECLINED';
-    updateHeaderStatusBadge('DECLINED');
-    renderSidePanel(currentApplication);
-
-    if (!existingBanner && contractCard) {
-      const banner = document.createElement('div');
-      banner.id = bannerId;
-      banner.className = 'mt-3 p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700 font-semibold flex items-center gap-2';
-      banner.innerHTML = `
-        <span class="material-symbols-outlined text-red-500 text-[16px]">cancel</span>
-        <span>Contract was declined by the applicant.</span>
-      `;
-      const heading = contractCard.querySelector('h3');
-      if (heading && heading.parentNode) {
-        heading.parentNode.insertBefore(banner, heading.nextSibling);
-      } else {
-        contractCard.prepend(banner);
-      }
-    }
-  } else {
-    if (existingBanner) existingBanner.remove();
-    if (originalStatusBeforeDecline) {
-      currentApplication.status = originalStatusBeforeDecline;
-    }
-    originalStatusBeforeDecline = null;
-    renderSidePanel(currentApplication);
-    updateHeaderStatusBadge(currentApplication.status);
-  }
-};
-
-const getSubmissionStatusColor = (status) => {
-  const normalized = (status || '').toLowerCase();
-  const colors = {
-    pending: { bg: 'bg-yellow-100', text: 'text-yellow-600', badge: 'bg-yellow-100 text-yellow-700' },
-    completed: { bg: 'bg-green-100', text: 'text-green-600', badge: 'bg-green-100 text-green-700' },
-    expired: { bg: 'bg-red-100', text: 'text-red-600', badge: 'bg-red-100 text-red-700' },
-    voided: { bg: 'bg-gray-100', text: 'text-gray-600', badge: 'bg-gray-100 text-gray-700' },
-    declined: { bg: 'bg-red-100', text: 'text-red-600', badge: 'bg-red-100 text-red-700' }
-  };
-  return colors[normalized] || colors.pending;
-};
-
-const getSubmissionStatusIcon = (status) => {
-  const normalized = (status || '').toLowerCase();
-  const icons = {
-    pending: 'schedule',
-    completed: 'check_circle',
-    expired: 'error',
-    voided: 'block',
-    declined: 'cancel'
-  };
-  return icons[normalized] || icons.pending;
-};
-
-// Global functions for button onclick handlers
-window.viewSubmission = async (slug, submitterId, embedSrc) => {
-  const cleanStr = (v) => (v && v !== 'undefined' && v !== 'null' ? v : null);
-  // Open the tab synchronously so popup blockers don't kill it during the async fetch.
-  const newTab = window.open('', '_blank');
-  try {
-    let url = null;
-    // Prefer a live lookup via the DocuSeal API: the stored "slug" field has historically
-    // been the submission slug (not the submitter signing slug), which yields a 404.
-    if (cleanStr(submitterId)) {
-      try {
-        const details = await getSubmitterDetails(submitterId);
-        const resolvedSlug = details?.slug || details?.submitter?.slug;
-        const resolvedEmbed = details?.embed_src || details?.submitter?.embed_src;
-        url = cleanStr(resolvedEmbed) || (cleanStr(resolvedSlug) ? getEmbedUrl(resolvedSlug) : null);
-      } catch (apiErr) {
-        console.warn('Live submitter lookup failed, falling back to stored values:', apiErr);
-      }
-    }
-    // Fallbacks
-    if (!url) url = cleanStr(embedSrc);
-    if (!url && cleanStr(slug)) url = getEmbedUrl(slug);
-
-    if (!url) {
-      if (newTab) newTab.close();
-      alert('Unable to open this contract — the signing link is missing. Try resending the contract.');
-      return;
-    }
-    if (newTab) {
-      newTab.location.href = url;
-    } else {
-      window.open(url, '_blank');
-    }
-  } catch (err) {
-    console.error('viewSubmission error:', err);
-    if (newTab) newTab.close();
-    alert(`Could not open contract: ${err.message || err}`);
-  }
-};
-window.resendSubmission = async (submitterId, submissionId = null) => {
-  if (!confirm('Resend contract email to the applicant?')) return;
-  try {
-    let targetSubmitterId = submitterId;
-    if (!targetSubmitterId) {
-      if (!submissionId) {
-        throw new Error('Unable to determine DocuSeal submitter');
-      }
-      targetSubmitterId = await getSubmitterIdFromSubmission(submissionId);
-    }
-
-    await resendContract(targetSubmitterId);
-    alert('✅ Contract email resent successfully');
-    await loadContractStatus();
-  } catch (error) {
-    alert(`❌ Failed to resend: ${error.message}`);
-  }
-};
-window.voidSubmission = async (submissionId) => {
-  if (!confirm('Void this contract submission? This cannot be undone.')) return;
-  try {
-    await voidSubmission(submissionId);
-    alert('✅ Submission voided successfully');
-    await loadContractStatus();
-  } catch (error) {
-    alert(`❌ Failed to void: ${error.message}`);
-  }
+// DocuSeal polling stubs (kept to avoid reference errors from legacy var declarations)
+const stopContractStatusPolling = () => {
+  if (contractStatusPoller) { clearInterval(contractStatusPoller); contractStatusPoller = null; }
 };
 
 const initTabs = () => {
@@ -2623,12 +2313,8 @@ const renderSidePanel = (app) => {
       } 
       else if (status === 'AFFORD_OK') {
           actionsContainer.innerHTML = `
-            <div class="p-3 bg-blue-50 border border-blue-100 rounded-lg mb-3 text-xs text-blue-700">Client passed assessment. Ready for Contract.</div>
-            <button id="action-send-contract" class="w-full py-3 bg-brand-accent hover:bg-brand-accent-hover text-white text-sm font-bold rounded-xl shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane"></i> Send Contract</button>
-            <button id="action-preview-contract" class="w-full py-3 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl shadow-sm flex items-center justify-center gap-2"><i class="fa-solid fa-eye"></i> Preview Template</button>
+            <div class="p-3 bg-blue-50 border border-blue-100 rounded-lg mb-3 text-xs text-blue-700">Client passed assessment. Issue an offer to allow them to sign the contract in-app.</div>
           `;
-          document.getElementById('action-send-contract')?.addEventListener('click', (event) => handleSendContract(event.currentTarget));
-          document.getElementById('action-preview-contract')?.addEventListener('click', handlePreviewContract);
       }
       else if (status === 'OFFER_ACCEPTED') {
           actionsContainer.innerHTML = `

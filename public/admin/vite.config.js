@@ -23,6 +23,7 @@ export default {
         applications: resolve(__dirname, 'applications.html'),
         applicationDetail: resolve(__dirname, 'application-detail.html'),
         createApplicationStep1: resolve(__dirname, 'create-application-step1.html'),
+        reminders: resolve(__dirname, 'reminders.html'),
         
         // Payments
         incomingPayments: resolve(__dirname, 'incoming-payments.html'),

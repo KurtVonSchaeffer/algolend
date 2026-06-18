@@ -7,6 +7,14 @@
       "runtimeArgs": ["server.js"],
       "port": 3010,
       "autoPort": false
+    },
+    {
+      "name": "demo-video",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--prefix", "demo-video", "remotion", "studio", "--port", "3011"],
+      "cwd": "demo-video",
+      "port": 3011,
+      "autoPort": false
     }
   ]
 }

@@ -53,6 +53,7 @@ const idcardRoute = require('./public/user/routes/idcardRoute');
 const kyc = require(path.join(__dirname, 'public', 'user-portal', 'Services', 'kycService'));
 const truid = require('./services/truidService');
 const creditCheckService = require('./services/creditCheckService');
+const idmnService = require('./services/idmnService');
 const sureSystemsService = require('./services/sureSystemsService');
 const messaging          = require('./services/messagingService');
 const pushNotifications  = require('./services/pushNotificationService');
@@ -831,6 +832,106 @@ app.post('/api/banking/capture', async (req, res) => {
     }
 });
 
+// ── IDMN (Biometric Liveness + AML) Routes ───────────────────────────────────
+
+// POST /api/idmn/start — initiate biometric workflow, returns redirect URL for client
+app.post('/api/idmn/start', async (req, res) => {
+    try {
+        const { identityNumber, name, surname, applicationId, workflowKey } = req.body;
+        if (!identityNumber || !name || !surname) {
+            return res.status(400).json({ error: 'identityNumber, name and surname are required' });
+        }
+
+        const result = await idmnService.startWorkflow(
+            { identityNumber, name, surname, clientConsent: 'Y' },
+            workflowKey || 'FULL_IDMENOW',
+            applicationId || null
+        );
+
+        // Persist pending IDMN record so we can match on callback
+        if (applicationId) {
+            await supabaseService.from('loan_applications').update({
+                idmn_transaction_id: result.transactionId,
+                idmn_token:          result.token,
+                idmn_status:         'pending',
+                idmn_workflow_key:   result.workflowKey,
+                updated_at:          new Date().toISOString(),
+            }).eq('id', applicationId);
+        }
+
+        return res.json({
+            url:           result.url,
+            transactionId: result.transactionId,
+            token:         result.token,
+        });
+    } catch (error) {
+        console.error('[IDMN] start error:', error.message);
+        return res.status(500).json({ error: error.message || 'IDMN start failed' });
+    }
+});
+
+// POST /api/idmn/collect — poll for completed biometric results
+app.post('/api/idmn/collect', async (req, res) => {
+    try {
+        const { transactionId, token, applicationId } = req.body;
+        if (!transactionId || !token) {
+            return res.status(400).json({ error: 'transactionId and token are required' });
+        }
+
+        const result = await idmnService.collectResults(transactionId, token, applicationId);
+
+        if (result.status === 'pending') {
+            return res.json({ status: 'pending', message: result.message });
+        }
+
+        const parsed = idmnService.parseResult(result);
+
+        // Persist results to loan_applications
+        if (applicationId) {
+            await supabaseService.from('loan_applications').update({
+                idmn_status:           'completed',
+                idmn_liveness_passed:  parsed.liveness_passed,
+                idmn_facial_match:     parsed.facial_match,
+                idmn_identity_verified: parsed.identity_verified,
+                idmn_aml_clear:        parsed.aml_clear,
+                idmn_pep_clear:        parsed.pep_clear,
+                idmn_overall_result:   parsed.overall_result,
+                idmn_completed_at:     new Date().toISOString(),
+                updated_at:            new Date().toISOString(),
+            }).eq('id', applicationId);
+
+            // Audit log
+            await supabaseService.from('audit_log').insert({
+                application_id: applicationId,
+                action:         'idmn_completed',
+                details:        { overall_result: parsed.overall_result, liveness: parsed.liveness_passed, aml: parsed.aml_clear },
+                created_at:     new Date().toISOString(),
+            });
+        }
+
+        return res.json({ status: 'completed', result: parsed });
+    } catch (error) {
+        console.error('[IDMN] collect error:', error.message);
+        return res.status(500).json({ error: error.message || 'IDMN collect failed' });
+    }
+});
+
+// GET /api/idmn/status/:applicationId — check stored IDMN status for an application
+app.get('/api/idmn/status/:applicationId', async (req, res) => {
+    try {
+        const { data, error } = await supabaseService
+            .from('loan_applications')
+            .select('idmn_status, idmn_liveness_passed, idmn_facial_match, idmn_identity_verified, idmn_aml_clear, idmn_pep_clear, idmn_overall_result, idmn_completed_at, idmn_transaction_id, idmn_token')
+            .eq('id', req.params.applicationId)
+            .single();
+
+        if (error || !data) return res.status(404).json({ error: 'Application not found' });
+        return res.json(data);
+    } catch (error) {
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 // Credit Check API endpoint
 app.post('/api/credit-check', async (req, res) => {
     try {
@@ -1464,36 +1565,166 @@ app.post('/api/suresystems/activate-application', async (req, res) => {
 
 app.get('/api/suresystems/mandates/history', async (req, res) => {
     try {
-        const { data, error } = await supabaseService
+        const { data: mandates, error: mandateError } = await supabaseService
             .from(SURESYSTEMS_MANDATES_TABLE)
-            .select(`
-                *,
-                loan_applications (
-                    user_id,
-                    amount,
-                    status
-                )
-            `)
+            .select('*')
             .order('updated_at', { ascending: false })
             .limit(100);
 
-        if (error) {
-            throw error;
+        if (mandateError) throw mandateError;
+
+        const rows = mandates || [];
+
+        // Enrich with loan application + profile data via a second query
+        const appIds = [...new Set(rows.map((m) => m.application_id).filter(Boolean))];
+        let appsById = {};
+        if (appIds.length) {
+            const { data: apps } = await supabaseService
+                .from('loan_applications')
+                .select('id, amount, status, profiles:user_id(full_name, email)')
+                .in('id', appIds);
+            (apps || []).forEach((a) => { appsById[a.id] = a; });
         }
 
-        return res.json({ success: true, data: data || [] });
+        const merged = rows.map((m) => {
+            const app = appsById[m.application_id] || null;
+            return {
+                ...m,
+                loan_applications: app ? { amount: app.amount, status: app.status } : null,
+                profiles: app?.profiles || null
+            };
+        });
+
+        return res.json({ success: true, data: merged });
     } catch (error) {
         console.error('SureSystems history fetch error:', error?.message || error);
         return res.status(500).json({ success: false, error: 'Unable to load mandate history', detail: error?.message || String(error) });
     }
 });
 
-// DocuSeal proxy endpoints
+// ================================================================
+// IN-APP CONTRACT SIGNING
+// ================================================================
+
+// POST /api/applications/:id/sign-contract
+// Called by user portal when client signs the loan agreement in-app.
+app.post('/api/applications/:id/sign-contract', async (req, res) => {
+    try {
+        const applicationId = req.params.id;
+        const { signatureDataUrl, clientName, agreedAt, contractSnapshot } = req.body;
+        if (!signatureDataUrl) return res.status(400).json({ error: 'Signature is required' });
+
+        const { data: app, error: appErr } = await supabaseService
+            .from('loan_applications')
+            .select('id, status, offer_details, user_id')
+            .eq('id', applicationId)
+            .single();
+        if (appErr || !app) return res.status(404).json({ error: 'Application not found' });
+
+        const SIGNABLE = ['OFFERED', 'CONTRACT_SIGN', 'BUREAU_OK', 'BUREAU_REFER'];
+        if (!SIGNABLE.includes(app.status)) {
+            return res.status(400).json({ error: `Cannot sign in current status: ${app.status}` });
+        }
+
+        const now = agreedAt || new Date().toISOString();
+        const updatedOfferDetails = {
+            ...(app.offer_details || {}),
+            signature_data_url:    signatureDataUrl,
+            contract_signed_name:  clientName || '',
+            contract_signed_at:    now,
+            contract_text_snapshot: contractSnapshot || '',
+        };
+
+        const { error: updateErr } = await supabaseService
+            .from('loan_applications')
+            .update({ status: 'OFFER_ACCEPTED', contract_signed_at: now, offer_details: updatedOfferDetails })
+            .eq('id', applicationId);
+        if (updateErr) throw updateErr;
+
+        // Audit log (non-blocking)
+        supabaseService.from('audit_log').insert([{
+            entity_type: 'loan_application',
+            entity_id: String(applicationId),
+            action: 'contract_signed',
+            description: `Contract signed in-app by ${clientName || 'client'} at ${now}`,
+            performed_by: app.user_id,
+            performed_by_name: clientName || 'Client',
+        }]).catch(() => {});
+
+        // Try to trigger SureSystems activation (non-blocking)
+        fetch(`http://localhost:${process.env.PORT || 3010}/api/suresystems/activate-application`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ applicationId })
+        }).catch(() => {});
+
+        res.json({ success: true, signed_at: now });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/applications/:id/contract — returns the rendered loan agreement HTML
+app.get('/api/applications/:id/contract', async (req, res) => {
+    try {
+        const { id: applicationId } = req.params;
+        const { data: app, error: appErr } = await supabaseService
+            .from('loan_applications')
+            .select('*, profiles:user_id(*)')
+            .eq('id', applicationId)
+            .single();
+        if (appErr || !app) return res.status(404).json({ error: 'Not found' });
+
+        const profile  = app.profiles || {};
+        const name     = profile.full_name  || 'Client';
+        const idNum    = profile.identity_number || profile.id_number || '—';
+        const phone    = profile.cell_tel_no || profile.phone || '—';
+        const email    = profile.email || '—';
+        const company  = process.env.COMPANY_NAME || 'AlgoLend';
+        const ncrNo    = process.env.NCR_NO  || 'NCRCP13510';
+        const fspNo    = process.env.FSP_NO  || 'FSP 53423';
+
+        const fmt = (v, decimals = 2) =>
+            `R ${Number(v || 0).toLocaleString('en-ZA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+
+        const principal       = Number(app.offer_principal || app.amount || 0);
+        const monthlyPayment  = Number(app.offer_monthly_repayment || 0);
+        const totalRepayment  = Number(app.offer_total_repayment || 0);
+        const totalInterest   = Number(app.offer_total_interest || 0);
+        const initiationFee   = Number(app.offer_total_initiation_fees || 0);
+        const adminFee        = Number(app.offer_total_admin_fees || 0);
+        const annualRate      = Number(app.offer_interest_rate || 0);
+        const term            = Number(app.term_months || 0);
+        const firstPayment    = app.repayment_start_date
+            ? new Date(app.repayment_start_date).toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' })
+            : '—';
+        const today = new Date().toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' });
+
+        res.setHeader('Content-Type', 'application/json');
+        res.json({
+            company, ncrNo, fspNo, name, idNum, phone, email, today, firstPayment,
+            principal:      fmt(principal),
+            monthlyPayment: fmt(monthlyPayment),
+            totalRepayment: fmt(totalRepayment),
+            totalInterest:  fmt(totalInterest),
+            initiationFee:  fmt(initiationFee),
+            adminFee:       fmt(adminFee),
+            annualRate:     `${(annualRate * 100).toFixed(1)}%`,
+            term,
+            loanNumber:     app.loan_number || applicationId.slice(-8).toUpperCase(),
+            alreadySigned:  !!app.contract_signed_at,
+            signedAt:       app.contract_signed_at || null,
+            signatureName:  app.offer_details?.contract_signed_name || null,
+            signatureImg:   app.offer_details?.signature_data_url || null,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DocuSeal proxy endpoints (kept for backward compat, returns disabled)
 app.get('/api/docuseal/config', (req, res) => {
-    return res.json({
-        configured: isDocuSealReady(),
-        templateId: isDocuSealReady() ? DOCUSEAL_TEMPLATE_ID : null
-    });
+    return res.json({ configured: false, templateId: null });
 });
 
 app.post('/api/docuseal/send-contract', async (req, res) => {
@@ -2189,6 +2420,14 @@ app.get('/admin/sacrra', (req, res) => {
 
 app.get('/admin/sacrra-validator', (req, res) => {
     sendAdminPage('sacrra-validator.html', res);
+});
+
+app.get('/admin/mandates', (req, res) => {
+    sendAdminPage('mandates.html', res);
+});
+
+app.get('/admin/reminders', (req, res) => {
+    sendAdminPage('reminders.html', res);
 });
 
 // ─── MOVEit / SACRRA transmission routes ─────────────────────────────────────
@@ -4202,6 +4441,204 @@ app.post('/api/applications/:id/route-to-head-office', async (req, res) => {
         });
 
         res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ================================================================
+// ADMIN DASHBOARD DATA — service-role endpoints for charts
+// ================================================================
+
+// Middleware: require an authenticated Supabase session for admin routes
+async function requireAdminSession(req, res, next) {
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    const { data: { user }, error } = await supabaseService.auth.getUser(token);
+    if (error || !user) return res.status(401).json({ error: 'Invalid session' });
+    req.adminUser = user;
+    next();
+}
+
+// GET /api/admin/loan-applications — all apps for dashboard charts
+app.get('/api/admin/loan-applications', requireAdminSession, async (req, res) => {
+    try {
+        const select = req.query.select || 'id,status,amount,offer_principal,offer_total_repayment,offer_monthly_repayment,offer_total_interest,offer_total_initiation_fees,offer_total_admin_fees,created_at,term_months,bureau_score_band,branch_id';
+        const { data, error } = await supabaseService
+            .from('loan_applications')
+            .select(select)
+            .order('created_at', { ascending: true });
+        if (error) return res.status(400).json({ error: error.message });
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/admin/loan-applications/pipeline — non-disbursed apps for funnel
+app.get('/api/admin/loan-applications/pipeline', requireAdminSession, async (req, res) => {
+    try {
+        const { data, error } = await supabaseService
+            .from('loan_applications')
+            .select('id, amount, status, created_at')
+            .not('status', 'in', '(DISBURSED,DECLINED)')
+            .order('created_at', { ascending: false });
+        if (error) return res.status(400).json({ error: error.message });
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/admin/stalled-applications — apps stuck in incomplete steps for >hoursStale hours
+app.get('/api/admin/stalled-applications', requireAdminSession, async (req, res) => {
+    try {
+        const hoursStale = Number(req.query.hours || 24);
+        const cutoff = new Date(Date.now() - hoursStale * 60 * 60 * 1000).toISOString();
+        const STALL_STATUSES = ['STARTED', 'BUREAU_CHECKING', 'BUREAU_OK', 'BUREAU_REFER', 'OFFERED', 'OFFER_ACCEPTED', 'CONTRACT_SIGN'];
+
+        const { data: apps, error } = await supabaseService
+            .from('loan_applications')
+            .select('id, status, amount, created_at, updated_at, loan_number, user_id')
+            .in('status', STALL_STATUSES)
+            .lt('updated_at', cutoff)
+            .order('updated_at', { ascending: true });
+
+        if (error) return res.status(400).json({ error: error.message });
+
+        // Fetch profiles separately (FK join not in PostgREST schema cache)
+        const userIds = [...new Set((apps || []).map(a => a.user_id).filter(Boolean))];
+        let profileMap = {};
+        if (userIds.length) {
+            const { data: profiles } = await supabaseService
+                .from('profiles')
+                .select('id, full_name, cell_tel_no, email')
+                .in('id', userIds);
+            (profiles || []).forEach(p => { profileMap[p.id] = p; });
+        }
+
+        const now = Date.now();
+        const rows = (apps || []).map(app => {
+            const profile = profileMap[app.user_id] || {};
+            const updatedMs = new Date(app.updated_at).getTime();
+            const hoursStalled = Math.floor((now - updatedMs) / 3600000);
+            return {
+                id: app.id,
+                status: app.status,
+                amount: app.amount,
+                loan_number: app.loan_number,
+                created_at: app.created_at,
+                updated_at: app.updated_at,
+                hours_stalled: hoursStalled,
+                client_name: profile.full_name || 'Unknown',
+                phone: profile.cell_tel_no || null,
+                email: profile.email || null,
+            };
+        });
+
+        res.json(rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/admin/send-reminder — send an SMS/WhatsApp nudge to a stalled applicant
+app.post('/api/admin/send-reminder', requireAdminSession, async (req, res) => {
+    try {
+        const { applicationId } = req.body;
+        if (!applicationId) return res.status(400).json({ error: 'applicationId required' });
+
+        const { data: app, error: appErr } = await supabaseService
+            .from('loan_applications')
+            .select('id, status, amount, user_id')
+            .eq('id', applicationId)
+            .single();
+
+        if (appErr || !app) return res.status(404).json({ error: 'Application not found' });
+
+        const { data: profileRow } = await supabaseService
+            .from('profiles')
+            .select('full_name, cell_tel_no, email')
+            .eq('id', app.user_id)
+            .maybeSingle();
+        const profile = profileRow || {};
+        const phone    = profile.cell_tel_no;
+        const name     = (profile.full_name || '').split(' ')[0] || 'there';
+        const company  = process.env.COMPANY_NAME || 'AlgoLend';
+        const portalUrl = process.env.APP_URL || 'https://app.algolend.co.za';
+        const link     = `${portalUrl}/user-portal/`;
+
+        if (!phone) return res.status(422).json({ error: 'No phone number on record for this applicant' });
+
+        const STEP_LABELS = {
+            STARTED:         'your basic details',
+            BUREAU_CHECKING: 'your credit check',
+            BUREAU_OK:       'your loan offer',
+            BUREAU_REFER:    'your loan offer',
+            OFFERED:         'accepting your loan offer',
+            OFFER_ACCEPTED:  'signing your contract',
+            CONTRACT_SIGN:   'completing your application',
+        };
+        const stepLabel = STEP_LABELS[app.status] || 'your application';
+        const message = `Hi ${name}, you're almost there! You started a loan application with ${company} but haven't completed ${stepLabel} yet. Continue here: ${link} – ${company}`;
+
+        const result = await messaging.sendSMS(phone, message).catch(e => ({ sent: false, error: e.message }));
+
+        // Log to audit trail (non-blocking)
+        supabaseService.from('audit_log').insert([{
+            entity_type: 'loan_application',
+            entity_id: String(applicationId),
+            action: 'reminder_sent',
+            description: `Reminder sent to ${name} (${phone}) — status: ${app.status}`,
+            performed_by: req.adminUser?.id || null,
+            performed_by_name: req.adminUser?.email || 'Admin',
+        }]).catch(() => {});
+
+        res.json({ sent: result?.sent ?? true, phone, name, status: app.status });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/cron/abandoned-reminders — automated batch reminder for all stalled apps >48h
+app.post('/api/cron/abandoned-reminders', async (req, res) => {
+    if (process.env.VERCEL && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET || ''}`) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+        const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+        const STALL_STATUSES = ['STARTED', 'BUREAU_OK', 'BUREAU_REFER', 'OFFERED', 'OFFER_ACCEPTED', 'CONTRACT_SIGN'];
+        const company   = process.env.COMPANY_NAME || 'AlgoLend';
+        const portalUrl = process.env.APP_URL || 'https://app.algolend.co.za';
+
+        const { data: stalledApps, error } = await supabaseService
+            .from('loan_applications')
+            .select('id, status, user_id')
+            .in('status', STALL_STATUSES)
+            .lt('updated_at', cutoff);
+
+        if (error) throw error;
+
+        const uids = [...new Set((stalledApps || []).map(a => a.user_id).filter(Boolean))];
+        let pMap = {};
+        if (uids.length) {
+            const { data: ps } = await supabaseService.from('profiles').select('id, full_name, cell_tel_no').in('id', uids);
+            (ps || []).forEach(p => { pMap[p.id] = p; });
+        }
+
+        const results = { sent: 0, skipped: 0, errors: [] };
+        for (const app of (stalledApps || [])) {
+            const prof  = pMap[app.user_id] || {};
+            const phone = prof.cell_tel_no;
+            const name  = (prof.full_name || '').split(' ')[0] || 'there';
+            if (!phone) { results.skipped++; continue; }
+            const msg = `Hi ${name}, your loan application with ${company} is waiting for you. Continue here: ${portalUrl}/user-portal/ – ${company}`;
+            const r = await messaging.sendSMS(phone, msg).catch(e => ({ sent: false, error: e.message }));
+            if (r?.sent !== false) results.sent++;
+            else { results.skipped++; results.errors.push({ id: app.id, error: r.error }); }
+        }
+
+        res.json({ ok: true, ...results });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

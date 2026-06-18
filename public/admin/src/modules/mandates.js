@@ -5,479 +5,396 @@ const state = {
   currentMandate: null,
   currentFilter: 'all',
   config: null,
-  logs: []
+  diagnosticsOpen: false
+};
+
+// ── Plain-English status mapping ──────────────────────────────────────────────
+
+const STATUS_LABEL = {
+  success: 'Bank approved',
+  failed: 'Rejected',
+  pending: 'Awaiting bank',
+  unknown: 'Not sent'
 };
 
 const STATUS_THEME = {
-  success: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-200', icon: 'fa-check-circle' },
-  failed: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200', icon: 'fa-circle-xmark' },
-  pending: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-200', icon: 'fa-clock' },
-  unknown: { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-200', icon: 'fa-circle-question' }
+  success: { bg: 'bg-green-50', text: 'text-green-800', border: 'border-green-200', dot: 'bg-green-500' },
+  failed:  { bg: 'bg-red-50',   text: 'text-red-800',   border: 'border-red-200',   dot: 'bg-red-500'   },
+  pending: { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-400' },
+  unknown: { bg: 'bg-gray-100', text: 'text-gray-600',  border: 'border-gray-200',  dot: 'bg-gray-400'  }
 };
 
-const getStatusTheme = (status) => STATUS_THEME[(status || 'unknown').toLowerCase()] || STATUS_THEME.unknown;
+function normalizeStatus(raw) {
+  const s = (raw || '').toLowerCase();
+  if (s === 'success') return 'success';
+  if (s === 'failed')  return 'failed';
+  if (s === 'pending') return 'pending';
+  return 'unknown';
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+
+const escapeHtml = (value = '') => `${value}`
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+const prettyJson = (value) => {
+  if (!value) return 'No data recorded.';
+  try { return JSON.stringify(value, null, 2); } catch (_) { return String(value); }
+};
 
 const formatDate = (value) => {
-  if (!value) return 'N/A';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'N/A';
-  return date.toLocaleString('en-ZA', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const formatCurrency = (value) => {
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) return 'R 0.00';
-  return `R ${amount.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 'R 0.00';
+  return `R ${n.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
-const escapeHtml = (value = '') => `${value}`
-  .replace(/&/g, '&amp;')
-  .replace(/</g, '&lt;')
-  .replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;')
-  .replace(/'/g, '&#39;');
-
-const prettyJson = (value) => {
-  if (!value) return 'No payload recorded.';
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch (error) {
-    return String(value);
-  }
-};
-
-function addLog(label, payload = null, level = 'info') {
-  const entry = {
-    at: new Date().toISOString(),
-    label,
-    payload,
-    level
-  };
-  state.logs.unshift(entry);
-  if (state.logs.length > 120) {
-    state.logs = state.logs.slice(0, 120);
-  }
-  renderLogs();
-}
-
-function renderLogs() {
-  const output = document.getElementById('dev-log-output');
-  const count = document.getElementById('dev-log-count');
-  if (count) {
-    count.textContent = `${state.logs.length} entr${state.logs.length === 1 ? 'y' : 'ies'}`;
-  }
-  if (!output) return;
-
-  if (!state.logs.length) {
-    output.textContent = 'No logs yet. Run a connectivity probe or a SureSystems action.';
-    return;
-  }
-
-  output.textContent = state.logs.map((entry) => {
-    const stamp = new Date(entry.at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const body = entry.payload ? prettyJson(entry.payload) : '';
-    return `[${stamp}] [${entry.level.toUpperCase()}] ${entry.label}${body ? `\n${body}` : ''}`;
-  }).join('\n\n');
+function setButtonLoading(button, loadingText) {
+  if (!button) return () => {};
+  const original = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-1.5"></i>${loadingText}`;
+  return () => { button.disabled = false; button.innerHTML = original; };
 }
 
 async function fetchJson(url, options = {}) {
-  addLog(`HTTP ${options.method || 'GET'} ${url} - request`, options.body ? JSON.parse(options.body) : null, 'info');
   const response = await fetch(url, options);
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || payload.success === false) {
-    addLog(`HTTP ${options.method || 'GET'} ${url} - failed`, {
-      status: response.status,
-      payload
-    }, 'error');
     const error = new Error(payload.error || payload.message || `Request failed (${response.status})`);
     error.status = response.status;
     error.details = payload.details || null;
     error.payload = payload;
     throw error;
   }
-  addLog(`HTTP ${options.method || 'GET'} ${url} - success`, {
-    status: response.status,
-    payload
-  }, 'success');
   return payload;
 }
 
-function setButtonLoading(button, loadingText) {
-  if (!button) return () => {};
-  const original = button.innerHTML;
-  button.disabled = true;
-  button.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i>${loadingText}`;
-  return () => {
-    button.disabled = false;
-    button.innerHTML = original;
-  };
+// ── Diagnostics log (hidden panel) ───────────────────────────────────────────
+
+const diagLogs = [];
+
+function addDiagLog(label, payload = null, level = 'info') {
+  diagLogs.unshift({ at: new Date().toISOString(), label, payload, level });
+  if (diagLogs.length > 120) diagLogs.length = 120;
+  renderDiagLogs();
 }
+
+function renderDiagLogs() {
+  const output = document.getElementById('diag-log-output');
+  if (!output) return;
+  if (!diagLogs.length) { output.textContent = 'No logs yet.'; return; }
+  output.textContent = diagLogs.map((e) => {
+    const stamp = new Date(e.at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const body  = e.payload ? prettyJson(e.payload) : '';
+    return `[${stamp}] [${e.level.toUpperCase()}] ${e.label}${body ? `\n${body}` : ''}`;
+  }).join('\n\n');
+}
+
+function setDiagOutput(label, payload, tone = 'idle') {
+  const output = document.getElementById('diag-lab-output');
+  const badge  = document.getElementById('diag-lab-badge');
+  if (output) output.textContent = typeof payload === 'string' ? payload : prettyJson(payload);
+  if (badge) {
+    const cls = { idle: 'bg-gray-800 text-gray-200', success: 'bg-green-900 text-green-100', error: 'bg-red-900 text-red-100', info: 'bg-blue-900 text-blue-100' };
+    badge.className = `px-2.5 py-1 rounded-full text-[10px] font-bold ${cls[tone] || cls.idle}`;
+    badge.textContent = label;
+  }
+}
+
+// ── Page render ───────────────────────────────────────────────────────────────
 
 function renderPage() {
   return `
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
-      <div class="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6 mb-8">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      <!-- Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <a href="/admin/dashboard" class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-gray-700 transition mb-3 group">
-            <i class="fa-solid fa-arrow-left text-[10px] group-hover:-translate-x-0.5 transition-transform"></i>
-            Back to Dashboard
-          </a>
-          <p class="text-[11px] font-black uppercase tracking-[0.2em] text-orange-500 mb-2">SureSystems / DebiCheck</p>
-          <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-3">
-            <i class="fa-solid fa-file-invoice text-orange-600"></i> Mandate Control Room
-          </h1>
-          <p class="mt-3 text-sm text-gray-500 max-w-3xl">
-            Operate SureSystems DebiCheck mandates, inspect raw payloads, run safe dry-runs, and diagnose provider failures without leaving the admin desk.
-          </p>
+          <p class="text-[11px] font-black uppercase tracking-[0.2em] text-orange-500 mb-1">DebiCheck / SureSystems</p>
+          <h1 class="text-2xl font-extrabold text-gray-900">Mandates</h1>
         </div>
-        <div class="flex flex-wrap gap-3">
-          <button id="refresh-mandates-btn" class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-50 transition shadow-sm font-semibold flex items-center gap-2">
-            <i class="fa-solid fa-rotate-right"></i> Refresh data
-          </button>
-          <button id="refresh-config-btn" class="bg-gray-900 text-white px-4 py-2 rounded-xl hover:bg-black transition shadow-sm font-semibold flex items-center gap-2">
-            <i class="fa-solid fa-shield-heart"></i> Refresh health
+        <div class="flex gap-3">
+          <button id="refresh-btn" class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-50 transition font-semibold text-sm flex items-center gap-2 shadow-sm">
+            <i class="fa-solid fa-rotate-right"></i> Refresh
           </button>
         </div>
       </div>
 
-      <div id="mandates-health-banner" class="mb-6"></div>
+      <!-- Health banner -->
+      <div id="health-banner" class="mb-6"></div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8" id="mandates-summary-cards"></div>
+      <!-- Summary cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="summary-cards"></div>
 
-      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
-        <section class="xl:col-span-2 bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-          <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/70">
-            <h2 class="text-lg font-bold text-gray-900">Mandate Test Lab</h2>
-            <p class="text-sm text-gray-500 mt-1">Use dry-run mode to preview the exact payload without hitting SureSystems. Use live mode only when configuration is healthy.</p>
-          </div>
-          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label class="block">
-              <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Application ID</span>
-              <input id="test-application-id" type="number" min="1" placeholder="e.g. 1234" class="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Front End User</span>
-              <input id="test-front-end-user" type="text" placeholder="ops@company.co.za" class="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Collection Date</span>
-              <input id="test-collection-date" type="date" class="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Contract Reference</span>
-              <input id="test-contract-reference" type="text" placeholder="Optional override" class="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
-            </label>
-            <div class="md:col-span-2 flex flex-wrap gap-3 pt-2">
-              <button id="btn-preview-mandate" class="px-4 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-sm">
-                <i class="fa-solid fa-flask-vial mr-2"></i> Dry-run payload
-              </button>
-              <button id="btn-direct-provider-load" class="px-4 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all shadow-sm">
-                <i class="fa-solid fa-plug-circle-bolt mr-2"></i> Hit DebiCheck endpoint
-              </button>
-              <button id="btn-live-activate" class="px-4 py-3 rounded-xl bg-orange-600 text-white font-bold hover:bg-orange-700 transition-all shadow-sm">
-                <i class="fa-solid fa-bolt mr-2"></i> Load live mandate
-              </button>
+      <!-- Mandate table -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+        <div class="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+          <h2 class="text-base font-bold text-gray-900">All Mandates</h2>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative">
+              <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+              <input id="mandate-search" type="text" placeholder="Search name, ref, app ID…"
+                class="pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none w-64">
             </div>
-            <div class="md:col-span-2 rounded-2xl border border-gray-200 bg-gray-950 p-4">
-              <div class="flex items-center justify-between gap-3 mb-3">
-                <h3 class="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">Preview / Diagnostics</h3>
-                <span id="test-lab-badge" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-800 text-gray-200">Idle</span>
-              </div>
-              <pre id="test-lab-output" class="text-xs text-green-400 font-mono whitespace-pre-wrap break-words min-h-[240px]"></pre>
+            <div class="flex gap-2">
+              <button class="filter-btn active px-3 py-1.5 rounded-full text-xs font-bold bg-gray-900 text-white" data-filter="all">All</button>
+              <button class="filter-btn px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600" data-filter="pending">Awaiting bank</button>
+              <button class="filter-btn px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600" data-filter="success">Approved</button>
+              <button class="filter-btn px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600" data-filter="failed">Rejected</button>
             </div>
           </div>
-        </section>
-
-        <section class="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-          <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/70">
-            <h2 class="text-lg font-bold text-gray-900">Provider Actions</h2>
-            <p class="text-sm text-gray-500 mt-1">Use the contract reference from a selected record or type one manually.</p>
-          </div>
-          <div class="p-6 space-y-4">
-            <label class="block">
-              <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Application ID</span>
-              <input id="action-application-id" type="number" min="1" placeholder="Used for DB write-back" class="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Contract Reference</span>
-              <input id="action-contract-reference" type="text" placeholder="Paste contract reference" class="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
-            </label>
-            <label class="block">
-              <span class="text-xs font-bold uppercase tracking-wider text-gray-500">Front End User</span>
-              <input id="action-front-end-user" type="text" placeholder="webuser" class="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
-            </label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button id="btn-final-fate" class="px-4 py-3 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-all shadow-sm">
-                <i class="fa-solid fa-satellite-dish mr-2"></i> Final fate
-              </button>
-              <button id="btn-enquiry" class="px-4 py-3 rounded-xl bg-sky-600 text-white font-bold hover:bg-sky-700 transition-all shadow-sm">
-                <i class="fa-solid fa-magnifying-glass mr-2"></i> Mandate enquiry
-              </button>
-              <button id="btn-cancel-mandate" class="px-4 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition-all shadow-sm">
-                <i class="fa-solid fa-ban mr-2"></i> Cancel mandate
-              </button>
-              <a id="btn-open-application" href="#" class="px-4 py-3 rounded-xl bg-gray-900 text-white font-bold hover:bg-black transition-all shadow-sm text-center">
-                <i class="fa-solid fa-arrow-up-right-from-square mr-2"></i> Open application
-              </a>
-            </div>
-            <div class="rounded-2xl border border-dashed border-orange-200 bg-orange-50 p-4">
-              <h3 class="text-sm font-bold text-orange-900 mb-2">Operational Notes</h3>
-              <ul class="space-y-2 text-sm text-orange-800">
-                <li>DebiCheck requires the payer’s bank to authenticate the mandate; it is not the same as a plain EFT debit order.</li>
-                <li>SureSystems advertises TT1 real-time, TT1 delayed, TT2 delayed batch, and TT3 POS flows.</li>
-                <li>If you see HTTP 503 here, it usually means the provider config is missing or unavailable before any bank action begins.</li>
-              </ul>
-            </div>
-          </div>
-        </section>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-100">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Applicant</th>
+                <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Amount</th>
+                <th class="px-5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Updated</th>
+                <th class="px-5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="mandates-tbody" class="bg-white divide-y divide-gray-100">
+              <tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">
+                <i class="fa-solid fa-spinner fa-spin text-xl mb-2 text-orange-400 block"></i>Loading…
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="empty-state" class="hidden px-5 py-12 text-center text-gray-500">
+          <i class="fa-solid fa-folder-open text-3xl text-gray-300 block mb-3"></i>
+          No mandates match your filters.
+        </div>
       </div>
 
-      <section class="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden mb-8">
-        <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/70 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h2 class="text-lg font-bold text-gray-900">Dev Console</h2>
-            <p class="text-sm text-gray-500 mt-1">Run host connectivity checks and inspect raw logs from this page without opening browser dev tools.</p>
-          </div>
-          <div class="flex flex-wrap gap-3">
-            <button id="btn-connectivity-probe" class="px-4 py-3 rounded-xl bg-violet-600 text-white font-bold hover:bg-violet-700 transition-all shadow-sm">
-              <i class="fa-solid fa-network-wired mr-2"></i> Test connectivity
-            </button>
-            <button id="btn-clear-dev-logs" class="px-4 py-3 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-all shadow-sm">
-              <i class="fa-solid fa-broom mr-2"></i> Clear logs
-            </button>
-          </div>
-        </div>
-        <div class="grid grid-cols-1 xl:grid-cols-[320px,1fr] gap-0">
-          <div class="border-r border-gray-100 p-6 bg-gray-50/40">
-            <div id="connectivity-summary" class="space-y-3 text-sm text-gray-600">
-              <div class="rounded-2xl border border-dashed border-gray-200 bg-white p-4">
-                Connectivity checks have not run yet.
-              </div>
-            </div>
-          </div>
-          <div class="p-6 bg-gray-950">
-            <div class="flex items-center justify-between gap-3 mb-3">
-              <h3 class="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">Live Logs</h3>
-              <span id="dev-log-count" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-800 text-gray-200">0 entries</span>
-            </div>
-            <pre id="dev-log-output" class="text-xs text-emerald-300 font-mono whitespace-pre-wrap break-words min-h-[240px] max-h-[420px] overflow-y-auto"></pre>
-          </div>
-        </div>
-      </section>
+      <!-- Diagnostics toggle -->
+      <div class="mb-2">
+        <button id="toggle-diagnostics" class="text-sm font-semibold text-gray-400 hover:text-gray-700 transition flex items-center gap-2">
+          <i id="diag-chevron" class="fa-solid fa-chevron-right text-xs transition-transform"></i>
+          Advanced diagnostics
+        </button>
+      </div>
 
-      <div class="grid grid-cols-1 2xl:grid-cols-[1.8fr,1fr] gap-6">
-        <section class="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-          <div class="p-5 border-b border-gray-100 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+      <!-- Diagnostics panel (hidden by default) -->
+      <div id="diagnostics-panel" class="hidden space-y-6">
+
+        <!-- Test lab -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100 bg-gray-50/60">
+            <h2 class="text-sm font-bold text-gray-900">Payload Test Lab</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Preview or dry-run mandate payloads without hitting SureSystems live.</p>
+          </div>
+          <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label class="block">
+              <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Application ID</span>
+              <input id="diag-application-id" type="number" min="1" placeholder="e.g. 1234"
+                class="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
+            </label>
+            <label class="block">
+              <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Collection Date</span>
+              <input id="diag-collection-date" type="date"
+                class="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
+            </label>
+            <label class="block">
+              <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Contract Reference (override)</span>
+              <input id="diag-contract-reference" type="text" placeholder="Optional"
+                class="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
+            </label>
+            <label class="block">
+              <span class="text-xs font-bold text-gray-500 uppercase tracking-wide">Front End User</span>
+              <input id="diag-front-end-user" type="text" placeholder="webuser"
+                class="mt-1.5 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 outline-none">
+            </label>
+            <div class="md:col-span-2 flex flex-wrap gap-3">
+              <button id="btn-dry-run" class="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition shadow-sm">
+                <i class="fa-solid fa-flask-vial mr-1.5"></i> Dry-run payload
+              </button>
+              <button id="btn-direct-load" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition shadow-sm">
+                <i class="fa-solid fa-plug-circle-bolt mr-1.5"></i> Hit DebiCheck endpoint
+              </button>
+              <button id="btn-connectivity-probe" class="px-4 py-2 rounded-xl bg-violet-600 text-white font-bold text-sm hover:bg-violet-700 transition shadow-sm">
+                <i class="fa-solid fa-network-wired mr-1.5"></i> Test connectivity
+              </button>
+            </div>
+            <div class="md:col-span-2 rounded-xl border border-gray-200 bg-gray-950 p-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Output</span>
+                <span id="diag-lab-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-800 text-gray-200">Idle</span>
+              </div>
+              <pre id="diag-lab-output" class="text-xs text-green-400 font-mono whitespace-pre-wrap break-words min-h-[180px]">Use the buttons above to inspect payloads or run a connectivity probe.</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dev log -->
+        <div class="bg-gray-950 rounded-2xl overflow-hidden border border-gray-800">
+          <div class="px-5 py-3 border-b border-gray-800 flex items-center justify-between">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Request log</span>
+            <button id="btn-clear-logs" class="text-xs font-semibold text-gray-400 hover:text-gray-200 transition">Clear</button>
+          </div>
+          <pre id="diag-log-output" class="text-xs text-emerald-300 font-mono whitespace-pre-wrap break-words p-5 min-h-[140px] max-h-[320px] overflow-y-auto">No logs yet.</pre>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Mandate detail modal -->
+    <div id="mandate-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col transform transition-transform duration-200 scale-95">
+
+        <!-- Modal header -->
+        <div class="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <h2 class="text-lg font-bold text-gray-900">Mandate details</h2>
+          <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600 transition">
+            <i class="fa-solid fa-times fa-lg"></i>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 space-y-5">
+
+          <!-- Status banner -->
+          <div id="modal-status-banner" class="rounded-xl px-4 py-3 flex items-center gap-3 border">
+            <span id="modal-status-dot" class="w-2.5 h-2.5 rounded-full flex-shrink-0"></span>
             <div>
-              <h2 class="text-lg font-bold text-gray-900">Mandate Audit Trail</h2>
-              <p class="text-sm text-gray-500 mt-1">Recent SureSystems mandate activity stored in your audit table.</p>
-            </div>
-            <div class="flex flex-col sm:flex-row gap-3">
-              <div class="relative w-full sm:w-80">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <i class="fa-solid fa-search text-gray-400"></i>
-                </div>
-                <input id="mandate-search" type="text" placeholder="Search by name, contract ref, or app ID..." class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm bg-gray-50">
-              </div>
-              <div class="flex gap-2 overflow-x-auto">
-                <button class="filter-btn active px-4 py-2 rounded-full text-xs font-bold bg-gray-900 text-white" data-filter="all">All</button>
-                <button class="filter-btn px-4 py-2 rounded-full text-xs font-bold bg-gray-100 text-gray-600" data-filter="pending">Pending</button>
-                <button class="filter-btn px-4 py-2 rounded-full text-xs font-bold bg-gray-100 text-gray-600" data-filter="success">Success</button>
-                <button class="filter-btn px-4 py-2 rounded-full text-xs font-bold bg-gray-100 text-gray-600" data-filter="failed">Failed</button>
-              </div>
+              <div id="modal-status-label" class="font-bold text-sm"></div>
+              <div id="modal-status-msg" class="text-xs opacity-80 mt-0.5"></div>
             </div>
           </div>
-          <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Applicant / App</th>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Lifecycle</th>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contract / Amount</th>
-                  <th class="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Last Update</th>
-                  <th class="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Action</th>
-                </tr>
-              </thead>
-              <tbody id="mandates-table-body" class="bg-white divide-y divide-gray-100">
-                <tr><td colspan="5" class="px-6 py-12 text-center text-gray-500"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-orange-500"></i><p>Loading mandates...</p></td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div id="empty-state" class="hidden px-6 py-12 text-center">
-            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-              <i class="fa-solid fa-folder-open text-2xl text-gray-400"></i>
-            </div>
-            <h3 class="text-lg font-bold text-gray-900 mb-1">No mandates found</h3>
-            <p class="text-sm text-gray-500">No SureSystems mandate records match your current filters.</p>
-          </div>
-        </section>
 
-        <section class="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-          <div class="px-6 py-5 border-b border-gray-100 bg-gray-50/70">
-            <h2 class="text-lg font-bold text-gray-900">Standards Cheat Sheet</h2>
-            <p class="text-sm text-gray-500 mt-1">Practical reminders for operators handling DebiCheck mandates.</p>
-          </div>
-          <div class="p-6 space-y-5 text-sm text-gray-700">
-            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <h3 class="font-bold text-gray-900 mb-2">Mandate Flow</h3>
-              <p>Customer agrees to debit terms, their bank authenticates the DebiCheck mandate, and collections should then stay within the agreed parameters.</p>
+          <!-- Key fields -->
+          <div class="grid grid-cols-2 gap-3 text-sm">
+            <div class="bg-gray-50 rounded-xl p-3">
+              <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Applicant</div>
+              <div id="modal-applicant" class="font-semibold text-gray-900 truncate"></div>
             </div>
-            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <h3 class="font-bold text-gray-900 mb-2">SureSystems Modes</h3>
-              <p>TT1 real-time and delayed, TT2 delayed batch, and TT3 POS are the provider-side transaction patterns publicly described by SureSystems.</p>
+            <div class="bg-gray-50 rounded-xl p-3">
+              <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Amount</div>
+              <div id="modal-amount" class="font-semibold text-gray-900"></div>
             </div>
-            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <h3 class="font-bold text-gray-900 mb-2">What 503 Usually Means</h3>
-              <p>A 503 here generally points to missing provider configuration, certificate setup, or an upstream SureSystems outage rather than a debtor-bank rejection.</p>
+            <div class="bg-gray-50 rounded-xl p-3">
+              <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Contract ref</div>
+              <div id="modal-contract-ref" class="font-mono text-xs text-gray-700 truncate"></div>
             </div>
-            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-              <h3 class="font-bold text-gray-900 mb-2">Good Operational Practice</h3>
-              <p>Dry-run the payload before go-live, keep contract references visible, and use final fate or enquiry before retrying duplicate loads.</p>
+            <div class="bg-gray-50 rounded-xl p-3">
+              <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Last updated</div>
+              <div id="modal-updated" class="text-gray-700"></div>
             </div>
           </div>
-        </section>
+
+          <!-- Action buttons -->
+          <div id="modal-actions" class="flex flex-wrap gap-2"></div>
+
+          <!-- Raw payload (collapsed) -->
+          <div>
+            <button id="toggle-raw-payload" class="text-xs font-semibold text-gray-400 hover:text-gray-600 transition flex items-center gap-1.5">
+              <i id="raw-chevron" class="fa-solid fa-chevron-right text-[10px] transition-transform"></i>
+              Raw payload
+            </button>
+            <div id="raw-payload-panel" class="hidden mt-3 space-y-3">
+              <div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Request</div>
+                <div class="bg-gray-950 rounded-xl p-3 overflow-x-auto max-h-48">
+                  <pre id="modal-req-payload" class="text-[11px] text-green-400 font-mono whitespace-pre-wrap break-words"></pre>
+                </div>
+              </div>
+              <div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">Response</div>
+                <div class="bg-gray-950 rounded-xl p-3 overflow-x-auto max-h-48">
+                  <pre id="modal-res-payload" class="text-[11px] text-blue-400 font-mono whitespace-pre-wrap break-words"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-end">
+          <a id="modal-open-app" href="#" class="text-sm font-semibold text-orange-600 hover:text-orange-700 transition flex items-center gap-1.5">
+            Open application <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+          </a>
+        </div>
       </div>
     </div>
   `;
 }
 
-function buildSummary() {
-  const summary = {
-    total: state.mandates.length,
-    success: 0,
-    failed: 0,
-    pending: 0
-  };
-
-  state.mandates.forEach((item) => {
-    const normalized = (item.status || 'unknown').toLowerCase();
-    if (normalized === 'success') summary.success += 1;
-    else if (normalized === 'failed') summary.failed += 1;
-    else summary.pending += 1;
-  });
-
-  return summary;
-}
+// ── Health banner ─────────────────────────────────────────────────────────────
 
 function renderHealthBanner() {
-  const target = document.getElementById('mandates-health-banner');
+  const target = document.getElementById('health-banner');
   if (!target) return;
-  const config = state.config;
+  const cfg = state.config;
+  if (!cfg) { target.innerHTML = ''; return; }
 
-  if (!config) {
-    target.innerHTML = `
-      <div class="rounded-2xl border border-gray-200 bg-white px-5 py-4 text-sm text-gray-500">
-        Configuration status has not loaded yet.
-      </div>
-    `;
-    return;
-  }
-
-  const missing = Array.isArray(config.missing) ? config.missing : [];
-  const isConfigured = Boolean(config.configured);
+  const ok = Boolean(cfg.configured);
   target.innerHTML = `
-    <div class="rounded-2xl border ${isConfigured ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'} px-5 py-4">
-      <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <p class="text-xs font-black uppercase tracking-[0.18em] ${isConfigured ? 'text-green-700' : 'text-red-700'}">Provider Health</p>
-          <h2 class="text-lg font-bold ${isConfigured ? 'text-green-900' : 'text-red-900'} mt-1">
-            ${isConfigured ? 'SureSystems configuration looks ready' : 'SureSystems is not fully configured'}
-          </h2>
-          <p class="text-sm ${isConfigured ? 'text-green-800' : 'text-red-800'} mt-2">
-            ${isConfigured
-              ? `Merchant GID ${escapeHtml(config.merchantGid)} / Remote GID ${escapeHtml(config.remoteGid)} ${config.useMtls ? 'with mTLS enabled' : 'without mTLS'}.`
-              : `Missing setup: ${escapeHtml(missing.join(', ') || 'unknown configuration values')}. Live actions will likely return 503 until this is fixed.`}
-          </p>
-        </div>
-        <div class="flex flex-wrap gap-2 text-xs">
-          <span class="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-bold">Header Prefix: ${escapeHtml(config.headerPrefix || 'N/A')}</span>
-          <span class="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-bold">mTLS: ${config.useMtls ? 'On' : 'Off'}</span>
-          <span class="px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 font-bold">Configured: ${isConfigured ? 'Yes' : 'No'}</span>
-        </div>
+    <div class="rounded-xl border ${ok ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'} px-4 py-3 flex items-center gap-3">
+      <i class="fa-solid ${ok ? 'fa-circle-check text-green-600' : 'fa-circle-exclamation text-red-600'} text-lg flex-shrink-0"></i>
+      <div class="flex-1 min-w-0">
+        <span class="font-bold text-sm ${ok ? 'text-green-900' : 'text-red-900'}">
+          ${ok ? 'SureSystems is configured and ready' : 'SureSystems is not fully configured'}
+        </span>
+        <span class="text-xs ${ok ? 'text-green-700' : 'text-red-700'} ml-2">
+          ${ok
+            ? `Merchant ${escapeHtml(cfg.merchantGid || '')} · ${cfg.useMtls ? 'mTLS on' : 'mTLS off'}`
+            : `Missing: ${escapeHtml((cfg.missing || []).join(', ') || 'unknown fields')}`
+          }
+        </span>
       </div>
+      <button id="refresh-health-btn" class="text-xs font-semibold ${ok ? 'text-green-700 hover:text-green-900' : 'text-red-700 hover:text-red-900'} transition flex-shrink-0">
+        Re-check
+      </button>
     </div>
   `;
+  document.getElementById('refresh-health-btn')?.addEventListener('click', loadConfig);
 }
 
+// ── Summary cards ─────────────────────────────────────────────────────────────
+
 function renderSummaryCards() {
-  const target = document.getElementById('mandates-summary-cards');
+  const target = document.getElementById('summary-cards');
   if (!target) return;
-  const summary = buildSummary();
+
+  const counts = { total: state.mandates.length, success: 0, pending: 0, failed: 0 };
+  state.mandates.forEach((m) => {
+    const s = normalizeStatus(m.status);
+    if (s === 'success') counts.success++;
+    else if (s === 'failed') counts.failed++;
+    else counts.pending++;
+  });
+
   const cards = [
-    { label: 'Tracked Mandates', value: summary.total, icon: 'fa-database', tone: 'bg-white border-gray-200 text-gray-900' },
-    { label: 'Successful Loads', value: summary.success, icon: 'fa-check-double', tone: 'bg-green-50 border-green-200 text-green-900' },
-    { label: 'Pending / Unknown', value: summary.pending, icon: 'fa-hourglass-half', tone: 'bg-yellow-50 border-yellow-200 text-yellow-900' },
-    { label: 'Failed Attempts', value: summary.failed, icon: 'fa-bug', tone: 'bg-red-50 border-red-200 text-red-900' }
+    { label: 'Total mandates',  value: counts.total,   cls: 'border-gray-200 text-gray-900' },
+    { label: 'Bank approved',   value: counts.success, cls: 'border-green-200 bg-green-50 text-green-900' },
+    { label: 'Awaiting bank',   value: counts.pending, cls: 'border-amber-200 bg-amber-50 text-amber-900' },
+    { label: 'Rejected / failed', value: counts.failed, cls: 'border-red-200 bg-red-50 text-red-900' }
   ];
 
-  target.innerHTML = cards.map((card) => `
-    <div class="rounded-2xl border ${card.tone} p-5 shadow-sm">
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="text-xs font-black uppercase tracking-[0.18em] opacity-70">${card.label}</p>
-          <div class="text-3xl font-extrabold mt-2">${card.value}</div>
-        </div>
-        <div class="w-12 h-12 rounded-2xl bg-white/80 border border-white/60 flex items-center justify-center">
-          <i class="fa-solid ${card.icon} text-lg"></i>
-        </div>
-      </div>
+  target.innerHTML = cards.map((c) => `
+    <div class="rounded-2xl border ${c.cls} bg-white p-5 shadow-sm">
+      <div class="text-2xl font-extrabold">${c.value}</div>
+      <div class="text-xs font-semibold text-current opacity-70 mt-1">${c.label}</div>
     </div>
   `).join('');
 }
 
-function renderConnectivitySummary(payload = null) {
-  const target = document.getElementById('connectivity-summary');
-  if (!target) return;
-  if (!payload) {
-    target.innerHTML = `
-      <div class="rounded-2xl border border-dashed border-gray-200 bg-white p-4">
-        Connectivity checks have not run yet.
-      </div>
-    `;
-    return;
-  }
-
-  const reachable = Boolean(payload.reachable);
-  target.innerHTML = `
-    <div class="rounded-2xl border ${reachable ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'} p-4">
-      <p class="text-[10px] font-black uppercase tracking-[0.18em] ${reachable ? 'text-green-700' : 'text-red-700'}">Connectivity</p>
-      <h3 class="text-base font-bold ${reachable ? 'text-green-900' : 'text-red-900'} mt-2">
-        ${reachable ? 'Provider host reachable' : 'Connectivity problem detected'}
-      </h3>
-      <p class="text-sm mt-2 ${reachable ? 'text-green-800' : 'text-red-800'}">${escapeHtml(payload.error || payload.statusText || 'Probe completed.')}</p>
-    </div>
-    <div class="rounded-2xl border border-gray-200 bg-white p-4">
-      <p class="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400 mb-2">Base URL</p>
-      <p class="text-sm font-mono text-gray-800 break-all">${escapeHtml(payload.baseUrl || 'N/A')}</p>
-    </div>
-    <div class="grid grid-cols-2 gap-3">
-      <div class="rounded-2xl border border-gray-200 bg-white p-4">
-        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400 mb-2">HTTP Status</p>
-        <p class="text-sm font-bold text-gray-900">${escapeHtml(payload.status ?? 'N/A')}</p>
-      </div>
-      <div class="rounded-2xl border border-gray-200 bg-white p-4">
-        <p class="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400 mb-2">mTLS</p>
-        <p class="text-sm font-bold text-gray-900">${payload.useMtls ? 'Enabled' : 'Disabled'}</p>
-      </div>
-    </div>
-    <div class="rounded-2xl border border-gray-200 bg-white p-4">
-      <p class="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400 mb-2">Missing Config</p>
-      <p class="text-sm text-gray-700">${escapeHtml((payload.missing || []).join(', ') || 'None')}</p>
-    </div>
-  `;
-}
+// ── Table ─────────────────────────────────────────────────────────────────────
 
 function getFilteredMandates() {
   const term = (document.getElementById('mandate-search')?.value || '').trim().toLowerCase();
   return state.mandates.filter((item) => {
-    const status = (item.status || 'unknown').toLowerCase();
-    const matchesFilter = state.currentFilter === 'all' || status === state.currentFilter;
+    const s = normalizeStatus(item.status);
+    const matchesFilter = state.currentFilter === 'all' || s === state.currentFilter;
     const searchable = [
       item.profiles?.full_name,
       item.profiles?.email,
@@ -485,138 +402,196 @@ function getFilteredMandates() {
       item.application_id,
       item.message
     ].filter(Boolean).join(' ').toLowerCase();
-    const matchesTerm = !term || searchable.includes(term);
-    return matchesFilter && matchesTerm;
+    return matchesFilter && (!term || searchable.includes(term));
   });
 }
 
 function renderTable() {
-  const tbody = document.getElementById('mandates-table-body');
-  const emptyState = document.getElementById('empty-state');
-  if (!tbody || !emptyState) return;
+  const tbody = document.getElementById('mandates-tbody');
+  const empty = document.getElementById('empty-state');
+  if (!tbody || !empty) return;
 
   const rows = getFilteredMandates();
   if (!rows.length) {
     tbody.innerHTML = '';
-    emptyState.classList.remove('hidden');
+    empty.classList.remove('hidden');
     return;
   }
+  empty.classList.add('hidden');
 
-  emptyState.classList.add('hidden');
   tbody.innerHTML = rows.map((item) => {
-    const theme = getStatusTheme(item.status);
-    const applicantName = item.profiles?.full_name || item.user_id || 'Unknown User';
-    const amount = item.loan_applications?.amount ? formatCurrency(item.loan_applications.amount) : 'Unknown Amount';
-    const contractReference = item.contract_reference || 'No contract reference';
-    const message = item.message || 'No message recorded';
+    const s = normalizeStatus(item.status);
+    const theme = STATUS_THEME[s];
+    const label = STATUS_LABEL[s];
+    const name   = item.profiles?.full_name || 'Unknown';
+    const amount = item.loan_applications?.amount ? formatCurrency(item.loan_applications.amount) : '—';
+
+    // Inline action buttons — contextual to status
+    const hasContract = Boolean(item.contract_reference);
+    const actions = [];
+    if (s !== 'success') {
+      actions.push(`<button class="row-action-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 transition whitespace-nowrap"
+        data-id="${escapeHtml(item.id)}" data-action="retry">
+        <i class="fa-solid fa-rotate-right mr-1"></i>Send / Retry
+      </button>`);
+    }
+    if (hasContract) {
+      actions.push(`<button class="row-action-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition whitespace-nowrap"
+        data-id="${escapeHtml(item.id)}" data-action="enquiry">
+        <i class="fa-solid fa-rotate mr-1"></i>Check status
+      </button>`);
+    }
+
     return `
-      <tr class="hover:bg-gray-50 transition-colors group">
-        <td class="px-6 py-4">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center font-bold text-gray-600 shadow-inner">
-              ${escapeHtml((applicantName || 'U').charAt(0).toUpperCase())}
-            </div>
-            <div>
-              <div class="font-bold text-gray-900 text-sm">${escapeHtml(applicantName)}</div>
-              <div class="text-xs text-gray-500 font-mono mt-0.5">App ID: ${escapeHtml(item.application_id)}</div>
-            </div>
-          </div>
+      <tr class="hover:bg-gray-50 transition-colors cursor-pointer mandate-row" data-id="${escapeHtml(item.id)}">
+        <td class="px-5 py-4">
+          <div class="font-semibold text-sm text-gray-900">${escapeHtml(name)}</div>
+          <div class="text-xs text-gray-400 mt-0.5">App ${escapeHtml(String(item.application_id || '—'))}</div>
         </td>
-        <td class="px-6 py-4">
-          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${theme.bg} ${theme.text} border ${theme.border}">
-            <i class="fa-solid ${theme.icon}"></i> ${escapeHtml((item.status || 'unknown').toUpperCase())}
+        <td class="px-5 py-4">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${theme.bg} ${theme.text} border ${theme.border}">
+            <span class="w-1.5 h-1.5 rounded-full ${theme.dot}"></span>
+            ${label}
           </span>
-          <div class="text-xs text-gray-500 mt-2 max-w-xs truncate" title="${escapeHtml(message)}">${escapeHtml(message)}</div>
         </td>
-        <td class="px-6 py-4">
-          <div class="text-sm font-bold text-gray-900 font-mono">${escapeHtml(contractReference)}</div>
-          <div class="text-xs text-gray-500 mt-0.5">${amount}</div>
-        </td>
-        <td class="px-6 py-4">
-          <div class="text-sm text-gray-900 font-medium">${formatDate(item.updated_at)}</div>
-          <div class="text-xs text-gray-500 mt-0.5">Created: ${formatDate(item.created_at)}</div>
-        </td>
-        <td class="px-6 py-4 text-right">
-          <button class="view-mandate-btn text-gray-400 hover:text-orange-600 transition-colors bg-white hover:bg-orange-50 w-9 h-9 rounded-xl border border-transparent hover:border-orange-200" data-id="${escapeHtml(item.id)}">
-            <i class="fa-solid fa-chevron-right"></i>
-          </button>
+        <td class="px-5 py-4 text-sm font-medium text-gray-900">${amount}</td>
+        <td class="px-5 py-4 text-sm text-gray-500">${formatDate(item.updated_at)}</td>
+        <td class="px-5 py-4 text-right">
+          <div class="flex items-center justify-end gap-2">
+            ${actions.join('')}
+            <button class="mandate-row text-gray-300 hover:text-gray-500 transition" data-id="${escapeHtml(item.id)}">
+              <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+          </div>
         </td>
       </tr>
     `;
   }).join('');
 
-  document.querySelectorAll('.view-mandate-btn').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      event.stopPropagation();
-      openMandateModal(button.dataset.id);
+  // Row click → open modal
+  document.querySelectorAll('tr.mandate-row').forEach((row) => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.row-action-btn')) return; // action btn handles itself
+      openModal(row.dataset.id);
+    });
+  });
+
+  // Inline action buttons
+  document.querySelectorAll('.row-action-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id     = btn.dataset.id;
+      const action = btn.dataset.action;
+      const item   = state.mandates.find((m) => String(m.id) === String(id));
+      if (!item) return;
+      state.currentMandate = item;
+      if (action === 'retry')   handleRetry(btn);
+      if (action === 'enquiry') handleCheckStatus(btn, 'enquiry');
     });
   });
 }
 
-function syncActionPanel(mandate) {
-  const applicationIdInput = document.getElementById('action-application-id');
-  const contractInput = document.getElementById('action-contract-reference');
-  const userInput = document.getElementById('action-front-end-user');
-  const link = document.getElementById('btn-open-application');
-  if (!applicationIdInput || !contractInput || !userInput || !link) return;
+// ── Modal ─────────────────────────────────────────────────────────────────────
 
-  applicationIdInput.value = mandate?.application_id || '';
-  contractInput.value = mandate?.contract_reference || '';
-  userInput.value = mandate?.profiles?.email || 'webuser';
-  if (mandate?.application_id) {
-    link.href = `/admin/application-detail?id=${mandate.application_id}`;
-    link.classList.remove('pointer-events-none', 'opacity-50');
-  } else {
-    link.href = '#';
-    link.classList.add('pointer-events-none', 'opacity-50');
+function buildModalActions(item) {
+  const s = normalizeStatus(item.status);
+  const hasContract = Boolean(item.contract_reference);
+  const btns = [];
+
+  if (s !== 'success') {
+    btns.push(`<button id="modal-btn-retry"
+      class="px-4 py-2 rounded-xl bg-orange-600 text-white font-bold text-sm hover:bg-orange-700 transition">
+      <i class="fa-solid fa-rotate-right mr-1.5"></i>Send / Retry mandate
+    </button>`);
+  }
+  if (hasContract) {
+    btns.push(`<button id="modal-btn-check"
+      class="px-4 py-2 rounded-xl bg-sky-50 text-sky-700 font-bold text-sm hover:bg-sky-100 border border-sky-200 transition">
+      <i class="fa-solid fa-rotate mr-1.5"></i>Check status
+    </button>`);
+    btns.push(`<button id="modal-btn-finalfate"
+      class="px-4 py-2 rounded-xl bg-indigo-50 text-indigo-700 font-bold text-sm hover:bg-indigo-100 border border-indigo-200 transition">
+      <i class="fa-solid fa-satellite-dish mr-1.5"></i>Confirm fate
+    </button>`);
+    btns.push(`<button id="modal-btn-cancel"
+      class="px-4 py-2 rounded-xl bg-red-50 text-red-700 font-bold text-sm hover:bg-red-100 border border-red-200 transition">
+      <i class="fa-solid fa-ban mr-1.5"></i>Cancel mandate
+    </button>`);
+  }
+
+  return btns.join('');
+}
+
+function openModal(id) {
+  const item = state.mandates.find((m) => String(m.id) === String(id));
+  if (!item) return;
+  state.currentMandate = item;
+
+  const s = normalizeStatus(item.status);
+  const theme = STATUS_THEME[s];
+
+  // Status banner
+  const banner = document.getElementById('modal-status-banner');
+  if (banner) {
+    banner.className = `rounded-xl px-4 py-3 flex items-center gap-3 border ${theme.bg} ${theme.text} ${theme.border}`;
+  }
+  const dot = document.getElementById('modal-status-dot');
+  if (dot) dot.className = `w-2.5 h-2.5 rounded-full flex-shrink-0 ${theme.dot}`;
+  const lbl = document.getElementById('modal-status-label');
+  if (lbl) lbl.textContent = STATUS_LABEL[s];
+  const msg = document.getElementById('modal-status-msg');
+  if (msg) msg.textContent = item.message || 'No message recorded.';
+
+  // Fields
+  const setEl = (elId, val) => { const el = document.getElementById(elId); if (el) el.textContent = val; };
+  setEl('modal-applicant',    item.profiles?.full_name || item.user_id || '—');
+  setEl('modal-amount',       item.loan_applications?.amount ? formatCurrency(item.loan_applications.amount) : '—');
+  setEl('modal-contract-ref', item.contract_reference || 'No contract reference');
+  setEl('modal-updated',      formatDate(item.updated_at));
+
+  // Raw payloads
+  const reqPre = document.getElementById('modal-req-payload');
+  const resPre = document.getElementById('modal-res-payload');
+  if (reqPre) reqPre.textContent = prettyJson(item.request_payload);
+  if (resPre) {
+    resPre.textContent = prettyJson(item.error_payload || item.response_payload);
+    resPre.className   = `text-[11px] font-mono whitespace-pre-wrap break-words ${s === 'failed' ? 'text-red-400' : 'text-blue-400'}`;
+  }
+
+  // Open application link
+  const appLink = document.getElementById('modal-open-app');
+  if (appLink) {
+    appLink.href = item.application_id ? `/admin/application-detail?id=${item.application_id}` : '#';
+  }
+
+  // Action buttons
+  const actionsEl = document.getElementById('modal-actions');
+  if (actionsEl) {
+    actionsEl.innerHTML = buildModalActions(item);
+    document.getElementById('modal-btn-retry')?.addEventListener('click', (e) => handleRetry(e.target.closest('button')));
+    document.getElementById('modal-btn-check')?.addEventListener('click', (e) => handleCheckStatus(e.target.closest('button'), 'enquiry'));
+    document.getElementById('modal-btn-finalfate')?.addEventListener('click', (e) => handleCheckStatus(e.target.closest('button'), 'finalfate'));
+    document.getElementById('modal-btn-cancel')?.addEventListener('click', (e) => handleCancel(e.target.closest('button')));
+  }
+
+  // Reset raw payload collapse
+  document.getElementById('raw-payload-panel')?.classList.add('hidden');
+  const rc = document.getElementById('raw-chevron');
+  if (rc) rc.style.transform = '';
+
+  // Show modal
+  const modal = document.getElementById('mandate-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    setTimeout(() => modal.firstElementChild?.classList.remove('scale-95'), 10);
   }
 }
 
-function openMandateModal(id) {
-  const mandate = state.mandates.find((item) => String(item.id) === String(id));
-  if (!mandate) return;
-  state.currentMandate = mandate;
-  syncActionPanel(mandate);
-
-  const modal = document.getElementById('payload-modal');
-  const container = modal?.firstElementChild;
-  if (!modal || !container) return;
-
-  const theme = getStatusTheme(mandate.status);
-  const banner = document.getElementById('modal-status-banner');
-  const icon = document.getElementById('modal-status-icon');
-  const statusText = document.getElementById('modal-status-text');
-  const messageText = document.getElementById('modal-message-text');
-  const requestPre = document.getElementById('modal-request-payload');
-  const responsePre = document.getElementById('modal-response-payload');
-  const retryBtn = document.getElementById('btn-retry-mandate');
-  const fateBtn = document.getElementById('btn-check-fate');
-  const enquiryBtn = document.getElementById('btn-run-enquiry');
-  const cancelBtn = document.getElementById('btn-run-cancel');
-
-  banner.className = `p-4 rounded-xl font-semibold flex items-start gap-3 border ${theme.bg} ${theme.text} ${theme.border}`;
-  icon.className = `fa-solid ${theme.icon} text-xl mt-0.5`;
-  statusText.textContent = `Status: ${(mandate.status || 'unknown').toUpperCase()}`;
-  messageText.textContent = mandate.message || 'No additional message provided.';
-  requestPre.textContent = prettyJson(mandate.request_payload);
-  responsePre.textContent = prettyJson(mandate.error_payload || mandate.response_payload);
-  responsePre.className = `text-xs font-mono whitespace-pre-wrap break-words ${mandate.status === 'failed' ? 'text-red-400' : 'text-blue-400'}`;
-
-  retryBtn?.classList.toggle('hidden', mandate.status === 'success');
-  fateBtn?.classList.toggle('hidden', !mandate.contract_reference);
-  enquiryBtn?.classList.toggle('hidden', !mandate.contract_reference);
-  cancelBtn?.classList.toggle('hidden', !mandate.contract_reference);
-
-  modal.classList.remove('hidden');
-  modal.classList.add('flex');
-  setTimeout(() => container.classList.remove('scale-95'), 10);
-}
-
-function closePayloadModal() {
-  const modal = document.getElementById('payload-modal');
-  const container = modal?.firstElementChild;
-  if (!modal || !container) return;
-  container.classList.add('scale-95');
+function closeModal() {
+  const modal = document.getElementById('mandate-modal');
+  if (!modal) return;
+  modal.firstElementChild?.classList.add('scale-95');
   setTimeout(() => {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
@@ -624,313 +599,268 @@ function closePayloadModal() {
   }, 200);
 }
 
-async function loadConfig() {
-  state.config = await fetchJson('/api/suresystems/config');
-  addLog('SureSystems config loaded', state.config, state.config?.configured ? 'success' : 'error');
-  renderHealthBanner();
-}
+// ── Actions ───────────────────────────────────────────────────────────────────
 
-async function loadMandates() {
-  const tbody = document.getElementById('mandates-table-body');
-  if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="5" class="px-6 py-12 text-center text-gray-500"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2 text-orange-500"></i><p>Loading mandates...</p></td></tr>`;
+async function handleRetry(button) {
+  const item = state.currentMandate;
+  if (!item?.application_id) {
+    window.showToast?.('No application ID on this record', 'error');
+    return;
   }
-  const payload = await fetchJson('/api/suresystems/mandates/history');
-  state.mandates = payload.data || [];
-  addLog('Mandate history loaded', { count: state.mandates.length }, 'info');
-  renderSummaryCards();
-  renderTable();
+  const restore = setButtonLoading(button, 'Sending…');
+  try {
+    const payload = await fetchJson('/api/suresystems/activate-application', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicationId: item.application_id })
+    });
+    addDiagLog('Mandate sent', payload, 'success');
+    window.showToast?.(payload.message || 'Mandate sent to bank', 'success');
+    await loadMandates();
+    closeModal();
+  } catch (error) {
+    addDiagLog('Send mandate failed', { error: error.message, details: error.details }, 'error');
+    window.showToast?.(error.message || 'Failed to send mandate', 'error');
+  } finally {
+    restore();
+  }
 }
 
-async function refreshAll() {
+async function handleCheckStatus(button, mode) {
+  const item = state.currentMandate;
+  if (!item?.contract_reference) {
+    window.showToast?.('No contract reference on this record', 'error');
+    return;
+  }
+  const label   = mode === 'finalfate' ? 'Confirming…' : 'Checking…';
+  const restore = setButtonLoading(button, label);
   try {
-    await Promise.all([loadConfig(), loadMandates()]);
+    const payload = await fetchJson('/api/suresystems/mandates/check-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        applicationId:    item.application_id || null,
+        contractReference: item.contract_reference,
+        frontEndUserName: item.profiles?.email || 'webuser',
+        mode
+      })
+    });
+    addDiagLog(`Status check (${mode})`, payload, 'success');
+    window.showToast?.(payload.message || 'Status updated', 'success');
+    await loadMandates();
+    // Refresh modal with updated record
+    const updated = state.mandates.find((m) => String(m.id) === String(item.id));
+    if (updated) { state.currentMandate = updated; openModal(updated.id); }
+    else closeModal();
   } catch (error) {
-    window.showToast?.(error.message || 'Unable to refresh mandates', 'error');
+    addDiagLog(`Status check failed (${mode})`, { error: error.message }, 'error');
+    window.showToast?.(error.message || 'Status check failed', 'error');
+  } finally {
+    restore();
+  }
+}
+
+async function handleCancel(button) {
+  const item = state.currentMandate;
+  if (!item?.contract_reference) {
+    window.showToast?.('No contract reference on this record', 'error');
+    return;
+  }
+  if (!confirm(`Cancel the mandate for ${item.profiles?.full_name || 'this applicant'}? This cannot be undone.`)) return;
+  const restore = setButtonLoading(button, 'Cancelling…');
+  try {
+    const payload = await fetchJson('/api/suresystems/mandates/cancel-record', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        applicationId:    item.application_id || null,
+        contractReference: item.contract_reference,
+        frontEndUserName: item.profiles?.email || 'webuser'
+      })
+    });
+    addDiagLog('Mandate cancelled', payload, 'success');
+    window.showToast?.(payload.message || 'Mandate cancelled', 'success');
+    await loadMandates();
+    closeModal();
+  } catch (error) {
+    addDiagLog('Cancel failed', { error: error.message }, 'error');
+    window.showToast?.(error.message || 'Cancel failed', 'error');
+  } finally {
+    restore();
+  }
+}
+
+// ── Diagnostics actions ───────────────────────────────────────────────────────
+
+function getDiagOverrides() {
+  const contractReference = document.getElementById('diag-contract-reference')?.value?.trim();
+  const rawDate = document.getElementById('diag-collection-date')?.value || '';
+  const collectionDate = rawDate ? rawDate.replace(/-/g, '') : '';
+  const frontEndUserName = document.getElementById('diag-front-end-user')?.value?.trim();
+  return {
+    ...(contractReference ? { contractReference } : {}),
+    ...(collectionDate    ? { collectionDate }    : {}),
+    ...(frontEndUserName  ? { frontEndUserName }  : {})
+  };
+}
+
+async function handleDryRun() {
+  const button = document.getElementById('btn-dry-run');
+  const restore = setButtonLoading(button, 'Preparing…');
+  try {
+    const applicationId = Number(document.getElementById('diag-application-id')?.value || 0) || null;
+    const payload = await fetchJson('/api/suresystems/mandates/test-payload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicationId, overrides: getDiagOverrides() })
+    });
+    addDiagLog('Dry-run', payload, 'success');
+    setDiagOutput(payload.warnings?.length ? 'Preview with warnings' : 'Preview ready', payload, payload.warnings?.length ? 'info' : 'success');
+  } catch (error) {
+    addDiagLog('Dry-run failed', { error: error.message }, 'error');
+    setDiagOutput('Preview failed', { error: error.message, details: error.details }, 'error');
+  } finally {
+    restore();
+  }
+}
+
+async function handleDirectLoad() {
+  const button = document.getElementById('btn-direct-load');
+  const restore = setButtonLoading(button, 'Sending…');
+  try {
+    const applicationId = Number(document.getElementById('diag-application-id')?.value || 0);
+    if (!applicationId) throw new Error('Application ID is required.');
+    const payload = await fetchJson('/api/suresystems/mandates/load-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicationId, overrides: getDiagOverrides() })
+    });
+    addDiagLog('Direct provider load', payload, 'success');
+    setDiagOutput('Load complete', payload, 'success');
+    window.showToast?.(payload.message || 'Load completed', 'success');
+    await loadMandates();
+  } catch (error) {
+    addDiagLog('Direct load failed', { error: error.message }, 'error');
+    setDiagOutput('Load failed', { error: error.message, details: error.details }, 'error');
+    window.showToast?.(error.message || 'Load failed', 'error');
+  } finally {
+    restore();
   }
 }
 
 async function handleConnectivityProbe() {
   const button = document.getElementById('btn-connectivity-probe');
-  const restore = setButtonLoading(button, 'Probing...');
+  const restore = setButtonLoading(button, 'Probing…');
   try {
     const payload = await fetchJson('/api/suresystems/debug/connectivity');
-    renderConnectivitySummary(payload);
-    setLabOutput('Connectivity probe complete', payload, payload.reachable ? 'success' : 'error');
-    window.showToast?.(payload.reachable ? 'SureSystems host reachable' : 'SureSystems connectivity issue detected', payload.reachable ? 'success' : 'error');
+    addDiagLog('Connectivity probe', payload, payload.reachable ? 'success' : 'error');
+    setDiagOutput(payload.reachable ? 'Host reachable' : 'Connectivity issue', payload, payload.reachable ? 'success' : 'error');
+    window.showToast?.(payload.reachable ? 'SureSystems host reachable' : 'Connectivity issue detected', payload.reachable ? 'success' : 'error');
   } catch (error) {
-    const payload = {
-      error: error.message,
-      details: error.details || null
-    };
-    renderConnectivitySummary({
-      reachable: false,
-      error: error.message,
-      status: error.status || null,
-      baseUrl: state.config?.baseUrl || '',
-      useMtls: state.config?.useMtls || false,
-      missing: state.config?.missing || []
-    });
-    setLabOutput('Connectivity probe failed', payload, 'error');
-    window.showToast?.(error.message || 'SureSystems connectivity probe failed', 'error');
+    addDiagLog('Connectivity probe failed', { error: error.message }, 'error');
+    setDiagOutput('Probe failed', { error: error.message }, 'error');
+    window.showToast?.(error.message || 'Probe failed', 'error');
   } finally {
     restore();
   }
 }
 
-function getTestOverrides() {
-  const frontEndUserName = document.getElementById('test-front-end-user')?.value?.trim() || '';
-  const contractReference = document.getElementById('test-contract-reference')?.value?.trim() || '';
-  const rawDate = document.getElementById('test-collection-date')?.value || '';
-  const collectionDate = rawDate ? rawDate.replace(/-/g, '') : '';
-  return {
-    ...(frontEndUserName ? { frontEndUserName } : {}),
-    ...(contractReference ? { contractReference } : {}),
-    ...(collectionDate ? { collectionDate } : {})
-  };
-}
+// ── Data loading ──────────────────────────────────────────────────────────────
 
-function setLabOutput(label, payload, tone = 'idle') {
-  const output = document.getElementById('test-lab-output');
-  const badge = document.getElementById('test-lab-badge');
-  if (output) {
-    output.textContent = typeof payload === 'string' ? payload : prettyJson(payload);
-  }
-  if (badge) {
-    const classes = {
-      idle: 'bg-gray-800 text-gray-200',
-      success: 'bg-green-900 text-green-100',
-      error: 'bg-red-900 text-red-100',
-      info: 'bg-blue-900 text-blue-100'
-    };
-    badge.className = `px-2.5 py-1 rounded-full text-[10px] font-bold ${classes[tone] || classes.idle}`;
-    badge.textContent = label;
-  }
-}
-
-async function handlePreviewPayload() {
-  const button = document.getElementById('btn-preview-mandate');
-  const restore = setButtonLoading(button, 'Preparing...');
+async function loadConfig() {
   try {
-    const applicationId = Number(document.getElementById('test-application-id')?.value || 0) || null;
-    const payload = await fetchJson('/api/suresystems/mandates/test-payload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        applicationId,
-        overrides: getTestOverrides()
-      })
-    });
-    setLabOutput(payload.warnings?.length ? 'Preview with warnings' : 'Preview ready', payload, payload.warnings?.length ? 'info' : 'success');
-    if (applicationId) {
-      document.getElementById('action-application-id').value = applicationId;
-    }
+    state.config = await fetchJson('/api/suresystems/config');
+    addDiagLog('Config loaded', state.config, state.config?.configured ? 'success' : 'error');
+    renderHealthBanner();
   } catch (error) {
-    setLabOutput('Preview failed', { error: error.message, details: error.details || null }, 'error');
-    window.showToast?.(error.message || 'Unable to build test payload', 'error');
-  } finally {
-    restore();
+    addDiagLog('Config load failed', { error: error.message }, 'error');
   }
 }
 
-async function handleLiveActivation() {
-  const button = document.getElementById('btn-live-activate');
-  const restore = setButtonLoading(button, 'Loading...');
+async function loadMandates() {
+  const tbody = document.getElementById('mandates-tbody');
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-12 text-center text-gray-400">
+      <i class="fa-solid fa-spinner fa-spin text-xl mb-2 text-orange-400 block"></i>Loading…
+    </td></tr>`;
+  }
   try {
-    const applicationId = Number(document.getElementById('test-application-id')?.value || 0);
-    if (!applicationId) {
-      throw new Error('Application ID is required for live mandate loading.');
-    }
-
-    const payload = await fetchJson('/api/suresystems/activate-application', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ applicationId })
-    });
-    setLabOutput('Live load complete', payload, 'success');
-    window.showToast?.(payload.message || 'SureSystems mandate loaded', 'success');
-    await loadMandates();
+    const payload = await fetchJson('/api/suresystems/mandates/history');
+    state.mandates = payload.data || [];
+    addDiagLog('Mandates loaded', { count: state.mandates.length }, 'info');
+    renderSummaryCards();
+    renderTable();
   } catch (error) {
-    setLabOutput(error.status === 503 ? 'Provider unavailable' : 'Live load failed', { error: error.message, details: error.details || null }, 'error');
-    window.showToast?.(error.message || 'SureSystems mandate load failed', 'error');
-  } finally {
-    restore();
+    addDiagLog('Mandates load failed', { error: error.message }, 'error');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-8 text-center text-red-500 text-sm">${escapeHtml(error.message)}</td></tr>`;
   }
 }
 
-async function handleDirectProviderLoad() {
-  const button = document.getElementById('btn-direct-provider-load');
-  const restore = setButtonLoading(button, 'Sending...');
-  try {
-    const applicationId = Number(document.getElementById('test-application-id')?.value || 0);
-    if (!applicationId) {
-      throw new Error('Application ID is required before hitting the DebiCheck endpoint.');
-    }
+// ── Event binding ─────────────────────────────────────────────────────────────
 
-    const payload = await fetchJson('/api/suresystems/mandates/load-direct', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        applicationId,
-        overrides: getTestOverrides()
-      })
-    });
+function bindEvents() {
+  // Refresh
+  document.getElementById('refresh-btn')?.addEventListener('click', () => Promise.all([loadConfig(), loadMandates()]));
 
-    setLabOutput('Direct provider load complete', payload, 'success');
-    window.showToast?.(payload.message || 'SureSystems direct load completed', 'success');
-    document.getElementById('action-application-id').value = applicationId;
-    if (payload.contractReference) {
-      document.getElementById('action-contract-reference').value = payload.contractReference;
-    }
-    if (payload.profile?.email) {
-      document.getElementById('action-front-end-user').value = payload.profile.email;
-    }
-    await loadMandates();
-  } catch (error) {
-    setLabOutput(error.status === 503 ? 'Provider unavailable' : 'Direct provider load failed', {
-      error: error.message,
-      details: error.details || null
-    }, 'error');
-    window.showToast?.(error.message || 'SureSystems direct load failed', 'error');
-  } finally {
-    restore();
-  }
-}
-
-async function runStatusAction(mode) {
-  const button = mode === 'enquiry' ? document.getElementById('btn-enquiry') : document.getElementById('btn-final-fate');
-  const restore = setButtonLoading(button, mode === 'enquiry' ? 'Enquiring...' : 'Checking...');
-  try {
-    const applicationId = Number(document.getElementById('action-application-id')?.value || 0) || null;
-    const contractReference = document.getElementById('action-contract-reference')?.value?.trim();
-    const frontEndUserName = document.getElementById('action-front-end-user')?.value?.trim() || 'webuser';
-    if (!contractReference) {
-      throw new Error('Contract reference is required.');
-    }
-
-    const payload = await fetchJson('/api/suresystems/mandates/check-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ applicationId, contractReference, frontEndUserName, mode })
-    });
-    setLabOutput(mode === 'enquiry' ? 'Enquiry complete' : 'Final fate complete', payload, 'success');
-    window.showToast?.(payload.message || 'Status check complete', 'success');
-    await loadMandates();
-    if (state.currentMandate?.id) {
-      openMandateModal(state.currentMandate.id);
-    }
-  } catch (error) {
-    setLabOutput(mode === 'enquiry' ? 'Enquiry failed' : 'Final fate failed', { error: error.message, details: error.details || null }, 'error');
-    window.showToast?.(error.message || 'SureSystems status check failed', 'error');
-  } finally {
-    restore();
-  }
-}
-
-async function handleCancelMandate() {
-  const button = document.getElementById('btn-cancel-mandate');
-  const restore = setButtonLoading(button, 'Cancelling...');
-  try {
-    const applicationId = Number(document.getElementById('action-application-id')?.value || 0) || null;
-    const contractReference = document.getElementById('action-contract-reference')?.value?.trim();
-    const frontEndUserName = document.getElementById('action-front-end-user')?.value?.trim() || 'webuser';
-    if (!contractReference) {
-      throw new Error('Contract reference is required.');
-    }
-
-    const payload = await fetchJson('/api/suresystems/mandates/cancel-record', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ applicationId, contractReference, frontEndUserName })
-    });
-    setLabOutput('Cancel complete', payload, 'success');
-    window.showToast?.(payload.message || 'Mandate cancel submitted', 'success');
-    await loadMandates();
-    closePayloadModal();
-  } catch (error) {
-    setLabOutput('Cancel failed', { error: error.message, details: error.details || null }, 'error');
-    window.showToast?.(error.message || 'Cancel mandate failed', 'error');
-  } finally {
-    restore();
-  }
-}
-
-async function handleRetryMandate() {
-  if (!state.currentMandate?.application_id) {
-    window.showToast?.('No application selected for retry', 'error');
-    return;
-  }
-  document.getElementById('test-application-id').value = state.currentMandate.application_id;
-  await handleLiveActivation();
-}
-
-function bindFilters() {
+  // Filters
   document.getElementById('mandate-search')?.addEventListener('input', renderTable);
-  document.querySelectorAll('.filter-btn').forEach((button) => {
-    button.addEventListener('click', () => {
-      state.currentFilter = button.dataset.filter || 'all';
-      document.querySelectorAll('.filter-btn').forEach((item) => {
-        item.classList.remove('bg-gray-900', 'text-white');
-        item.classList.add('bg-gray-100', 'text-gray-600');
+  document.querySelectorAll('.filter-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.currentFilter = btn.dataset.filter || 'all';
+      document.querySelectorAll('.filter-btn').forEach((b) => {
+        b.classList.remove('bg-gray-900', 'text-white');
+        b.classList.add('bg-gray-100', 'text-gray-600');
       });
-      button.classList.add('bg-gray-900', 'text-white');
-      button.classList.remove('bg-gray-100', 'text-gray-600');
+      btn.classList.add('bg-gray-900', 'text-white');
+      btn.classList.remove('bg-gray-100', 'text-gray-600');
       renderTable();
     });
   });
-}
 
-function ensureExtraModalActions() {
-  const footer = document.querySelector('#payload-modal .mt-6.pt-4');
-  if (!footer || document.getElementById('btn-run-enquiry')) return;
-  footer.insertAdjacentHTML('afterbegin', `
-    <button id="btn-run-cancel" class="px-5 py-2 bg-red-50 text-red-700 font-bold rounded-lg border border-red-200 hover:bg-red-100 transition-colors hidden">
-      <i class="fa-solid fa-ban mr-2"></i> Cancel
-    </button>
-    <button id="btn-run-enquiry" class="px-5 py-2 bg-sky-50 text-sky-700 font-bold rounded-lg border border-sky-200 hover:bg-sky-100 transition-colors hidden">
-      <i class="fa-solid fa-magnifying-glass mr-2"></i> Enquiry
-    </button>
-  `);
-}
+  // Modal close
+  document.getElementById('close-modal-btn')?.addEventListener('click', closeModal);
+  document.getElementById('mandate-modal')?.addEventListener('click', (e) => {
+    if (e.target?.id === 'mandate-modal') closeModal();
+  });
 
-function bindEvents() {
-  document.getElementById('refresh-mandates-btn')?.addEventListener('click', loadMandates);
-  document.getElementById('refresh-config-btn')?.addEventListener('click', loadConfig);
+  // Raw payload toggle in modal
+  document.getElementById('toggle-raw-payload')?.addEventListener('click', () => {
+    const panel  = document.getElementById('raw-payload-panel');
+    const chevron = document.getElementById('raw-chevron');
+    const open   = panel?.classList.toggle('hidden') === false;
+    if (chevron) chevron.style.transform = open ? 'rotate(90deg)' : '';
+  });
+
+  // Diagnostics toggle
+  document.getElementById('toggle-diagnostics')?.addEventListener('click', () => {
+    state.diagnosticsOpen = !state.diagnosticsOpen;
+    const panel   = document.getElementById('diagnostics-panel');
+    const chevron = document.getElementById('diag-chevron');
+    panel?.classList.toggle('hidden', !state.diagnosticsOpen);
+    if (chevron) chevron.style.transform = state.diagnosticsOpen ? 'rotate(90deg)' : '';
+  });
+
+  // Diagnostics buttons
+  document.getElementById('btn-dry-run')?.addEventListener('click', handleDryRun);
+  document.getElementById('btn-direct-load')?.addEventListener('click', handleDirectLoad);
   document.getElementById('btn-connectivity-probe')?.addEventListener('click', handleConnectivityProbe);
-  document.getElementById('btn-clear-dev-logs')?.addEventListener('click', () => {
-    state.logs = [];
-    renderLogs();
+  document.getElementById('btn-clear-logs')?.addEventListener('click', () => {
+    diagLogs.length = 0;
+    renderDiagLogs();
   });
-  document.getElementById('btn-preview-mandate')?.addEventListener('click', handlePreviewPayload);
-  document.getElementById('btn-direct-provider-load')?.addEventListener('click', handleDirectProviderLoad);
-  document.getElementById('btn-live-activate')?.addEventListener('click', handleLiveActivation);
-  document.getElementById('btn-final-fate')?.addEventListener('click', () => runStatusAction('finalfate'));
-  document.getElementById('btn-enquiry')?.addEventListener('click', () => runStatusAction('enquiry'));
-  document.getElementById('btn-cancel-mandate')?.addEventListener('click', handleCancelMandate);
-  document.getElementById('btn-retry-mandate')?.addEventListener('click', handleRetryMandate);
-  document.getElementById('btn-check-fate')?.addEventListener('click', () => runStatusAction('finalfate'));
-  document.getElementById('btn-run-enquiry')?.addEventListener('click', () => runStatusAction('enquiry'));
-  document.getElementById('btn-run-cancel')?.addEventListener('click', handleCancelMandate);
-  document.getElementById('close-modal-btn')?.addEventListener('click', closePayloadModal);
-  document.getElementById('payload-modal')?.addEventListener('click', (event) => {
-    if (event.target?.id === 'payload-modal') {
-      closePayloadModal();
-    }
-  });
-  bindFilters();
 }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const shell = document.getElementById('app-shell');
-  if (!shell) return;
-
   await initLayout();
-  shell.innerHTML = renderPage();
-  ensureExtraModalActions();
+
+  const main = document.getElementById('main-content');
+  if (!main) return;
+
+  main.innerHTML = renderPage();
   bindEvents();
-  renderConnectivitySummary();
-  renderLogs();
-  addLog('Mandate page initialized', { page: 'admin/mandates.html' }, 'info');
-  setLabOutput('Idle', 'Use the test lab to preview mandate payloads or inspect provider responses.', 'idle');
-  await refreshAll();
+  renderDiagLogs();
+
+  await Promise.all([loadConfig(), loadMandates()]);
 });

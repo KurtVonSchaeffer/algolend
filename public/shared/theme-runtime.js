@@ -4,30 +4,30 @@ const DEFAULT_COMPANY_NAME = '';
 
 const DEFAULT_CAROUSEL_SLIDES = [
   {
-    title: 'End-to-End\nCredit Management',
-    text: 'A fully branded digital lending platform, built around your credit policy and client journey.'
+    title: 'Front End: Fully Branded Client Application Portal',
+    text: 'Real-Time Affordability Intelligence (TruID Integration)\nCorporate Document Upload & E-Contracts'
   },
   {
-    title: 'Built for Business Lending',
-    text: 'Purpose-built underwriting, compliance, and portfolio management for corporate credit providers.'
+    title: 'Back-End Risk & Compliance Engine',
+    text: 'Instantly run real-time CIPC company checks, AML screening, director credit scoring, and biometric liveness checks at the point of application'
   },
   {
-    title: 'White-Label Ready',
-    text: 'Deploy under your brand with your colors, your workflows, and your risk appetite — in weeks, not years.'
+    title: 'Robust Operational Backbone',
+    text: 'Mandate Control Room & Live Dry-Runs\nRisk-Based Pricing & Approval Hierarchies\nFull Audit Trail & Role-Based Access Logs'
   }
 ];
 
 const DEFAULT_SYSTEM_SETTINGS = {
   id: 'global',
   company_name: DEFAULT_COMPANY_NAME,
-  primary_color: '#582AA8',
-  secondary_color: '#2B1551',
-  tertiary_color: '#9B6FE0',
-  theme_mode: 'light',
+  primary_color: '#B026FF', // Luminous neon purple
+  secondary_color: '#4A0E8F', // Deep purple
+  tertiary_color: '#11022A', // Dark aesthetic
+  theme_mode: 'dark',
   company_logo_url: null,
   auth_background_url: null,
   auth_background_flip: false,
-  auth_overlay_color: DEFAULT_AUTH_OVERLAY_COLOR,
+  auth_overlay_color: '#1E0B3B', // Glassmorphic dark purple
   auth_overlay_enabled: true,
   carousel_slides: DEFAULT_CAROUSEL_SLIDES.map((slide) => ({ ...slide }))
 };

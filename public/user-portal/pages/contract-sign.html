@@ -1,0 +1,187 @@
+<div class="page-container" style="padding: 0 0 60px; max-width: 680px; margin: 0 auto;">
+
+  <!-- Header -->
+  <div style="padding: 24px 20px 16px; position: sticky; top: 0; background: var(--bg-main, #fff); z-index: 10; border-bottom: 1px solid rgba(0,0,0,0.06);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+      <div style="width:36px;height:36px;background:rgba(139,92,246,0.1);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+        <i class="fas fa-file-signature" style="color:#7c3aed;font-size:16px;"></i>
+      </div>
+      <div>
+        <h1 style="font-size:18px;font-weight:800;color:var(--text-main,#0f172a);margin:0;">Loan Agreement</h1>
+        <p style="font-size:12px;color:var(--text-muted,#64748b);margin:0;" id="contract-subtitle">Loading your agreement…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading state -->
+  <div id="contract-loading" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:16px;">
+    <i class="fas fa-circle-notch fa-spin" style="font-size:28px;color:#7c3aed;"></i>
+    <p style="color:var(--text-muted,#64748b);font-size:14px;margin:0;">Loading your agreement…</p>
+  </div>
+
+  <!-- Already signed state -->
+  <div id="contract-already-signed" style="display:none;padding:32px 20px;text-align:center;">
+    <div style="width:72px;height:72px;background:rgba(16,185,129,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+      <i class="fas fa-check-circle" style="font-size:32px;color:#10b981;"></i>
+    </div>
+    <h2 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px;">Already Signed</h2>
+    <p style="font-size:14px;color:#64748b;margin:0 0 24px;" id="already-signed-msg"></p>
+    <button onclick="if(typeof loadPage==='function')loadPage('dashboard');else window.location.href='/user-portal/?page=dashboard'"
+      style="background:#7c3aed;color:#fff;border:none;padding:14px 28px;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;">
+      Back to Dashboard
+    </button>
+  </div>
+
+  <!-- Main contract body -->
+  <div id="contract-body" style="display:none;">
+
+    <!-- Progress steps -->
+    <div style="display:flex;align-items:center;gap:0;padding:16px 20px;">
+      <div class="contract-step contract-step-done" data-step="1">
+        <span class="step-num"><i class="fas fa-check" style="font-size:10px;"></i></span>
+        <span class="step-label">Review</span>
+      </div>
+      <div class="contract-step-line"></div>
+      <div class="contract-step contract-step-active" data-step="2" id="step2">
+        <span class="step-num">2</span>
+        <span class="step-label">Sign</span>
+      </div>
+      <div class="contract-step-line"></div>
+      <div class="contract-step" data-step="3" id="step3">
+        <span class="step-num">3</span>
+        <span class="step-label">Done</span>
+      </div>
+    </div>
+
+    <!-- Loan summary banner -->
+    <div style="margin:0 20px 16px;background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:16px;padding:20px;color:#fff;">
+      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;opacity:.75;margin:0 0 4px;">Loan Amount</p>
+      <p style="font-size:36px;font-weight:900;margin:0 0 16px;" id="banner-principal">—</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+        <div>
+          <p style="font-size:10px;opacity:.7;margin:0 0 2px;text-transform:uppercase;letter-spacing:.05em;">Monthly</p>
+          <p style="font-size:14px;font-weight:800;margin:0;" id="banner-monthly">—</p>
+        </div>
+        <div>
+          <p style="font-size:10px;opacity:.7;margin:0 0 2px;text-transform:uppercase;letter-spacing:.05em;">Term</p>
+          <p style="font-size:14px;font-weight:800;margin:0;" id="banner-term">—</p>
+        </div>
+        <div>
+          <p style="font-size:10px;opacity:.7;margin:0 0 2px;text-transform:uppercase;letter-spacing:.05em;">First Payment</p>
+          <p style="font-size:14px;font-weight:800;margin:0;" id="banner-first">—</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agreement text scroll box -->
+    <div style="margin:0 20px 16px;">
+      <p style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px;">
+        <i class="fas fa-scroll" style="margin-right:6px;"></i>Pre-Agreement Statement (NCA s.92)
+      </p>
+      <div id="agreement-scroll" style="height:360px;overflow-y:auto;border:2px solid #e2e8f0;border-radius:14px;padding:20px;
+                font-size:13px;line-height:1.7;color:#334155;background:#f8fafc;scroll-behavior:smooth;">
+        <!-- Populated by JS -->
+      </div>
+      <div id="scroll-notice" style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:#fef9c3;border-radius:8px;margin-top:8px;">
+        <i class="fas fa-arrow-down" style="font-size:11px;color:#854d0e;"></i>
+        <span style="font-size:12px;color:#854d0e;font-weight:600;">Please scroll to read the full agreement before signing</span>
+      </div>
+    </div>
+
+    <!-- Signature section (initially locked) -->
+    <div id="signature-section" style="margin:0 20px;opacity:.4;pointer-events:none;transition:all .3s;">
+      <p style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin:0 0 8px;">
+        <i class="fas fa-pen-nib" style="margin-right:6px;"></i>Your Signature
+      </p>
+
+      <!-- Typed name -->
+      <div style="margin-bottom:12px;">
+        <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:6px;">Full Name (as it appears on your ID)</label>
+        <input type="text" id="sig-name" placeholder="Type your full name"
+          style="width:100%;box-sizing:border-box;padding:12px 14px;border:2px solid #e2e8f0;border-radius:12px;
+                 font-size:14px;font-weight:600;color:#0f172a;background:#fff;outline:none;
+                 font-family:'Great Vibes',cursive,'Dancing Script',cursive,sans-serif;"/>
+      </div>
+
+      <!-- Canvas -->
+      <div style="border:2px solid #e2e8f0;border-radius:14px;overflow:hidden;background:#fff;position:relative;">
+        <div style="padding:10px 14px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12px;font-weight:600;color:#475569;">Draw your signature below</span>
+          <button id="sig-clear" onclick="clearSignature()"
+            style="font-size:11px;color:#94a3b8;background:none;border:none;cursor:pointer;font-weight:600;">
+            <i class="fas fa-eraser"></i> Clear
+          </button>
+        </div>
+        <canvas id="sig-canvas" width="560" height="160"
+          style="width:100%;height:160px;touch-action:none;display:block;cursor:crosshair;background:#fff;"></canvas>
+        <div id="sig-placeholder" style="position:absolute;inset:40px 0 0;display:flex;align-items:center;justify-content:center;
+                                         pointer-events:none;color:#cbd5e1;font-size:13px;font-style:italic;">
+          Sign here with your finger or mouse
+        </div>
+      </div>
+
+      <!-- Consent checkbox -->
+      <label style="display:flex;align-items:flex-start;gap:10px;margin-top:16px;cursor:pointer;">
+        <input type="checkbox" id="sig-consent" style="margin-top:3px;width:18px;height:18px;accent-color:#7c3aed;flex-shrink:0;">
+        <span style="font-size:13px;color:#475569;line-height:1.5;">
+          I, <strong id="consent-name">the undersigned</strong>, confirm that I have read and understood this Pre-Agreement Statement in full and I agree to be bound by its terms.
+        </span>
+      </label>
+
+      <!-- Submit button -->
+      <button id="sign-submit-btn" onclick="submitSignature()"
+        style="width:100%;margin-top:16px;padding:16px;background:#7c3aed;color:#fff;border:none;
+               border-radius:16px;font-size:15px;font-weight:800;cursor:pointer;
+               box-shadow:0 4px 16px rgba(124,58,237,.35);transition:all .2s;opacity:.5;"
+        disabled>
+        <i class="fas fa-lock" style="margin-right:8px;"></i>Sign &amp; Submit Agreement
+      </button>
+    </div>
+
+    <!-- Bottom padding -->
+    <div style="height:40px;"></div>
+  </div>
+
+  <!-- Success state -->
+  <div id="contract-success" style="display:none;padding:40px 20px;text-align:center;">
+    <div style="width:80px;height:80px;background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;
+                display:flex;align-items:center;justify-content:center;margin:0 auto 20px;
+                box-shadow:0 8px 24px rgba(16,185,129,.35);">
+      <i class="fas fa-check" style="font-size:36px;color:#fff;"></i>
+    </div>
+    <h2 style="font-size:24px;font-weight:900;color:#0f172a;margin:0 0 8px;">Agreement Signed!</h2>
+    <p style="font-size:14px;color:#64748b;margin:0 0 8px;">Your loan agreement has been signed successfully.</p>
+    <p style="font-size:12px;color:#94a3b8;margin:0 0 32px;" id="success-signed-at"></p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:16px;margin:0 0 24px;text-align:left;">
+      <p style="font-size:13px;color:#166534;margin:0;font-weight:600;">
+        <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+        What happens next? Our team will review your signed agreement and disburse your loan. You'll receive an SMS update.
+      </p>
+    </div>
+    <button onclick="if(typeof loadPage==='function')loadPage('dashboard');else window.location.href='/user-portal/?page=dashboard'"
+      style="background:#7c3aed;color:#fff;border:none;padding:16px 32px;border-radius:16px;font-size:15px;font-weight:800;cursor:pointer;
+             box-shadow:0 4px 16px rgba(124,58,237,.35);width:100%;">
+      Back to Dashboard
+    </button>
+  </div>
+
+</div>
+
+<style>
+.contract-step {
+  display:flex;flex-direction:column;align-items:center;gap:4px;flex:0 0 auto;
+}
+.contract-step .step-num {
+  width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;background:#e2e8f0;color:#94a3b8;transition:all .3s;
+}
+.contract-step .step-label {
+  font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;
+}
+.contract-step-done .step-num { background:#10b981;color:#fff; }
+.contract-step-done .step-label { color:#10b981; }
+.contract-step-active .step-num { background:#7c3aed;color:#fff; }
+.contract-step-active .step-label { color:#7c3aed; }
+.contract-step-line { flex:1;height:2px;background:#e2e8f0;min-width:24px; }
+#sig-canvas { display:block; }
+</style>
