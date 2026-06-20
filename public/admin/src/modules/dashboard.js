@@ -305,10 +305,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       <!-- Charts Row -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 fade-in delay-200">
         <div class="lg:col-span-2 glass-card p-8 rounded-2xl">
-          <div class="flex items-center justify-between mb-6">
-            <div>
-              <h4 class="font-headline font-bold text-on-surface">Cash Flow Velocity</h4>
-              <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Disbursed vs. Collected</p>
+          <div class="flex items-center justify-between pb-4 mb-6 border-b border-outline-variant/10">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:var(--color-primary-container,#ede9fe)">
+                <span class="material-symbols-outlined text-[18px]" style="color:var(--color-primary)">swap_horiz</span>
+              </div>
+              <div>
+                <h4 class="font-headline font-bold text-on-surface">Money In vs Money Out</h4>
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">How much we've lent out vs how much has been paid back</p>
+              </div>
             </div>
             <div id="tabs-velocity" class="tab-group"></div>
           </div>
@@ -316,9 +321,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
 
         <div class="glass-card p-8 rounded-2xl">
-          <div class="mb-6">
-            <h4 class="font-headline font-bold text-on-surface">Portfolio Composition</h4>
-            <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Loan Status Distribution</p>
+          <div class="pb-4 mb-6 border-b border-outline-variant/10 flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-50">
+              <span class="material-symbols-outlined text-[18px] text-blue-600">donut_large</span>
+            </div>
+            <div>
+              <h4 class="font-headline font-bold text-on-surface">Where Loans Stand</h4>
+              <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Current status of every loan in the portfolio</p>
+            </div>
           </div>
           <div id="donutChart" class="chart-wrapper" style="min-height:320px;"></div>
         </div>
@@ -327,10 +337,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       <!-- Analytics Row -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in delay-300">
         <div class="glass-card p-8 rounded-2xl">
-          <div class="flex items-center justify-between mb-6">
-            <div>
-              <h4 class="font-headline font-bold text-on-surface">Vintage Analysis</h4>
-              <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Recovery Rate by Cohort</p>
+          <div class="flex items-center justify-between pb-4 mb-6 border-b border-outline-variant/10">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-green-50">
+                <span class="material-symbols-outlined text-[18px] text-green-600">calendar_month</span>
+              </div>
+              <div>
+                <h4 class="font-headline font-bold text-on-surface">Repayment by Month</h4>
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Green = paying well · Red = at risk</p>
+              </div>
             </div>
             <div id="tabs-vintage" class="tab-group"></div>
           </div>
@@ -338,10 +353,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
 
         <div class="glass-card p-8 rounded-2xl">
-          <div class="flex items-center justify-between mb-6">
-            <div>
-              <h4 class="font-headline font-bold text-on-surface">Risk vs. Affordability</h4>
-              <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Credit Score vs. DTI Ratio</p>
+          <div class="pb-4 mb-6 border-b border-outline-variant/10 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-orange-50">
+                <span class="material-symbols-outlined text-[18px] text-orange-500">bubble_chart</span>
+              </div>
+              <div>
+                <h4 class="font-headline font-bold text-on-surface">Loan Risk Overview</h4>
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Each bubble = one loan · Red = defaulted</p>
+              </div>
             </div>
             <div class="flex items-center gap-3 text-[11px] font-semibold">
               <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span>Paid</span>
@@ -355,14 +375,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       <!-- Funnel -->
       <section class="glass-card p-8 rounded-2xl fade-in delay-400">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h4 class="font-headline font-bold text-on-surface">Conversion Funnel</h4>
-            <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Application Pipeline · 4 Stages</p>
+        <div class="flex items-center justify-between pb-4 mb-6 border-b border-outline-variant/10">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-purple-50">
+              <span class="material-symbols-outlined text-[18px] text-purple-600">filter_alt</span>
+            </div>
+            <div>
+              <h4 class="font-headline font-bold text-on-surface">Application Pipeline</h4>
+              <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">How many applicants make it through each step</p>
+            </div>
           </div>
           <div class="text-right">
             <div class="text-3xl font-bold text-on-surface font-headline">${analytics.funnel?.STARTED || 0}</div>
-            <div class="text-[11px] uppercase tracking-widest text-outline font-semibold">Total Starts</div>
+            <div class="text-[11px] uppercase tracking-widest text-outline font-semibold">Total Started</div>
           </div>
         </div>
         <div id="funnelChart" class="chart-wrapper" style="min-height:300px;"></div>
@@ -372,25 +397,46 @@ document.addEventListener('DOMContentLoaded', async () => {
       <section class="fade-in delay-400">
         <div class="flex items-center justify-between mb-6">
           <div>
-            <h3 class="font-headline text-xl font-bold text-on-surface">Historical Trends</h3>
-            <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Long-term Performance Metrics</p>
+            <h3 class="font-headline text-xl font-bold text-on-surface">How We're Trending</h3>
+            <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Performance over time</p>
           </div>
           <div id="tabs-trends" class="tab-group"></div>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div class="lg:col-span-2 glass-card p-8 rounded-2xl">
-            <h4 class="font-headline font-bold text-on-surface mb-1">Portfolio Growth</h4>
-            <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mb-6">Principal vs Interest Over Time</p>
+            <div class="pb-4 mb-6 border-b border-outline-variant/10 flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-indigo-50">
+                <span class="material-symbols-outlined text-[18px] text-indigo-600">stacked_bar_chart</span>
+              </div>
+              <div>
+                <h4 class="font-headline font-bold text-on-surface mb-0.5">Book Growth Over Time</h4>
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline">How the loan book has grown month by month</p>
+              </div>
+            </div>
             <div id="comboChart" class="chart-wrapper"></div>
           </div>
           <div class="glass-card p-8 rounded-2xl">
-            <h4 class="font-headline font-bold text-on-surface mb-1">Performance Targets</h4>
-            <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mb-6">Key Health Indicators</p>
+            <div class="pb-4 mb-6 border-b border-outline-variant/10 flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-teal-50">
+                <span class="material-symbols-outlined text-[18px] text-teal-600">speed</span>
+              </div>
+              <div>
+                <h4 class="font-headline font-bold text-on-surface mb-0.5">Portfolio Health Score</h4>
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline">How healthy the book is right now</p>
+              </div>
+            </div>
             <div id="radialChart" class="chart-wrapper" style="min-height:320px;"></div>
           </div>
           <div class="glass-card p-8 rounded-2xl">
-            <h4 class="font-headline font-bold text-on-surface mb-1">Revenue Trajectory</h4>
-            <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mb-6">Total Exposure Growth</p>
+            <div class="pb-4 mb-6 border-b border-outline-variant/10 flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-amber-50">
+                <span class="material-symbols-outlined text-[18px] text-amber-600">trending_up</span>
+              </div>
+              <div>
+                <h4 class="font-headline font-bold text-on-surface mb-0.5">Total Exposure Growth</h4>
+                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline">Total amount at risk in the market over time</p>
+              </div>
+            </div>
             <div id="growthChart" class="chart-wrapper" style="min-height:320px;"></div>
           </div>
         </div>
@@ -545,7 +591,7 @@ function initFunnelChart(apps) {
     plotOptions: { bar: { borderRadius: 8, horizontal: true, barHeight: '60%' } },
     colors: [primaryColor],
     dataLabels: { enabled: true, style: { fontSize: '12px', fontWeight: '700', colors: ['#fff'] } },
-    xaxis: { categories: ['Started', 'Processing', 'Finalizing', 'Ready'], labels: { style: { colors: '#64748b', fontSize: '12px', fontWeight: '600' } } },
+    xaxis: { categories: ['Just Applied', 'Being Checked', 'Almost Ready', 'Approved'], labels: { style: { colors: '#64748b', fontSize: '12px', fontWeight: '600' } } },
     yaxis: { labels: { style: { colors: '#64748b', fontSize: '12px', fontWeight: '600' } } },
     grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
     legend: { show: false }
@@ -593,8 +639,8 @@ function renderVelocityChart(perf) {
   if (!data.length) { emptyState('velocityChart', 'No cash flow data yet'); return; }
   const options = {
     series: [
-      { name: 'Disbursed', type: 'area', data: data.map((p) => p.disbursed_amount) },
-      { name: 'Collected', type: 'area', data: data.map((p) => p.repaid_amount) }
+      { name: 'Lent Out', type: 'area', data: data.map((p) => p.disbursed_amount) },
+      { name: 'Paid Back', type: 'area', data: data.map((p) => p.repaid_amount) }
     ],
     chart: { type: 'line', height: 350, fontFamily: 'Inter', zoom: { enabled: false }, toolbar: { show: false } },
     stroke: { width: 3, curve: 'smooth' },

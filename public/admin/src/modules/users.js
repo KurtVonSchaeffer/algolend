@@ -1,6 +1,7 @@
 import { initLayout } from '../shared/layout.js';
 import { fetchUsers, fetchBranches, claimClientProtocol, getCurrentAdminProfile, fetchFullUserProfile } from '../services/dataService.js';
-import { supabase } from '../services/supabaseClient.js'; 
+import { supabase } from '../services/supabaseClient.js';
+import { apiFetch } from '../shared/apiFetch.js';
 import { formatDate, formatCurrency, validateSAID } from '../shared/utils.js';
 import { renderProfileCard } from '../components/profile-card.js';
 
@@ -100,79 +101,18 @@ const DETAIL_VIEW_HTML = `
             <button id="btn-transfer-branch" class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 shadow-sm">
                 <i class="fa-solid fa-building-columns mr-2 text-[#a04100]"></i> Transfer Branch
             </button>
+            <button id="btn-remove-staff" class="hidden px-4 py-2 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm font-bold hover:bg-red-100 shadow-sm">
+                <i class="fa-solid fa-user-minus mr-2"></i> Remove Staff
+            </button>
         </div>
     </div>
 
     <div class="grid grid-cols-12 gap-8 h-full overflow-hidden">
-        
         <div id="profile-card-container" class="col-span-12 lg:col-span-4 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-10">
             <!-- Profile Card Injected Here -->
         </div>
-
-        <div class="col-span-12 lg:col-span-8 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-10">
-
-            <div class="glass-card p-6 rounded-2xl">
-                <h3 class="text-sm font-semibold uppercase tracking-widest text-outline mb-4 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[18px]">account_balance_wallet</span> Financial Snapshot
-                </h3>
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-surface-container p-3 rounded-xl">
-                        <p class="text-[10px] text-outline uppercase">Gross Income</p>
-                        <p id="detail-income" class="text-sm font-bold text-on-surface">-</p>
-                    </div>
-                    <div class="bg-surface-container p-3 rounded-xl">
-                        <p class="text-[10px] text-outline uppercase">Expenses</p>
-                        <p id="detail-expenses" class="text-sm font-bold text-on-surface">-</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-span-12 lg:col-span-8 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-10">
-            
-            <div class="grid grid-cols-3 gap-4">
-                <div class="glass-card p-4 rounded-2xl">
-                    <div class="text-[10px] font-semibold uppercase tracking-widest text-outline">Total Loans</div>
-                    <div id="stat-total-loans" class="text-2xl font-extrabold text-on-surface mt-1">0</div>
-                </div>
-                <div class="glass-card p-4 rounded-2xl">
-                    <div class="text-[10px] font-semibold uppercase tracking-widest text-outline">Active Debt</div>
-                    <div id="stat-active-debt" class="text-2xl font-extrabold mt-1" style="color:var(--color-primary)">R 0.00</div>
-                </div>
-                <div class="glass-card p-4 rounded-2xl">
-                    <div class="text-[10px] font-semibold uppercase tracking-widest text-outline">Uploaded Docs</div>
-                    <div id="stat-total-docs" class="text-2xl font-extrabold text-blue-600 mt-1">0</div>
-                </div>
-            </div>
-
-            <div class="glass-card rounded-2xl overflow-hidden">
-                <div class="px-6 py-4 border-b border-outline-variant/10 flex justify-between items-center">
-                    <h3 class="font-headline font-bold text-on-surface">Application History</h3>
-                    <span class="text-[11px] font-semibold uppercase tracking-widest text-outline">Most recent first</span>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-outline-variant/10">
-                        <thead class="bg-surface-container">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">ID</th>
-                                <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">Date</th>
-                                <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">Amount</th>
-                                <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">Status</th>
-                                <th class="px-6 py-3 text-right text-[10px] font-semibold uppercase tracking-widest text-outline">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="detail-loans-body" class="bg-white divide-y divide-outline-variant/10">
-                            </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="glass-card p-6 rounded-2xl">
-                 <h3 class="font-headline font-bold text-on-surface mb-4">Uploaded Documents</h3>
-                 <div id="detail-docs-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    </div>
-            </div>
-
+        <div id="detail-right" class="col-span-12 lg:col-span-8 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-10">
+            <!-- Populated dynamically based on user role -->
         </div>
     </div>
 </div>
@@ -226,6 +166,174 @@ window.switchView = (viewName) => {
     }
 };
 
+const ROLE_PERMISSIONS = {
+    super_admin: ['Full access to everything', 'Manage all staff and branches', 'Change system settings', 'View all financial reports', 'Override credit decisions'],
+    admin:       ['Manage staff in their branch', 'Approve and decline applications', 'View branch financials', 'Transfer clients between branches'],
+    base_admin:  ['View and process loan applications', 'Upload and verify documents', 'Contact clients', 'Capture payments'],
+};
+
+const ROLE_DESCRIPTIONS = {
+    super_admin: 'Super Administrator',
+    admin:       'Branch Manager',
+    base_admin:  'Loan Officer',
+};
+
+function renderStaffDetail(p, branches) {
+    const perms = ROLE_PERMISSIONS[p.role] || ['Standard access'];
+    const roleDesc = ROLE_DESCRIPTIONS[p.role] || 'Staff';
+    const branchName = branches.find(b => b.id === p.branch_id)?.name || 'No branch assigned';
+    const permList = perms.map(perm => `
+        <li class="flex items-center gap-2 text-sm text-slate-700">
+            <span class="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <i class="fa-solid fa-check text-green-600" style="font-size:8px;"></i>
+            </span>
+            ${perm}
+        </li>`).join('');
+
+    return `
+        <div class="glass-card p-6 rounded-2xl">
+            <h3 class="text-sm font-semibold uppercase tracking-widest text-outline mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">badge</span> Contact & Identity
+            </h3>
+            <div class="grid grid-cols-1 gap-3">
+                <div class="bg-surface-container p-3 rounded-xl">
+                    <p class="text-[10px] text-outline uppercase">Email</p>
+                    <p class="text-sm font-bold text-on-surface">${p.email || '—'}</p>
+                </div>
+                <div class="bg-surface-container p-3 rounded-xl">
+                    <p class="text-[10px] text-outline uppercase">Phone</p>
+                    <p class="text-sm font-bold text-on-surface">${p.phone || p.mobile_number || '—'}</p>
+                </div>
+                <div class="bg-surface-container p-3 rounded-xl">
+                    <p class="text-[10px] text-outline uppercase">Role</p>
+                    <p class="text-sm font-bold text-on-surface">${roleDesc}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl">
+            <h3 class="text-sm font-semibold uppercase tracking-widest text-outline mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">corporate_fare</span> Branch Assignment
+            </h3>
+            <div class="bg-surface-container p-4 rounded-xl flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] text-outline uppercase">Current Branch</p>
+                    <p class="text-sm font-bold text-on-surface mt-0.5">${branchName}</p>
+                </div>
+                <button onclick="window.openBranchModal()"
+                    class="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 shadow-sm">
+                    Change
+                </button>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl">
+            <h3 class="text-sm font-semibold uppercase tracking-widest text-outline mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">lock</span> Access Level
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">What <strong>${p.full_name?.split(' ')[0] || 'this user'}</strong> can do as a ${roleDesc}:</p>
+            <ul class="space-y-2.5">${permList}</ul>
+        </div>
+    `;
+}
+
+function renderClientDetail(data) {
+    const fins = data.financials || {};
+    const activeDebt = data.loans
+        .filter(l => ['DISBURSED', 'ACTIVE'].includes(l.status))
+        .reduce((sum, l) => sum + Number(l.amount), 0);
+
+    const loansRows = data.loans.length === 0
+        ? `<tr><td colspan="5" class="p-12 text-center text-xs font-bold text-slate-300">No applications found.</td></tr>`
+        : data.loans.map(l => `
+            <tr class="hover:bg-slate-50 transition-colors cursor-pointer group" onclick="window.location.href='/admin/application-detail?id=${l.id}'">
+                <td class="px-8 py-5 text-[10px] font-black text-slate-400 font-mono">#${String(l.id).substring(0, 8)}</td>
+                <td class="px-6 py-5 text-xs font-bold text-slate-600">${formatDate(l.created_at)}</td>
+                <td class="px-6 py-5 text-sm font-black text-slate-900">${formatCurrency(l.amount)}</td>
+                <td class="px-6 py-5">${getStatusBadge(l.status)}</td>
+                <td class="px-8 py-5 text-right">
+                    <span class="material-symbols-outlined text-slate-300 group-hover:text-[#a04100] transition-colors">chevron_right</span>
+                </td>
+            </tr>`).join('');
+
+    const docsHtml = data.documents.length === 0
+        ? `<div class="col-span-3 text-center text-[10px] font-black text-slate-400 py-8 border-2 border-dashed border-slate-50 rounded-3xl">No documents found</div>`
+        : data.documents.map(d => `
+            <div class="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-slate-200/20 transition-all group">
+                <div class="w-12 h-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-[#a04100] shadow-sm">
+                    <span class="material-symbols-outlined">description</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[10px] font-black text-slate-900 truncate" title="${d.file_name}">${d.file_name}</p>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${d.file_type || 'DOC'}</p>
+                </div>
+                <a href="${d.file_path}" target="_blank" class="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-[#a04100] transition-all">
+                    <span class="material-symbols-outlined text-[20px]">download</span>
+                </a>
+            </div>`).join('');
+
+    return `
+        <div class="glass-card p-6 rounded-2xl">
+            <h3 class="text-sm font-semibold uppercase tracking-widest text-outline mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">account_balance_wallet</span> Financial Snapshot
+            </h3>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-surface-container p-3 rounded-xl">
+                    <p class="text-[10px] text-outline uppercase">Gross Income</p>
+                    <p class="text-sm font-bold text-on-surface">${formatCurrency(fins.monthly_income || 0)}</p>
+                </div>
+                <div class="bg-surface-container p-3 rounded-xl">
+                    <p class="text-[10px] text-outline uppercase">Expenses</p>
+                    <p class="text-sm font-bold text-on-surface">${formatCurrency(fins.monthly_expenses || 0)}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+            <div class="glass-card p-4 rounded-2xl">
+                <div class="text-[10px] font-semibold uppercase tracking-widest text-outline">Total Loans</div>
+                <div class="text-2xl font-extrabold text-on-surface mt-1">${data.loans.length}</div>
+            </div>
+            <div class="glass-card p-4 rounded-2xl">
+                <div class="text-[10px] font-semibold uppercase tracking-widest text-outline">Active Debt</div>
+                <div class="text-2xl font-extrabold mt-1" style="color:var(--color-primary)">${formatCurrency(activeDebt)}</div>
+            </div>
+            <div class="glass-card p-4 rounded-2xl">
+                <div class="text-[10px] font-semibold uppercase tracking-widest text-outline">Uploaded Docs</div>
+                <div class="text-2xl font-extrabold text-blue-600 mt-1">${data.documents.length}</div>
+            </div>
+        </div>
+
+        <div class="glass-card rounded-2xl overflow-hidden">
+            <div class="px-6 py-4 border-b border-outline-variant/10 flex justify-between items-center">
+                <h3 class="font-headline font-bold text-on-surface">Application History</h3>
+                <span class="text-[11px] font-semibold uppercase tracking-widest text-outline">Most recent first</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-outline-variant/10">
+                    <thead class="bg-surface-container">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">ID</th>
+                            <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">Date</th>
+                            <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">Amount</th>
+                            <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">Status</th>
+                            <th class="px-6 py-3 text-right text-[10px] font-semibold uppercase tracking-widest text-outline">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-outline-variant/10">${loansRows}</tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="glass-card p-6 rounded-2xl">
+            <h3 class="font-headline font-bold text-on-surface mb-4">Uploaded Documents</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">${docsHtml}</div>
+        </div>
+    `;
+}
+
+const RANK = { borrower: 0, base_admin: 1, admin: 2, super_admin: 3 };
+
 window.openUserDetail = async (userId) => {
     try {
         document.body.style.cursor = 'wait';
@@ -235,74 +343,55 @@ window.openUserDetail = async (userId) => {
 
         const p = data.profile;
         const isLuhnValid = validateSAID(p?.identity_number || p?.id_number);
-        
-        // Inject Premium Profile Card
+        const userIsStaff = isStaff(p.role);
+
+        // Profile card (left column)
         const container = document.getElementById('profile-card-container');
         if (container) container.innerHTML = renderProfileCard(p, { isLuhnValid });
-        
-        // Financials — safe setters (elements may not be in DOM yet on first render)
-        const fins = data.financials || {};
-        const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
-        setText('detail-income',    formatCurrency(fins.monthly_income   || 0));
-        setText('detail-expenses',  formatCurrency(fins.monthly_expenses  || 0));
-        setText('stat-total-loans', data.loans.length);
-        setText('stat-total-docs',  data.documents.length);
-
-        const activeDebt = data.loans
-            .filter(l => ['DISBURSED', 'ACTIVE'].includes(l.status))
-            .reduce((sum, l) => sum + Number(l.amount), 0);
-        setText('stat-active-debt', formatCurrency(activeDebt));
-
-        // Render Loans Table
-        const loanBody = document.getElementById('detail-loans-body');
-        if (!loanBody) console.warn('[users] #detail-loans-body not found in DOM');
-        if (loanBody && data.loans.length === 0) {
-            loanBody.innerHTML = `<tr><td colspan="5" class="p-12 text-center text-xs font-bold text-slate-300">No applications found.</td></tr>`;
-        } else if (loanBody) {
-            loanBody.innerHTML = data.loans.map(l => `
-                <tr class="hover:bg-slate-50 transition-colors cursor-pointer group" onclick="window.location.href='/admin/application-detail?id=${l.id}'">
-                    <td class="px-8 py-5 text-[10px] font-black text-slate-400 font-mono">#${String(l.id).substring(0, 8)}</td>
-                    <td class="px-6 py-5 text-xs font-bold text-slate-600">${formatDate(l.created_at)}</td>
-                    <td class="px-6 py-5 text-sm font-black text-slate-900">${formatCurrency(l.amount)}</td>
-                    <td class="px-6 py-5">${getStatusBadge(l.status)}</td>
-                    <td class="px-8 py-5 text-right">
-                        <span class="material-symbols-outlined text-slate-300 group-hover:text-[#a04100] transition-colors">chevron_right</span>
-                    </td>
-                </tr>
-            `).join('');
+        // Right column — split by role
+        const right = document.getElementById('detail-right');
+        if (right) {
+            right.innerHTML = userIsStaff
+                ? renderStaffDetail(p, branches)
+                : renderClientDetail(data);
         }
 
-        // Render Docs Grid
-        const docGrid = document.getElementById('detail-docs-grid');
-        if (!docGrid) console.warn('[users] #detail-docs-grid not found in DOM');
-        if (docGrid && data.documents.length === 0) {
-            docGrid.innerHTML = `<div class="col-span-3 text-center text-[10px] font-black text-slate-400 py-8 border-2 border-dashed border-slate-50 rounded-3xl">No documents found</div>`;
-        } else if (docGrid) {
-            docGrid.innerHTML = data.documents.map(d => `
-                <div class="flex items-center gap-4 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-slate-200/20 transition-all group">
-                    <div class="w-12 h-12 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-[#a04100] shadow-sm">
-                        <span class="material-symbols-outlined">description</span>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-[10px] font-black text-slate-900 truncate" title="${d.file_name}">${d.file_name}</p>
-                        <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">${d.file_type || 'DOC'}</p>
-                    </div>
-                    <a href="${d.file_path}" target="_blank" class="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-[#a04100] transition-all"><span class="material-symbols-outlined text-[20px]">download</span></a>
-                </div>
-            `).join('');
-        }
-
+        // Transfer branch button
         const btnTransfer = document.getElementById('btn-transfer-branch');
         if (btnTransfer) btnTransfer.onclick = () => window.openBranchModal();
+
+        // Remove staff button — only visible if current admin outranks target
+        const btnRemove = document.getElementById('btn-remove-staff');
+        if (btnRemove) {
+            const callerRank = RANK[currentAdmin?.role] || 0;
+            const targetRank = RANK[p.role] || 0;
+            const canRemove = userIsStaff && callerRank > targetRank && p.id !== currentAdmin?.id;
+            btnRemove.classList.toggle('hidden', !canRemove);
+            btnRemove.onclick = () => window.removeStaff(p.id, p.full_name);
+        }
 
         window.switchView('detail');
 
     } catch (error) {
-        console.error("Detail Error:", error?.message || error);
+        console.error('Detail Error:', error?.message || error);
         alert(`Could not load user details: ${error?.message || 'Unknown error — check console'}`);
     } finally {
         document.body.style.cursor = 'default';
+    }
+};
+
+window.removeStaff = async (userId, name) => {
+    if (!confirm(`Remove ${name} from the platform? This cannot be undone.`)) return;
+    try {
+        const res = await apiFetch(`/api/admin/remove-staff/${userId}`, { method: 'DELETE' });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Failed to remove staff');
+        alert(`${name} has been removed.`);
+        window.switchView('list');
+        window.location.reload();
+    } catch (err) {
+        alert('Could not remove staff: ' + err.message);
     }
 };
 
@@ -466,7 +555,7 @@ function injectInviteModal(branches) {
         <div class="flex items-center justify-between mb-6">
           <div>
             <h3 class="text-lg font-bold text-gray-900">Invite Staff Member</h3>
-            <p class="text-xs text-gray-500 mt-0.5">Creates a login account and profile immediately.</p>
+            <p class="text-xs text-gray-500 mt-0.5">An email invite will be sent — they set their own password.</p>
           </div>
           <button onclick="document.getElementById('invite-staff-modal').classList.add('hidden')"
             class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
@@ -504,10 +593,10 @@ function injectInviteModal(branches) {
               </select>
             </div>
             <div class="col-span-2">
-              <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Temporary Password *</label>
-              <input name="password" type="password" required placeholder="Min 8 characters" minlength="8"
-                class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none">
-              <p class="text-xs text-gray-400 mt-1">Staff member should change this on first login.</p>
+              <div class="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-xl">
+                <i class="fa-solid fa-envelope text-blue-500 mt-0.5 flex-shrink-0"></i>
+                <p class="text-xs text-blue-700">An invite email will be sent with a secure link to set their password. No temporary password needed.</p>
+              </div>
             </div>
           </div>
           <div class="flex gap-3 pt-2">
@@ -537,17 +626,15 @@ function injectInviteModal(branches) {
 
         try {
             const fd = new FormData(e.target);
-            const body = Object.fromEntries(fd);
-            const { data: { session } } = await supabase.auth.getSession();
-            const res = await fetch('/api/admin/invite-staff', {
+            const { full_name, email, role, branch_id } = Object.fromEntries(fd);
+            const res = await apiFetch('/api/admin/invite-staff', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                body: JSON.stringify(body)
+                body: JSON.stringify({ full_name, email, role, branch_id })
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.error || 'Failed');
 
-            okEl.textContent = `✓ ${body.full_name} has been invited and can now log in.`;
+            okEl.textContent = `✓ Invite sent to ${email}. They'll receive an email to set their password.`;
             okEl.classList.remove('hidden');
             e.target.reset();
             // Refresh user list

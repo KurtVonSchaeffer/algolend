@@ -5046,8 +5046,8 @@ app.post('/api/messaging/webhook', (req, res) => {
     }
 });
 
-// POST /api/admin/invite-staff — create a staff/admin user account
-// Only super_admin can create admin/base_admin; admin can create base_admin only
+// POST /api/admin/invite-staff — send email invite to a new staff member
+// Uses inviteUserByEmail so the invitee sets their own password via the set-password page
 app.post('/api/admin/invite-staff', async (req, res) => {
     try {
         const authHeader = req.headers.authorization || '';
@@ -5062,36 +5062,37 @@ app.post('/api/admin/invite-staff', async (req, res) => {
             return res.status(403).json({ error: 'Only admins can invite staff' });
         }
 
-        const { email, full_name, role, branch_id, password } = req.body;
-        if (!email || !full_name || !role || !password) {
-            return res.status(400).json({ error: 'email, full_name, role and password are required' });
+        const { email, full_name, role, branch_id } = req.body;
+        if (!email || !full_name || !role) {
+            return res.status(400).json({ error: 'email, full_name and role are required' });
         }
 
-        // Admins can only create base_admin; super_admin can create admin or base_admin
         const allowedRoles = callerRole === 'super_admin' ? ['admin', 'base_admin'] : ['base_admin'];
         if (!allowedRoles.includes(role)) {
-            return res.status(403).json({ error: `You can only create: ${allowedRoles.join(', ')}` });
+            return res.status(403).json({ error: `You can only invite: ${allowedRoles.join(', ')}` });
         }
 
-        // Create the auth user via service role
-        const { data: newUser, error: createErr } = await supabaseService.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-            app_metadata: { role },
-            user_metadata:  { full_name, role }
+        const siteUrl = process.env.APP_URL || 'https://app.algolend.co.za';
+        const { data: invited, error: inviteErr } = await supabaseService.auth.admin.inviteUserByEmail(email, {
+            data: { full_name, role },
+            redirectTo: `${siteUrl}/auth/set-password.html`
         });
 
-        if (createErr) {
-            if (createErr.message?.includes('already registered')) {
+        if (inviteErr) {
+            if (inviteErr.message?.includes('already registered')) {
                 return res.status(409).json({ error: 'An account with this email already exists.' });
             }
-            throw createErr;
+            throw inviteErr;
         }
+
+        // Set role in app_metadata (invite only sets user_metadata)
+        await supabaseService.auth.admin.updateUserById(invited.user.id, {
+            app_metadata: { role }
+        });
 
         // Upsert profile row
         await supabaseService.from('profiles').upsert({
-            id:         newUser.user.id,
+            id:         invited.user.id,
             full_name,
             email,
             role,
@@ -5099,19 +5100,64 @@ app.post('/api/admin/invite-staff', async (req, res) => {
             updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
 
-        // Audit
         await writeAudit({
-            entityType: 'user', entityId: newUser.user.id,
+            entityType: 'user', entityId: invited.user.id,
             action: 'staff_invited',
             description: `Staff member ${full_name} (${role}) invited by ${user.email}`
         });
 
-        res.status(201).json({
-            success: true,
-            user: { id: newUser.user.id, email, full_name, role }
-        });
+        res.status(201).json({ success: true, user: { id: invited.user.id, email, full_name, role } });
     } catch (err) {
         console.error('[invite-staff]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/admin/remove-staff/:userId — permanently remove a staff account
+app.delete('/api/admin/remove-staff/:userId', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { data: { user: caller }, error: authErr } = await supabaseService.auth.getUser(token);
+        if (authErr || !caller) return res.status(401).json({ error: 'Unauthorized' });
+
+        const callerRole = caller.app_metadata?.role || 'borrower';
+        if (!['super_admin', 'admin'].includes(callerRole)) {
+            return res.status(403).json({ error: 'Only admins can remove staff' });
+        }
+
+        const { userId } = req.params;
+
+        if (userId === caller.id) {
+            return res.status(400).json({ error: 'You cannot remove yourself' });
+        }
+
+        // Fetch the target to check their role
+        const { data: { user: target }, error: targetErr } = await supabaseService.auth.admin.getUserById(userId);
+        if (targetErr || !target) return res.status(404).json({ error: 'User not found' });
+
+        const targetRole = target.app_metadata?.role || target.user_metadata?.role || 'borrower';
+
+        // admin cannot remove another admin or super_admin
+        const RANK = { borrower: 0, base_admin: 1, admin: 2, super_admin: 3 };
+        if ((RANK[callerRole] || 0) <= (RANK[targetRole] || 0) && callerRole !== 'super_admin') {
+            return res.status(403).json({ error: 'You cannot remove a user with an equal or higher role' });
+        }
+
+        await supabaseService.auth.admin.deleteUser(userId);
+        await supabaseService.from('profiles').delete().eq('id', userId);
+
+        await writeAudit({
+            entityType: 'user', entityId: userId,
+            action: 'staff_removed',
+            description: `Staff member ${target.email} (${targetRole}) removed by ${caller.email}`
+        });
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('[remove-staff]', err);
         res.status(500).json({ error: err.message });
     }
 });

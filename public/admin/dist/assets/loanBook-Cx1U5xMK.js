@@ -1,0 +1,112 @@
+import"./supabaseClient-DdIec1HK.js";/* empty css              *//* empty css               */import{i as _}from"./layout-Nmoyu__-.js";import{p as S,D as $}from"./dataService-CkuKBXml.js";import{a as p,S as D}from"./utils-CZwHw4kl.js";import"https://esm.sh/@supabase/supabase-js@2";import"./theme-CYs9TE7o.js";let f=[],i=[],g=[],x="all",y="all",h="",b="",m="",u="created_at",l="desc";document.addEventListener("DOMContentLoaded",async()=>{const a=await _();await L(),a?.role&&a.role!=="super_admin"&&a.profile?.branch_id&&(x=String(a.profile.branch_id)),A(),await v()});async function L(){const{data:a}=await S();g=a||[]}async function v(){const a=document.getElementById("lb-spinner");a&&a.classList.remove("hidden");const{data:n}=await $(x);f=n||[],d(),a&&a.classList.add("hidden")}function d(){i=f.filter(a=>{const n=y==="all"||a.status===y,t=h.toLowerCase(),o=!t||(a.client_name||"").toLowerCase().includes(t)||(a.reference||"").toLowerCase().includes(t)||(a.identity_number||"").includes(t),s=(a.disbursed_date||"").slice(0,10),r=!b||s>=b,e=!m||s<=m;return n&&o&&r&&e}),i.sort((a,n)=>{let t=a[u],o=n[u];return typeof t=="string"&&(t=t.toLowerCase()),typeof o=="string"&&(o=o.toLowerCase()),t<o?l==="asc"?-1:1:t>o?l==="asc"?1:-1:0}),E(),R()}function A(){const a=document.getElementById("app-shell"),n=a.querySelector("main")||a;let t=n.querySelector("#lb-content");t||(t=document.createElement("div"),t.id="lb-content",t.className="p-6 max-w-[1600px] mx-auto",n.appendChild(t)),t.innerHTML=`
+      <!-- Header -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Loan Book</h1>
+          <p class="text-sm text-gray-500 mt-0.5">Full portfolio — tracking days, arrears, maturity dates</p>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <select id="lb-branch" onchange="window.lbSetBranch(this.value)"
+            class="text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white font-semibold focus:ring-orange-400 focus:outline-none">
+            <option value="all">All Branches</option>
+            ${g.map(o=>`<option value="${o.id}">${o.name}</option>`).join("")}
+          </select>
+          <select id="lb-status" onchange="window.lbSetStatus(this.value)"
+            class="text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white font-semibold focus:ring-orange-400 focus:outline-none">
+            <option value="all">All Statuses</option>
+            <option value="DISBURSED">Disbursed</option>
+            <option value="IN_ARREARS">In Arrears</option>
+            <option value="IN_DEFAULT">In Default</option>
+            <option value="READY_TO_DISBURSE">Approved</option>
+          </select>
+          <input type="date" id="lb-date-from" onchange="window.lbSetDateFrom(this.value)"
+            title="Disbursed from"
+            class="text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white font-semibold focus:ring-orange-400 focus:outline-none">
+          <input type="date" id="lb-date-to" onchange="window.lbSetDateTo(this.value)"
+            title="Disbursed to"
+            class="text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white font-semibold focus:ring-orange-400 focus:outline-none">
+          <input type="text" id="lb-search" placeholder="Search client, reference..."
+            oninput="window.lbSearch(this.value)"
+            class="text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:ring-orange-400 focus:outline-none w-56">
+          <button onclick="window.lbExport()"
+            class="flex items-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-bold px-4 py-2 rounded-xl transition-colors">
+            <i class="fas fa-download text-xs"></i> Export
+          </button>
+        </div>
+      </div>
+
+      <!-- Summary cards -->
+      <div id="lb-summary" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6"></div>
+
+      <!-- Spinner -->
+      <div id="lb-spinner" class="text-center py-12 text-gray-400 hidden">
+        <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3"></i>
+        <p class="text-sm">Loading loan book...</p>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm min-w-[1200px]">
+            <thead>
+              <tr class="bg-gray-50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                ${[["reference","Reference"],["client_name","Client"],["amount","Principal"],["outstanding","Outstanding"],["monthly_payment","Monthly"],["status","Status"],["days_active","Days Active"],["days_overdue","Days Overdue"],["days_to_maturity","Maturity In"],["disbursed_date","Disbursed"],["maturity_date","Maturity Date"],["band","Band"],["purpose","Purpose"]].map(([o,s])=>`
+                  <th class="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                    onclick="window.lbSort('${o}')">
+                    ${s} <span id="sort-${o}" class="ml-1 text-gray-300">↕</span>
+                  </th>`).join("")}
+                <th class="px-4 py-3 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="lb-table-body" class="divide-y divide-gray-50">
+              <tr><td colspan="13" class="p-10 text-center text-sm text-gray-400">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>`,window.lbSetBranch=o=>{x=o,v()},window.lbSetStatus=o=>{y=o,d()},window.lbSearch=o=>{h=o,d()},window.lbSetDateFrom=o=>{b=o,d()},window.lbSetDateTo=o=>{m=o,d()},window.lbSort=I,window.lbExport=T,window.lbSendReminder=B}function R(){const a=document.getElementById("lb-summary");if(!a)return;const n=i.length,t=i.reduce((e,c)=>e+c.amount,0),o=i.filter(e=>e.status==="IN_ARREARS").length,s=i.filter(e=>e.status==="IN_DEFAULT").length,r=i.filter(e=>e.days_active!==null).reduce((e,c,k,w)=>e+c.days_active/w.length,0);a.innerHTML=[{label:"Total Loans",value:n,color:"#E7762E",bg:"#fff3ea",icon:"receipt_long"},{label:"Loan Book Value",value:p(t),color:"#10b981",bg:"#d1fae5",icon:"payments"},{label:"In Arrears",value:o,color:"#f59e0b",bg:"#fef3c7",icon:"warning"},{label:"In Default",value:s,color:"#ef4444",bg:"#fee2e2",icon:"error"},{label:"Avg Days Active",value:Math.round(r)||"—",color:"#6b7280",bg:"#f3f4f6",icon:"schedule"}].map(e=>`
+      <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${e.bg}">
+          <span class="material-symbols-outlined text-[18px]" style="color:${e.color}">${e.icon}</span>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">${e.label}</p>
+          <p class="text-lg font-black mt-0.5" style="color:${e.color}">${e.value}</p>
+        </div>
+      </div>`).join("")}function E(){const a=document.getElementById("lb-table-body");if(!a)return;if(!i.length){a.innerHTML='<tr><td colspan="13" class="p-10 text-center text-sm text-gray-400">No loans match your filters.</td></tr>';return}a.innerHTML=i.map(t=>{const o=D[t.status]||{label:t.status,color:"#6b7280",bg:"#f3f4f6"},s=t.status==="IN_DEFAULT",r=t.status==="IN_ARREARS",e=t.days_overdue>0?`<span class="font-bold ${s?"text-red-600":"text-yellow-600"}">${t.days_overdue}d</span>`:'<span class="text-gray-300">—</span>',c=t.days_to_maturity!==null?t.days_to_maturity<0?`<span class="font-bold text-red-500">${Math.abs(t.days_to_maturity)}d overdue</span>`:`<span class="${t.days_to_maturity<30?"font-bold text-orange-500":"text-gray-600"}">${t.days_to_maturity}d</span>`:'<span class="text-gray-300">—</span>';return`
+        <tr class="hover:bg-gray-50 transition-colors ${s?"bg-red-50/30":r?"bg-yellow-50/30":""}">
+          <td class="px-4 py-3"><span class="font-mono text-xs font-bold text-orange-600">${t.reference}</span></td>
+          <td class="px-4 py-3">
+            <div class="font-semibold text-gray-900 text-xs">${t.client_name}</div>
+            <div class="text-[10px] text-gray-400 font-mono">${t.identity_number||""}</div>
+          </td>
+          <td class="px-4 py-3 font-bold text-gray-900">${p(t.amount)}</td>
+          <td class="px-4 py-3 font-bold ${t.outstanding>0?"text-orange-600":"text-green-600"}">${p(t.outstanding??t.total_repayable??t.amount)}</td>
+          <td class="px-4 py-3 text-gray-600">${p(t.monthly_payment)}</td>
+          <td class="px-4 py-3">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold" style="background:${o.bg};color:${o.color}">${o.label}</span>
+          </td>
+          <td class="px-4 py-3 text-gray-600">${t.days_active!==null?t.days_active+"d":"—"}</td>
+          <td class="px-4 py-3">${e}</td>
+          <td class="px-4 py-3">${c}</td>
+          <td class="px-4 py-3 text-xs text-gray-500">${t.disbursed_date}</td>
+          <td class="px-4 py-3 text-xs text-gray-500">${t.maturity_date}</td>
+          <td class="px-4 py-3">
+            ${t.band?`<span class="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-600">${t.band}</span>`:"—"}
+          </td>
+          <td class="px-4 py-3 text-xs text-gray-500">${t.purpose}</td>
+          <td class="px-4 py-3 text-center">
+            <div class="flex items-center justify-center gap-1">
+              ${t.status==="IN_ARREARS"||t.status==="IN_DEFAULT"?`
+              <button onclick="window.lbSendReminder('${t.id}','${(t.client_name||"").replace(/'/g,"\\'")}','${t.monthly_payment}')"
+                title="Send SMS reminder"
+                class="p-1.5 rounded-lg text-yellow-500 hover:bg-yellow-50 transition-colors">
+                <span class="material-symbols-outlined text-[16px]">sms</span>
+              </button>`:""}
+              <a href="/admin/application-detail?id=${t.id}"
+                class="p-1.5 rounded-lg text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-colors inline-block">
+                <span class="material-symbols-outlined text-[16px]">visibility</span>
+              </a>
+            </div>
+          </td>
+        </tr>`}).join(""),document.querySelectorAll('[id^="sort-"]').forEach(t=>t.textContent="↕");const n=document.getElementById(`sort-${u}`);n&&(n.textContent=l==="asc"?"↑":"↓")}function I(a){u===a?l=l==="asc"?"desc":"asc":(u=a,l=a==="client_name"?"asc":"desc"),d()}async function B(a,n,t){if(confirm(`Send SMS payment reminder to ${n}?`))try{const s=await(await fetch("/api/notifications/status-change",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({applicationId:a,newStatus:"IN_ARREARS"})})).json();s.sent?alert(`✅ Reminder sent to ${n}`):alert(`Could not send: ${s.reason||"unknown error"}`)}catch(o){alert("SMS failed: "+o.message)}}function T(){if(!i.length){alert("No data to export.");return}const a=["Reference","Client","ID Number","Amount","Monthly","Total Repayable","Status","Band","Rate (%)","Term","Purpose","Disbursed Date","Maturity Date","Days Active","Days Overdue","Days to Maturity","Bank","Account Number"],n=i.map(e=>[e.reference,`"${e.client_name.replace(/"/g,'""')}"`,e.identity_number,e.amount,e.monthly_payment,e.total_repayable,e.status,e.band||"",e.interest_rate||"",e.term_months||"",`"${e.purpose.replace(/"/g,'""')}"`,e.disbursed_date,e.maturity_date,e.days_active??"",e.days_overdue??"",e.days_to_maturity??"",`"${e.bank.replace(/"/g,'""')}"`,e.account].join(",")),t=[a.join(","),...n].join(`
+`),o=new Blob([t],{type:"text/csv;charset=utf-8;"}),s=URL.createObjectURL(o),r=document.createElement("a");r.href=s,r.download=`loan_book_${new Date().toISOString().slice(0,10)}.csv`,document.body.appendChild(r),r.click(),document.body.removeChild(r),URL.revokeObjectURL(s)}

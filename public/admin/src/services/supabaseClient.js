@@ -3,48 +3,43 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const supabaseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || "https://yakhrwrfmdrnhfgzfiwm.supabase.co";
 const supabaseAnonKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlha2hyd3JmbWRybmhmZ3pmaXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjAwMTYsImV4cCI6MjA5NTg5NjAxNn0.lgm1jvglC16RtqbGdiDNJcyLfobX-4F5AlKmoHZPCG4";
 
-// --- Sanity Check ---
-// This check ensures the variables are filled.
 if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('YOUR_SUPABASE_URL')) {
-    // A more visible error for the user in case keys are still missing.
     const body = document.querySelector('body');
     if (body) {
         body.innerHTML = `
             <div style="padding: 2rem; text-align: center; font-family: sans-serif; background-color: #fff5f5; color: #c53030; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999;">
                 <h1 style="font-size: 1.5rem; font-weight: bold;">Configuration Error</h1>
-                <p>Your Supabase URL and Key are not set correctly. Please update them in <strong>js/shared/supabaseClient.js</strong>.</p>
+                <p>Supabase credentials are not set correctly in <strong>supabaseClient.js</strong>.</p>
             </div>
         `;
     }
     throw new Error("Supabase credentials are missing or are still placeholders!");
 }
 
-// Create and export the Supabase client with session-only storage
-// This ensures tokens are cleared when browser closes (production security)
+// localStorage so session persists across page navigations and new tabs
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: window.sessionStorage, // Session expires on browser close
+    storage: window.localStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true
   }
 });
 
-// Global auth state listener - logs out admin if session becomes invalid
-supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
+// Only redirect on explicit sign-out — TOKEN_REFRESHED fires spuriously on init
+supabase.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') {
     if (!window.location.pathname.includes('/auth/login')) {
-      console.log('🔒 Admin session expired - redirecting to login');
-      sessionStorage.clear();
+      localStorage.clear();
       window.location.replace('/auth/login.html');
     }
   }
 });
 
-// Clear stale sessions from other Supabase projects (400 on token refresh)
+// Catch stale/invalid refresh tokens from a different Supabase project
 supabase.auth.getSession().then(({ error }) => {
   if (error?.status === 400 || error?.message?.includes('Invalid Refresh Token')) {
-    sessionStorage.clear();
+    localStorage.clear();
     if (!window.location.pathname.includes('/auth/login')) {
       window.location.replace('/auth/login.html');
     }
