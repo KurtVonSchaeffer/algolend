@@ -503,6 +503,7 @@ function renderPageContent() {
 
             <select id="status-filter" class="bg-white border border-outline-variant/30 text-on-surface-variant py-2 pl-4 pr-8 rounded-xl text-sm font-medium cursor-pointer">
                 <option value="all">All Statuses</option>
+                <option value="pending">Needs Review</option>
                 ${ALL_STATUSES.map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
 
@@ -2072,9 +2073,19 @@ const filterAndSearch = (resetPage = true) => {
     const term = document.getElementById('search-input')?.value.toLowerCase().trim() || ''; 
     const status = document.getElementById('status-filter')?.value || 'all'; 
     
+    const PENDING_STATUSES = new Set([
+        'STARTED','BUREAU_CHECKING','BUREAU_OK','BUREAU_REFER',
+        'BANK_LINKING','AFFORD_OK','AFFORD_REFER','AFFORD_FAIL',
+        'OFFERED','OFFER_ACCEPTED','CONTRACT_SIGN','DEBICHECK_AUTH','APPROVED'
+    ]);
+
     filteredApplications = allApplications.filter(app => {
         // 1. Status Match
-        const statusMatch = (status === 'all' || app.status === status);
+        const statusMatch = status === 'all'
+            ? true
+            : status === 'pending'
+                ? PENDING_STATUSES.has(app.status)
+                : app.status === status;
 
         // 2. Text Match (Name, ID, or Amount)
         const textMatch = !term || 
@@ -2195,10 +2206,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentAdminProfile = profile;
         branches = branchesResult.data || [];
 
-        renderPageContent(); 
-        
-        await loadApplications(); 
-    } 
+        renderPageContent();
+
+        // Pre-set filter from URL param (?filter=pending)
+        const urlFilter = new URLSearchParams(window.location.search).get('filter');
+        if (urlFilter) {
+            const sel = document.getElementById('status-filter');
+            if (sel) sel.value = urlFilter;
+        }
+
+        await loadApplications();
+    }
 });
 // --- Final Application Submission ---
 async function handleFinalSubmit() {

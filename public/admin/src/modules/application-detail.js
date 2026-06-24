@@ -385,6 +385,9 @@ const pageTemplate = `
                          <button id="credit-life-download-contract-btn" class="hidden px-3 py-1.5 text-xs font-semibold rounded-xl border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all flex items-center gap-1">
                            <span class="material-symbols-outlined text-[14px]">download</span> Download file
                          </button>
+                         <button id="credit-life-schedule-btn" class="hidden px-3 py-1.5 text-xs font-semibold rounded-xl border border-purple-200 text-purple-700 hover:bg-purple-50 transition-all flex items-center gap-1">
+                           <span class="material-symbols-outlined text-[14px]">table_chart</span> Policy schedule
+                         </button>
                       </div>
                       <div id="credit-life-contract-summary" class="space-y-3 text-sm text-outline"></div>
                    </div>
@@ -1946,6 +1949,7 @@ const renderCreditLifeContractPanel = (app) => {
   const gallery = document.getElementById('credit-life-signature-gallery');
   const viewBtn = document.getElementById('credit-life-view-contract-btn');
   const downloadBtn = document.getElementById('credit-life-download-contract-btn');
+  const scheduleBtn = document.getElementById('credit-life-schedule-btn');
   if (!badge || !summary || !gallery) return;
 
   const offerDetails = app?.offer_details || {};
@@ -2030,6 +2034,13 @@ const renderCreditLifeContractPanel = (app) => {
       } else {
         handleSmartDownload(contractFilePath);
       }
+    };
+  }
+
+  if (scheduleBtn) {
+    scheduleBtn.classList.toggle('hidden', !hasCreditLife);
+    scheduleBtn.onclick = () => {
+      window.open(`/api/contracts/${app.id}/credit-life-schedule`, '_blank');
     };
   }
 };

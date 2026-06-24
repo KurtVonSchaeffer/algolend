@@ -86,20 +86,18 @@ const hydrateSystemSettings = (settings = {}) => ({
 
 export async function createWalkInClient(clientData) {
   const newId = crypto.randomUUID();
-  const { first, last } = splitFullName(clientData.fullName);
 
   const { data, error } = await supabase
-    .from('profiles') // Walk-in client goes to profiles
+    .from('profiles')
     .insert([
       {
-        id: newId,
-        first_name: first,
-        surname: last,
-        id_number: clientData.idNumber,
-        phone_mobile: clientData.phone,
-        email: clientData.email || null,
-        branch_id: clientData.branchId, 
-        role: 'borrower'
+        id:              newId,
+        full_name:       clientData.fullName,
+        identity_number: clientData.idNumber,
+        cell_tel_no:     clientData.phone,
+        email:           clientData.email || null,
+        branch_id:       clientData.branchId,
+        role:            'borrower'
       }
     ])
     .select()

@@ -103,6 +103,10 @@ function renderPage() {
               ${p}
             </button>`).join('')}
           </div>
+          <button onclick="window.clSyncFromData()"
+            class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors shadow-sm">
+            <i class="fas fa-database text-xs"></i> Sync from Data
+          </button>
           <button onclick="window.clOpenJournal()"
             class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors shadow-sm">
             <i class="fas fa-plus text-xs"></i> Add Journal Entry
@@ -231,6 +235,28 @@ function renderPage() {
     window.clCloseJournal = () => document.getElementById('cl-modal').classList.add('hidden');
     window.clSaveEntry    = saveEntry;
     window.clExport       = exportLedger;
+    window.clSyncFromData = syncFromData;
+}
+
+async function syncFromData() {
+    if (!confirm('Backfill the cash ledger from historical disbursements and confirmed payments?\n\nThis will not duplicate existing entries.')) return;
+    const btn = document.querySelector('[onclick="window.clSyncFromData()"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> Syncing…'; }
+    try {
+        const { data: { session } } = await (await import('../services/supabaseClient.js')).supabase.auth.getSession();
+        const res = await fetch('/api/admin/ledger/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` }
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Sync failed');
+        alert(`Sync complete. ${json.inserted} entries added.`);
+        await loadEntries();
+    } catch (err) {
+        alert('Sync error: ' + err.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-database text-xs"></i> Sync from Data'; }
+    }
 }
 
 function renderSummary() {

@@ -4417,6 +4417,259 @@ app.get('/api/contracts/:applicationId/preview', async (req, res) => {
     }
 });
 
+// GET /api/contracts/:applicationId/credit-life-schedule
+// Printable NCA-compliant CPI policy schedule — R9/R1000 of declining outstanding balance
+app.get('/api/contracts/:applicationId/credit-life-schedule', async (req, res) => {
+    try {
+        const { applicationId } = req.params;
+
+        const { data: app, error } = await supabaseService
+            .from('loan_applications')
+            .select(`
+                id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment,
+                offer_interest_rate, offer_credit_life_monthly,
+                term_months, repayment_start_date, loan_number, agreement_number,
+                profiles:user_id (
+                    full_name, identity_number, contact_number, cell_tel_no, email
+                )
+            `)
+            .eq('id', applicationId)
+            .maybeSingle();
+
+        if (error || !app) return res.status(404).json({ error: 'Application not found' });
+
+        const settings   = await getSystemTheme();
+        const company    = settings?.company_name  || process.env.COMPANY_NAME || 'AlgoLend';
+        const ncrNumber  = settings?.ncr_number    || process.env.NCR_NO       || 'NCRCP13510';
+        const logoUrl    = settings?.company_logo_url || '';
+        const profile    = app.profiles || {};
+        const today      = new Date().toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' });
+
+        const principal  = Number(app.offer_principal || app.amount || 0);
+        const term       = Number(app.term_months || 1);
+        // offer_interest_rate stored as monthly decimal (0.05 = 5% p/m); fall back to NCA max
+        const r          = Number(app.offer_interest_rate || 0.05);
+        const CL_RATE    = 9 / 1000;  // R9 per R1 000
+
+        // Fixed monthly loan repayment (principal + interest only, annuity formula)
+        const loanPayment = r > 0
+            ? principal * r / (1 - Math.pow(1 + r, -term))
+            : principal / term;
+
+        // Build month-by-month amortisation + CL schedule
+        let balance      = principal;
+        let cumulativeCL = 0;
+        const rows       = [];
+
+        const startDate = app.repayment_start_date ? new Date(app.repayment_start_date) : null;
+
+        for (let m = 1; m <= term; m++) {
+            const openingBalance = balance;
+            const clPremium      = openingBalance * CL_RATE;          // R9 per R1 000 of opening balance
+            const interestCharge = openingBalance * r;
+            const principalPaid  = loanPayment - interestCharge;
+            balance              = Math.max(0, openingBalance - principalPaid);
+            cumulativeCL        += clPremium;
+
+            let monthLabel = `Month ${m}`;
+            if (startDate) {
+                const d = new Date(startDate);
+                d.setMonth(d.getMonth() + m - 1);
+                monthLabel = d.toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' });
+            }
+
+            rows.push({ m, monthLabel, openingBalance, clPremium, interestCharge, principalPaid, closingBalance: balance, cumulativeCL });
+        }
+
+        const totalCL    = rows.reduce((s, r) => s + r.clPremium, 0);
+        const fmtR       = v => `R ${Number(v).toLocaleString('en-ZA', { minimumFractionDigits:2, maximumFractionDigits:2 })}`;
+        const agreementNo= app.agreement_number || app.loan_number || applicationId.slice(0,8).toUpperCase();
+        const scheduleNo = `CL-${agreementNo}`;
+
+        const tableRows = rows.map(row => `
+            <tr>
+              <td class="center">${row.m}</td>
+              <td class="center">${row.monthLabel}</td>
+              <td class="right">${fmtR(row.openingBalance)}</td>
+              <td class="right bold">${fmtR(row.clPremium)}</td>
+              <td class="right muted">${fmtR(row.cumulativeCL)}</td>
+            </tr>`).join('');
+
+        const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Credit Life Policy Schedule — ${scheduleNo}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a1a; background:#fff; }
+  .no-print { background:#1a1a1a; color:#fff; padding:10px 20px; display:flex; justify-content:space-between; align-items:center; font-family:sans-serif; font-size:13px; }
+  .no-print button { background:#7C3AED; color:#fff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; cursor:pointer; font-size:13px; }
+  @media print { .no-print { display:none; } }
+  .page { max-width:210mm; margin:0 auto; padding:12mm 14mm; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1a1a1a; padding-bottom:8pt; margin-bottom:10pt; }
+  .header-left h1 { font-size:13pt; font-weight:900; text-transform:uppercase; letter-spacing:.5pt; }
+  .header-left h2 { font-size:9pt; font-weight:400; color:#555; margin-top:2pt; }
+  .header-right { text-align:right; font-size:8pt; color:#555; }
+  .header-right .ref { font-size:11pt; font-weight:900; color:#1a1a1a; }
+  img.logo { max-height:40pt; max-width:120pt; object-fit:contain; }
+  .badge { display:inline-block; background:#7C3AED; color:#fff; font-size:7pt; font-weight:900; letter-spacing:.5pt; text-transform:uppercase; padding:2pt 6pt; border-radius:3pt; margin-top:4pt; }
+  .section { margin:10pt 0; }
+  .section-title { font-size:7.5pt; font-weight:900; text-transform:uppercase; letter-spacing:.8pt; color:#7C3AED; border-bottom:1px solid #e0d6f7; padding-bottom:3pt; margin-bottom:6pt; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:4pt; }
+  .cell { background:#f7f7f7; border-radius:3pt; padding:4pt 6pt; }
+  .cell .label { font-size:6.5pt; font-weight:700; text-transform:uppercase; color:#888; }
+  .cell .val { font-size:8.5pt; font-weight:700; color:#1a1a1a; }
+  .benefits-table, .schedule-table { width:100%; border-collapse:collapse; margin-top:4pt; }
+  .benefits-table th, .schedule-table th { background:#1a1a1a; color:#fff; font-size:7pt; font-weight:700; text-transform:uppercase; padding:4pt 6pt; text-align:left; }
+  .benefits-table td, .schedule-table td { font-size:8pt; padding:4pt 6pt; border-bottom:1px solid #f0f0f0; }
+  .benefits-table tr:nth-child(even) td, .schedule-table tr:nth-child(even) td { background:#fafafa; }
+  .schedule-table th.right, .schedule-table td.right { text-align:right; }
+  .schedule-table th.center, .schedule-table td.center { text-align:center; }
+  .schedule-table td.bold { font-weight:700; }
+  .schedule-table td.muted { color:#888; }
+  .totals-row td { background:#1a1a1a !important; color:#fff; font-weight:700; font-size:8.5pt; padding:5pt 6pt; }
+  .totals-row td.right { text-align:right; }
+  .disclosure { background:#fffbe6; border:1pt solid #f0c040; border-radius:3pt; padding:6pt 8pt; margin-top:8pt; font-size:7.5pt; line-height:1.5; }
+  .sign-row { display:grid; grid-template-columns:1fr 1fr; gap:20pt; margin-top:16pt; }
+  .sign-block .sign-line { border-top:1pt solid #1a1a1a; padding-top:4pt; font-size:7.5pt; }
+  .sign-block .sub { font-size:7pt; color:#888; margin-top:2pt; }
+  .footer { margin-top:12pt; padding-top:6pt; border-top:1pt solid #ddd; font-size:7pt; color:#888; text-align:center; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <span>Credit Life Policy Schedule — ${scheduleNo}</span>
+  <button onclick="window.print()">🖨 Print / Save PDF</button>
+</div>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      ${logoUrl ? `<img class="logo" src="${logoUrl}" alt="${company}" />` : `<div style="font-size:14pt;font-weight:900;">${company}</div>`}
+      <h1 style="margin-top:6pt;">Credit Life Policy Schedule</h1>
+      <h2>Annexure to Credit Agreement — NCA Schedule 3 Disclosure</h2>
+      <span class="badge">FSCA Compliant Disclosure</span>
+    </div>
+    <div class="header-right">
+      <div class="ref">${scheduleNo}</div>
+      <div>Issue Date: ${today}</div>
+      <div>Agreement No: ${agreementNo}</div>
+      <div>NCR: ${ncrNumber}</div>
+    </div>
+  </div>
+
+  <!-- Parties -->
+  <div class="section">
+    <div class="section-title">A. Parties</div>
+    <div class="grid2">
+      <div class="cell"><div class="label">Credit Provider (Insurer Agent)</div><div class="val">${company}</div></div>
+      <div class="cell"><div class="label">Insured (Borrower)</div><div class="val">${profile.full_name || '—'}</div></div>
+      <div class="cell"><div class="label">Borrower ID Number</div><div class="val">${profile.identity_number || '—'}</div></div>
+      <div class="cell"><div class="label">Contact</div><div class="val">${profile.contact_number || profile.cell_tel_no || '—'}</div></div>
+    </div>
+  </div>
+
+  <!-- Policy Details -->
+  <div class="section">
+    <div class="section-title">B. Policy Details</div>
+    <div class="grid2">
+      <div class="cell"><div class="label">Policy Schedule No</div><div class="val">${scheduleNo}</div></div>
+      <div class="cell"><div class="label">Linked Credit Agreement</div><div class="val">${agreementNo}</div></div>
+      <div class="cell"><div class="label">Cover Type</div><div class="val">Credit Life Insurance (CPI)</div></div>
+      <div class="cell"><div class="label">Premium Basis</div><div class="val">R9.00 per R1 000 of outstanding balance</div></div>
+      <div class="cell"><div class="label">Loan Amount</div><div class="val">${fmtR(principal)}</div></div>
+      <div class="cell"><div class="label">Loan Term</div><div class="val">${term} months</div></div>
+      <div class="cell"><div class="label">First Premium Month</div><div class="val">${rows[0]?.monthLabel || '—'}</div></div>
+      <div class="cell"><div class="label">Total CPI Cost</div><div class="val">${fmtR(totalCL)}</div></div>
+    </div>
+  </div>
+
+  <!-- Benefits -->
+  <div class="section">
+    <div class="section-title">C. Benefits Covered</div>
+    <table class="benefits-table">
+      <thead>
+        <tr><th>Benefit</th><th>Cover</th><th>Waiting Period</th><th>Exclusions</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Death</td><td>Outstanding balance settled in full</td><td>None</td><td>Suicide within 12 months</td></tr>
+        <tr><td>Permanent Disability</td><td>Outstanding balance settled in full</td><td>None</td><td>Pre-existing conditions</td></tr>
+        <tr><td>Temporary Disability</td><td>Monthly instalment paid for duration of disability</td><td>3 months</td><td>Disability &lt; 14 consecutive days</td></tr>
+        <tr><td>Retrenchment</td><td>Monthly instalment paid for up to 12 months</td><td>3 months</td><td>Voluntary resignation; contract workers</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:7pt;color:#888;margin-top:4pt;">Full policy terms and conditions are available on request from ${company}.</p>
+  </div>
+
+  <!-- Premium Schedule -->
+  <div class="section">
+    <div class="section-title">D. Monthly Premium Schedule (Declining Balance)</div>
+    <p style="font-size:7.5pt;color:#555;margin-bottom:6pt;">Premium = R9.00 × (Outstanding Balance ÷ R1 000). Calculated on the opening balance each month. Premium reduces automatically as the loan is repaid.</p>
+    <table class="schedule-table">
+      <thead>
+        <tr>
+          <th class="center">#</th>
+          <th class="center">Month</th>
+          <th class="right">Outstanding Balance</th>
+          <th class="right">CPI Premium</th>
+          <th class="right">Cumulative CPI</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableRows}
+        <tr class="totals-row">
+          <td colspan="3">TOTAL CREDIT LIFE PREMIUM</td>
+          <td class="right">${fmtR(totalCL)}</td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- NCA Disclosure -->
+  <div class="disclosure">
+    <strong>NCA Disclosure (Section 106 &amp; Regulation 3.5):</strong> In terms of the National Credit Act 34 of 2005, the credit provider is required to disclose the cost of credit life insurance as part of the total cost of credit. The premium above is calculated at <strong>R9.00 per R1 000</strong> of the outstanding loan balance at the beginning of each payment period. The premium reduces each month as the outstanding balance decreases. The borrower has the right to substitute equivalent cover from an independent insurer provided such cover meets the minimum NCA requirements. Total credit life cost over the loan term: <strong>${fmtR(totalCL)}</strong>.
+  </div>
+
+  <!-- Consent & Signature -->
+  <div class="section" style="margin-top:14pt;">
+    <div class="section-title">E. Consent &amp; Acknowledgement</div>
+    <p style="font-size:8pt;margin-bottom:10pt;">I, <strong>${profile.full_name || '___________________'}</strong> (ID: ${profile.identity_number || '___________________'}), confirm that I have read and understood this Credit Life Policy Schedule. I consent to the Credit Life Insurance premium being deducted monthly as set out above and acknowledge that this schedule forms part of my credit agreement with ${company}.</p>
+    <div class="sign-row">
+      <div class="sign-block">
+        <div class="sign-line">Borrower Signature</div>
+        <div class="sub">Name: ${profile.full_name || '___________________'}</div>
+        <div class="sub">Date: ___________________</div>
+      </div>
+      <div class="sign-block">
+        <div class="sign-line">Credit Provider: ${company}</div>
+        <div class="sub">Authorised Signatory</div>
+        <div class="sub">Date: ${today}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    ${company} · NCR Registration: ${ncrNumber} · Credit Life Policy Schedule ${scheduleNo} · Generated ${today}<br>
+    This document must be read together with the credit agreement to which it is annexed. Retain for your records.
+  </div>
+
+</div>
+</body>
+</html>`;
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(html);
+
+    } catch (err) {
+        console.error('[credit-life-schedule]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/applications/:id/route-to-head-office
 // Flags online applications for head office review
 app.post('/api/applications/:id/route-to-head-office', async (req, res) => {
@@ -5159,6 +5412,142 @@ app.delete('/api/admin/remove-staff/:userId', async (req, res) => {
     } catch (err) {
         console.error('[remove-staff]', err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/admin/ledger/sync — backfill cash_journal from historical disbursements + confirmed payments
+app.post('/api/admin/ledger/sync', requireAdminSession, async (req, res) => {
+    try {
+        let inserted = 0;
+
+        // Fetch all disbursed loans
+        const { data: disbursed } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal, amount, created_at, branch_id, user_id')
+            .eq('status', 'DISBURSED');
+
+        for (const loan of (disbursed || [])) {
+            const amount = Number(loan.offer_principal || loan.amount || 0);
+            if (!amount) continue;
+            const { data: exists } = await supabaseService
+                .from('cash_journal')
+                .select('id')
+                .eq('reference_id', loan.id)
+                .eq('category', 'loan_disbursement')
+                .maybeSingle();
+            if (exists) continue;
+            const { error } = await supabaseService.from('cash_journal').insert([{
+                entry_date:   (loan.created_at || new Date().toISOString()).slice(0, 10),
+                description:  `Loan disbursement — application ${loan.id.slice(0, 8).toUpperCase()}`,
+                debit:        amount,
+                credit:       0,
+                category:     'loan_disbursement',
+                reference_id: loan.id,
+                branch_id:    loan.branch_id || null,
+            }]);
+            if (!error) inserted++;
+        }
+
+        // Fetch confirmed SureSystems collections
+        const { data: collections } = await supabaseService
+            .from('suresystems_mandates')
+            .select('application_id, message, activated_at, branch_id')
+            .eq('status', 'confirmed');
+
+        for (const col of (collections || [])) {
+            if (!col.application_id) continue;
+            const { data: exists } = await supabaseService
+                .from('cash_journal')
+                .select('id')
+                .eq('reference_id', col.application_id)
+                .eq('category', 'collection')
+                .maybeSingle();
+            if (exists) continue;
+            const { data: loanData } = await supabaseService
+                .from('loan_applications')
+                .select('offer_monthly_repayment, branch_id')
+                .eq('id', col.application_id)
+                .maybeSingle();
+            const amount = Number(loanData?.offer_monthly_repayment || 0);
+            if (!amount) continue;
+            const { error } = await supabaseService.from('cash_journal').insert([{
+                entry_date:   (col.activated_at || new Date().toISOString()).slice(0, 10),
+                description:  `DebiCheck collection — ${col.message || col.application_id.slice(0, 8).toUpperCase()}`,
+                debit:        0,
+                credit:       amount,
+                category:     'collection',
+                reference_id: col.application_id,
+                branch_id:    col.branch_id || loanData?.branch_id || null,
+            }]);
+            if (!error) inserted++;
+        }
+
+        res.json({ success: true, inserted });
+    } catch (err) {
+        console.error('[ledger/sync]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/admin/mandates/sync — pull mandate status for all active references from SureSystems
+app.post('/api/admin/mandates/sync', requireAdminSession, async (req, res) => {
+    try {
+        const sureSystemsService = require('./services/sureSystemsService');
+
+        const { data: mandates } = await supabaseService
+            .from('suresystems_mandates')
+            .select('application_id, contract_reference')
+            .not('contract_reference', 'is', null)
+            .not('status', 'in', '("confirmed","cancelled","rejected")');
+
+        let synced = 0;
+        for (const m of (mandates || [])) {
+            try {
+                const result = await sureSystemsService.getMandateEnquiry({ contractReference: m.contract_reference });
+                if (result?.status) {
+                    await supabaseService
+                        .from('suresystems_mandates')
+                        .update({ status: result.status, message: result.message || null, updated_at: new Date().toISOString() })
+                        .eq('contract_reference', m.contract_reference);
+                    synced++;
+                }
+            } catch (innerErr) {
+                console.warn('[mandates/sync] reference', m.contract_reference, innerErr.message);
+            }
+        }
+
+        res.json({ success: true, synced });
+    } catch (err) {
+        console.error('[mandates/sync]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/debug/server-ip — returns the server's outbound IP (for SureSystems IP whitelisting)
+app.get('/api/debug/server-ip', requireAdminSession, async (req, res) => {
+    try {
+        const http = require('https');
+        const ip = await new Promise((resolve, reject) => {
+            http.get('https://api.ipify.org?format=json', (r) => {
+                let body = '';
+                r.on('data', d => { body += d; });
+                r.on('end', () => resolve(JSON.parse(body).ip));
+            }).on('error', reject);
+        });
+        res.json({ ip, timestamp: new Date().toISOString() });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/debug/suresystems-raw — raw SureSystems probe with full request/response dump
+app.post('/api/debug/suresystems-raw', requireAdminSession, async (req, res) => {
+    try {
+        const sureSystemsService = require('./services/sureSystemsService');
+        const result = await sureSystemsService.testConnectivity();
+        res.json({ success: true, result });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message, stack: err.stack });
     }
 });
 

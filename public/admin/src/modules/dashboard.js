@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
         </div>
         <!-- CTA -->
-        <a href="/admin/applications"
+        <a href="/admin/applications?filter=pending"
            class="banner-cta flex-shrink-0 flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white"
            style="background:var(--color-primary)">
           <span class="material-symbols-outlined text-[16px]">arrow_forward</span>

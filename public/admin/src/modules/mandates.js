@@ -1,4 +1,5 @@
 import { initLayout } from '../shared/layout.js';
+import { apiFetch } from '../shared/apiFetch.js';
 
 const state = {
   mandates: [],
@@ -124,6 +125,9 @@ function renderPage() {
         <div class="flex gap-3">
           <button id="refresh-btn" class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-50 transition font-semibold text-sm flex items-center gap-2 shadow-sm">
             <i class="fa-solid fa-rotate-right"></i> Refresh
+          </button>
+          <button id="btn-sync-mandates" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl transition font-semibold text-sm flex items-center gap-2 shadow-sm">
+            <i class="fa-solid fa-cloud-arrow-down"></i> Load from SureSystems
           </button>
         </div>
       </div>
@@ -801,6 +805,24 @@ async function loadMandates() {
 function bindEvents() {
   // Refresh
   document.getElementById('refresh-btn')?.addEventListener('click', () => Promise.all([loadConfig(), loadMandates()]));
+
+  document.getElementById('btn-sync-mandates')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-sync-mandates');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading…';
+    try {
+      const res  = await apiFetch('/api/admin/mandates/sync', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Sync failed');
+      alert(`Mandates synced. ${json.synced ?? 0} records updated from SureSystems.`);
+      await loadMandates();
+    } catch (err) {
+      alert('Sync error: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Load from SureSystems';
+    }
+  });
 
   // Filters
   document.getElementById('mandate-search')?.addEventListener('input', renderTable);

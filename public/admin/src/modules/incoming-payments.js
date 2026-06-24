@@ -12,7 +12,7 @@ let pendingManualPayments = [];
 async function loadPendingManualPayments() {
   const { data, error } = await supabase
     .from('manual_payments')
-    .select('*, profiles:user_id(full_name, phone, identity_number), loan_applications:application_id(loan_number, amount, status)')
+    .select('*, profiles:user_id(full_name, cell_tel_no, identity_number), loan_applications:application_id(loan_number, amount, status)')
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
   if (error) { console.warn('[manual-payments]', error.message); return; }
@@ -38,7 +38,7 @@ function renderPendingPanel() {
 
   el.innerHTML = pendingManualPayments.map(p => {
     const name    = p.profiles?.full_name || 'Unknown';
-    const phone   = p.profiles?.phone || '—';
+    const phone   = p.profiles?.cell_tel_no || '—';
     const loanRef = p.loan_applications?.loan_number || p.application_id?.toString().slice(0,8) || '—';
     const typeLabel = p.payment_type === 'settlement' ? 'Settlement' : p.payment_type === 'arrears' ? 'Arrears Payment' : 'Payment';
     const typeColor = p.payment_type === 'settlement' ? 'text-purple-600 bg-purple-50' : 'text-green-700 bg-green-50';

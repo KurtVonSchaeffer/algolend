@@ -130,13 +130,16 @@ function buildSignatureHeaders() {
   //   HMACSHA512_String = dsClientId + dsDTS
   //   dsHMAC = CryptoJS.HmacSHA512(message, clientSecret) -> Base64
 
+  // SureSystems requires SAST (UTC+2) — use UTC methods + 2h offset so the
+  // timestamp is correct regardless of the server's local timezone.
   const now  = new Date();
-  const dd   = String(now.getDate()).padStart(2, '0');
-  const mm   = String(now.getMonth() + 1).padStart(2, '0');
-  const yyyy = now.getFullYear();
-  const hh   = String(now.getHours()).padStart(2, '0');
-  const mi   = String(now.getMinutes()).padStart(2, '0');
-  const ss   = String(now.getSeconds()).padStart(2, '0');
+  const sast = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const dd   = String(sast.getUTCDate()).padStart(2, '0');
+  const mm   = String(sast.getUTCMonth() + 1).padStart(2, '0');
+  const yyyy = sast.getUTCFullYear();
+  const hh   = String(sast.getUTCHours()).padStart(2, '0');
+  const mi   = String(sast.getUTCMinutes()).padStart(2, '0');
+  const ss   = String(sast.getUTCSeconds()).padStart(2, '0');
 
   const dts      = `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
   const sigInput = config.clientId + dts;
