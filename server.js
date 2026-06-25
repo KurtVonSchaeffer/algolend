@@ -5325,7 +5325,10 @@ app.post('/api/admin/invite-staff', async (req, res) => {
             return res.status(403).json({ error: `You can only invite: ${allowedRoles.join(', ')}` });
         }
 
-        const siteUrl = process.env.APP_URL || 'https://app.algolend.co.za';
+        // In local dev APP_URL is production — override so the invite link works locally
+        const siteUrl = process.env.NODE_ENV === 'production'
+            ? (process.env.APP_URL || 'https://app.algolend.co.za')
+            : `http://localhost:${process.env.PORT || 3010}`;
         const { data: invited, error: inviteErr } = await supabaseService.auth.admin.inviteUserByEmail(email, {
             data: { full_name, role },
             redirectTo: `${siteUrl}/auth/set-password.html`
@@ -5437,13 +5440,13 @@ app.post('/api/admin/ledger/sync', requireAdminSession, async (req, res) => {
                 .maybeSingle();
             if (exists) continue;
             const { error } = await supabaseService.from('cash_journal').insert([{
-                entry_date:   (loan.created_at || new Date().toISOString()).slice(0, 10),
-                description:  `Loan disbursement — application ${loan.id.slice(0, 8).toUpperCase()}`,
-                debit:        amount,
-                credit:       0,
-                category:     'loan_disbursement',
-                reference_id: loan.id,
-                branch_id:    loan.branch_id || null,
+                entry_date:      (loan.created_at || new Date().toISOString()).slice(0, 10),
+                entry_type:      'cash_out',
+                category:        'loan_disbursement',
+                description:     `Loan disbursement — application ${String(loan.id).slice(0, 8).toUpperCase()}`,
+                reference:       String(loan.id).slice(0, 8).toUpperCase(),
+                amount:          amount,
+                created_by_name: 'Ledger Sync',
             }]);
             if (!error) inserted++;
         }
@@ -5471,13 +5474,13 @@ app.post('/api/admin/ledger/sync', requireAdminSession, async (req, res) => {
             const amount = Number(loanData?.offer_monthly_repayment || 0);
             if (!amount) continue;
             const { error } = await supabaseService.from('cash_journal').insert([{
-                entry_date:   (col.activated_at || new Date().toISOString()).slice(0, 10),
-                description:  `DebiCheck collection — ${col.message || col.application_id.slice(0, 8).toUpperCase()}`,
-                debit:        0,
-                credit:       amount,
-                category:     'collection',
-                reference_id: col.application_id,
-                branch_id:    col.branch_id || loanData?.branch_id || null,
+                entry_date:      (col.activated_at || new Date().toISOString()).slice(0, 10),
+                entry_type:      'cash_in',
+                category:        'collection',
+                description:     `DebiCheck collection — ${col.message || String(col.application_id).slice(0, 8).toUpperCase()}`,
+                reference:       String(col.application_id).slice(0, 8).toUpperCase(),
+                amount:          amount,
+                created_by_name: 'Ledger Sync',
             }]);
             if (!error) inserted++;
         }
