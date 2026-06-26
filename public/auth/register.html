@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Your Account</title>
+  <link rel="stylesheet" href="/shared/theme.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100%;
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--color-background, #f5f5f5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 4px 40px rgba(0,0,0,0.10);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 440px;
+    }
+    .logo { height: 36px; margin-bottom: 28px; display: block; }
+    h1 { font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .sub { color: #6b7280; font-size: 0.875rem; margin-bottom: 28px; line-height: 1.5; }
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #374151; margin-bottom: 6px; }
+    input {
+      width: 100%; border: 1.5px solid #e5e7eb; border-radius: 12px;
+      padding: 11px 14px; font-size: 0.95rem; outline: none;
+      transition: border-color .15s; font-family: inherit;
+      color: #111;
+    }
+    input:focus { border-color: var(--color-primary, #7C3AED); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .btn {
+      width: 100%; padding: 14px;
+      background: var(--color-primary, #7C3AED);
+      color: #fff; border: none; border-radius: 14px;
+      font-size: 0.95rem; font-weight: 700; cursor: pointer;
+      transition: opacity .15s; margin-top: 8px;
+      font-family: inherit;
+    }
+    .btn:disabled { opacity: .55; cursor: default; }
+    .msg { border-radius: 10px; padding: 12px 14px; font-size: 0.875rem; font-weight: 500; margin-bottom: 16px; display: none; }
+    .msg.error   { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .msg.success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .login-link { text-align: center; margin-top: 20px; font-size: 0.85rem; color: #6b7280; }
+    .login-link a { color: var(--color-primary, #7C3AED); font-weight: 600; text-decoration: none; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; margin-right: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img class="logo" src="/shared/algolend-logo.svg" alt="AlgoLend" onerror="this.style.display='none'" />
+    <h1>Create your account</h1>
+    <p class="sub" id="sub-text">Set up your account to apply for a loan.</p>
+
+    <div id="msg-error" class="msg error"></div>
+    <div id="msg-success" class="msg success"></div>
+
+    <form id="register-form" novalidate>
+      <div class="row">
+        <div class="field">
+          <label for="first-name">First name</label>
+          <input id="first-name" type="text" placeholder="Jane" autocomplete="given-name" required />
+        </div>
+        <div class="field">
+          <label for="last-name">Last name</label>
+          <input id="last-name" type="text" placeholder="Doe" autocomplete="family-name" required />
+        </div>
+      </div>
+      <div class="field">
+        <label for="email">Email address</label>
+        <input id="email" type="email" placeholder="jane@example.com" autocomplete="email" required />
+      </div>
+      <div class="field">
+        <label for="phone">Mobile number</label>
+        <input id="phone" type="tel" placeholder="0821234567" autocomplete="tel" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="Min 8 characters" minlength="8" autocomplete="new-password" required />
+      </div>
+      <div class="field">
+        <label for="confirm">Confirm password</label>
+        <input id="confirm" type="password" placeholder="Repeat password" minlength="8" autocomplete="new-password" required />
+      </div>
+      <button class="btn" type="submit" id="submit-btn">Create Account</button>
+    </form>
+
+    <p class="login-link">Already have an account? <a href="/auth/login.html">Sign in</a></p>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    const SUPABASE_URL = "https://yakhrwrfmdrnhfgzfiwm.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlha2hyd3JmbWRybmhmZ3pmaXdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjAwMTYsImV4cCI6MjA5NTg5NjAxNn0.lgm1jvglC16RtqbGdiDNJcyLfobX-4F5AlKmoHZPCG4";
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { storage: window.localStorage, persistSession: true, autoRefreshToken: true }
+    });
+
+    const $ = id => document.getElementById(id);
+
+    // Pre-fill phone from ?ref= URL param (set by the admin SMS link)
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    if (ref) {
+      $('phone').value = ref.startsWith('27') ? '0' + ref.slice(2) : ref;
+      $('sub-text').textContent = 'Your advisor sent you this link. Create your account to get started.';
+    }
+
+    function showError(msg) {
+      $('msg-error').textContent = msg;
+      $('msg-error').style.display = 'block';
+      $('msg-success').style.display = 'none';
+    }
+    function showSuccess(msg) {
+      $('msg-success').textContent = msg;
+      $('msg-success').style.display = 'block';
+      $('msg-error').style.display = 'none';
+    }
+    function setLoading(on) {
+      const btn = $('submit-btn');
+      btn.disabled = on;
+      btn.innerHTML = on
+        ? '<span class="spinner"></span>Creating account…'
+        : 'Create Account';
+    }
+
+    $('register-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const firstName = $('first-name').value.trim();
+      const lastName  = $('last-name').value.trim();
+      const email     = $('email').value.trim();
+      const phone     = $('phone').value.trim();
+      const password  = $('password').value;
+      const confirm   = $('confirm').value;
+
+      if (!firstName || !lastName || !email || !password) {
+        showError('Please fill in all required fields.');
+        return;
+      }
+      if (password !== confirm) { showError('Passwords do not match.'); return; }
+      if (password.length < 8)  { showError('Password must be at least 8 characters.'); return; }
+
+      setLoading(true);
+      const fullName = `${firstName} ${lastName}`.trim();
+
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName, phone }
+          }
+        });
+
+        if (error) throw error;
+
+        if (data.user) {
+          // Insert profile row — non-blocking, may fail if email not confirmed yet
+          await supabase.from('profiles').upsert({
+            id:          data.user.id,
+            full_name:   fullName,
+            email,
+            cell_tel_no: phone || null,
+            role:        'borrower',
+            updated_at:  new Date().toISOString()
+          }, { onConflict: 'id' });
+        }
+
+        // If session exists, email confirmation is disabled — go straight to portal
+        if (data.session) {
+          showSuccess('Account created! Redirecting…');
+          setTimeout(() => window.location.replace('/user-portal/'), 1000);
+        } else {
+          // Email confirmation required
+          showSuccess('Account created! Please check your email to confirm your address, then sign in.');
+          $('register-form').style.display = 'none';
+        }
+
+      } catch (err) {
+        showError(err.message || 'Registration failed. Please try again.');
+        setLoading(false);
+      }
+    });
+  </script>
+</body>
+</html>
