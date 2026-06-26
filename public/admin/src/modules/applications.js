@@ -12,7 +12,7 @@ import { formatCurrency, formatDate, STATUS_DISPLAY } from '../shared/utils.js';
 const getStatusDisplay = (s) => STATUS_DISPLAY[s] || { label: s, color: '#6b7280', bg: '#f3f4f6' };
 
 // --- CONFIGURATION ---
-const USER_PORTAL_URL = 'https://zw-express-6ulf9yybu-mps-projects-81dea2b0.vercel.app';
+const USER_PORTAL_URL = window.location.origin;
 
 const ALL_STATUSES = [
   'STARTED',

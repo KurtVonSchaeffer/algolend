@@ -1,4 +1,4 @@
-import"./supabaseClient-DdIec1HK.js";/* empty css              *//* empty css               */import{_ as I}from"./preload-helper-CLcXU_4U.js";import{i as L}from"./layout-Nmoyu__-.js";import{b as E,a as p}from"./utils-CZwHw4kl.js";import{C as S,o as B}from"./dataService-gd72TqA3.js";import"https://esm.sh/@supabase/supabase-js@2";import"./theme-CYs9TE7o.js";let b=[],u=new Set,c="pending",v="",g=1;const _=20;function w(){const a=document.getElementById("main-content");if(a&&(a.innerHTML=`
+import"./supabaseClient-DdIec1HK.js";/* empty css              *//* empty css               */import{_ as I}from"./preload-helper-CLcXU_4U.js";import{i as L}from"./layout-Nmoyu__-.js";import{b as E,a as p}from"./utils-CZwHw4kl.js";import{C as S,o as B}from"./dataService-C6RIvcSC.js";import"https://esm.sh/@supabase/supabase-js@2";import"./theme-CYs9TE7o.js";let b=[],u=new Set,c="pending",v="",g=1;const _=20;function w(){const a=document.getElementById("main-content");if(a&&(a.innerHTML=`
     <div id="payout-list-view" class="flex flex-col h-full animate-fade-in space-y-6">
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">

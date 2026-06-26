@@ -43,12 +43,20 @@ function buildContractHtml(d) {
     <tr><td style="padding:4px 8px;font-weight:700;color:#64748b;width:55%;">Principal Loan Amount</td><td style="padding:4px 8px;font-weight:800;color:#0f172a;">${d.principal}</td></tr>
     <tr style="background:#f8fafc;"><td style="padding:4px 8px;font-weight:700;color:#64748b;">Loan Term</td><td style="padding:4px 8px;color:#0f172a;">${d.term} months</td></tr>
     <tr><td style="padding:4px 8px;font-weight:700;color:#64748b;">Annual Interest Rate</td><td style="padding:4px 8px;color:#0f172a;">${d.annualRate}</td></tr>
-    <tr style="background:#f8fafc;"><td style="padding:4px 8px;font-weight:700;color:#64748b;">Monthly Instalment</td><td style="padding:4px 8px;font-weight:800;color:#0f172a;">${d.monthlyPayment}</td></tr>
-    <tr><td style="padding:4px 8px;font-weight:700;color:#64748b;">First Payment Date</td><td style="padding:4px 8px;color:#0f172a;">${d.firstPayment}</td></tr>
-    <tr style="background:#f8fafc;"><td style="padding:4px 8px;font-weight:700;color:#64748b;">Initiation Fee</td><td style="padding:4px 8px;color:#0f172a;">${d.initiationFee}</td></tr>
-    <tr><td style="padding:4px 8px;font-weight:700;color:#64748b;">Total Admin Fees</td><td style="padding:4px 8px;color:#0f172a;">${d.adminFee}</td></tr>
-    <tr style="background:#f8fafc;"><td style="padding:4px 8px;font-weight:700;color:#64748b;">Total Interest Charged</td><td style="padding:4px 8px;color:#0f172a;">${d.totalInterest}</td></tr>
+    <tr style="background:#f8fafc;"><td style="padding:4px 8px;font-weight:700;color:#64748b;">First Payment Date</td><td style="padding:4px 8px;color:#0f172a;">${d.firstPayment}</td></tr>
+    <tr><td style="padding:4px 8px;font-weight:700;color:#64748b;">Initiation Fee</td><td style="padding:4px 8px;color:#0f172a;">${d.initiationFee}</td></tr>
+    <tr style="background:#f8fafc;"><td style="padding:4px 8px;font-weight:700;color:#64748b;">Total Admin Fees</td><td style="padding:4px 8px;color:#0f172a;">${d.adminFee}</td></tr>
+    <tr><td style="padding:4px 8px;font-weight:700;color:#64748b;">Total Interest Charged</td><td style="padding:4px 8px;color:#0f172a;">${d.totalInterest}</td></tr>
+    ${d.hasCreditLife ? `<tr style="background:#f3e8ff;"><td style="padding:4px 8px;font-weight:700;color:#64748b;">Sanlam Credit Life Insurance (total)</td><td style="padding:4px 8px;color:#7c3aed;font-weight:700;">${d.totalCreditLife}</td></tr>` : ''}
     <tr style="border-top:2px solid #7c3aed;"><td style="padding:6px 8px;font-weight:800;color:#0f172a;">Total Repayable Amount</td><td style="padding:6px 8px;font-weight:900;color:#7c3aed;font-size:14px;">${d.totalRepayment}</td></tr>
+  </table>
+
+  <h3 style="font-size:12px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;">Monthly Instalment Breakdown</h3>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:12px;">
+    <tr><td style="padding:4px 8px;font-weight:700;color:#64748b;width:55%;">Principal Repayment</td><td style="padding:4px 8px;color:#0f172a;">Reducing balance</td></tr>
+    <tr style="background:#f8fafc;"><td style="padding:4px 8px;font-weight:700;color:#64748b;">Interest &amp; Fees</td><td style="padding:4px 8px;color:#0f172a;">Included in instalment</td></tr>
+    ${d.hasCreditLife ? `<tr><td style="padding:4px 8px;font-weight:700;color:#64748b;">Monthly Credit Life Premium (Sanlam)</td><td style="padding:4px 8px;color:#7c3aed;font-weight:700;">${d.creditLifeMonthly}/mo (avg)</td></tr>` : ''}
+    <tr style="border-top:2px solid #7c3aed;background:#faf5ff;"><td style="padding:6px 8px;font-weight:800;color:#0f172a;">Total Monthly Instalment</td><td style="padding:6px 8px;font-weight:900;color:#7c3aed;font-size:13px;">${d.monthlyPayment}</td></tr>
   </table>
 
   <h3 style="font-size:12px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;">Terms &amp; Conditions</h3>

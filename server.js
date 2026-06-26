@@ -1695,6 +1695,8 @@ app.get('/api/applications/:id/contract', async (req, res) => {
         const adminFee        = Number(app.offer_total_admin_fees || 0);
         const annualRate      = Number(app.offer_interest_rate || 0);
         const term            = Number(app.term_months || 0);
+        const creditLifeMonthly = Number(app.offer_credit_life_monthly || 0);
+        const totalCreditLife   = Number(app.offer_credit_life_total || 0);
         const firstPayment    = app.repayment_start_date
             ? new Date(app.repayment_start_date).toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' })
             : '—';
@@ -1703,19 +1705,22 @@ app.get('/api/applications/:id/contract', async (req, res) => {
         res.setHeader('Content-Type', 'application/json');
         res.json({
             company, ncrNo, fspNo, name, idNum, phone, email, today, firstPayment,
-            principal:      fmt(principal),
-            monthlyPayment: fmt(monthlyPayment),
-            totalRepayment: fmt(totalRepayment),
-            totalInterest:  fmt(totalInterest),
-            initiationFee:  fmt(initiationFee),
-            adminFee:       fmt(adminFee),
-            annualRate:     `${(annualRate * 100).toFixed(1)}%`,
+            principal:           fmt(principal),
+            monthlyPayment:      fmt(monthlyPayment),
+            totalRepayment:      fmt(totalRepayment),
+            totalInterest:       fmt(totalInterest),
+            initiationFee:       fmt(initiationFee),
+            adminFee:            fmt(adminFee),
+            annualRate:          `${(annualRate * 100).toFixed(1)}%`,
             term,
-            loanNumber:     app.loan_number || applicationId.slice(-8).toUpperCase(),
-            alreadySigned:  !!app.contract_signed_at,
-            signedAt:       app.contract_signed_at || null,
-            signatureName:  app.offer_details?.contract_signed_name || null,
-            signatureImg:   app.offer_details?.signature_data_url || null,
+            creditLifeMonthly:   creditLifeMonthly > 0 ? fmt(creditLifeMonthly) : null,
+            totalCreditLife:     totalCreditLife > 0 ? fmt(totalCreditLife) : null,
+            hasCreditLife:       creditLifeMonthly > 0,
+            loanNumber:          app.loan_number || applicationId.slice(-8).toUpperCase(),
+            alreadySigned:       !!app.contract_signed_at,
+            signedAt:            app.contract_signed_at || null,
+            signatureName:       app.offer_details?.contract_signed_name || null,
+            signatureImg:        app.offer_details?.signature_data_url || null,
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -2348,6 +2353,9 @@ app.get('/auth.html', (req, res) => {
 const sendAdminPage = (fileName, res) => {
     const filePath = resolveAdminFile(fileName);
     if (fs.existsSync(filePath)) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         return res.sendFile(filePath);
     }
     return res.status(404).send('Admin page not found. Build the admin app or check the path.');
@@ -5257,7 +5265,7 @@ app.post('/api/messaging/registration-link', async (req, res) => {
         if (!phone) return res.status(400).json({ error: 'phone required' });
         const settings = await getSystemTheme();
         const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
-        const link     = `${process.env.APP_URL || 'https://your-portal.vercel.app'}/auth/register.html?ref=${messaging.normaliseZANumber(phone)}`;
+        const link     = `${process.env.APP_URL || `http://localhost:${process.env.PORT || 3010}`}/auth/register.html?ref=${messaging.normaliseZANumber(phone)}`;
         await messaging.sendRegistrationLink({ to: phone, link, company });
         res.json({ success: true, link });
     } catch (err) { res.status(500).json({ error: err.message }); }

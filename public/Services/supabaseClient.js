@@ -24,7 +24,7 @@ if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('YOUR_SUPABASE_URL'
 // This ensures tokens are cleared when browser closes (production security)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: window.sessionStorage, // Session expires on browser close
+    storage: window.localStorage,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true
@@ -36,7 +36,7 @@ supabase.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
     if (!window.location.pathname.includes('/auth/login')) {
       console.log('🔒 Session expired - redirecting to login');
-      sessionStorage.clear();
+      localStorage.clear();
       window.location.replace('/auth/login.html');
     }
   }
@@ -45,7 +45,7 @@ supabase.auth.onAuthStateChange((event, session) => {
 // Clear stale sessions from other Supabase projects (400 on token refresh)
 supabase.auth.getSession().then(({ error }) => {
   if (error?.status === 400 || error?.message?.includes('Invalid Refresh Token')) {
-    sessionStorage.clear();
+    localStorage.clear();
     if (!window.location.pathname.includes('/auth/login')) {
       window.location.replace('/auth/login.html');
     }

@@ -225,12 +225,26 @@ export async function updateApplicationStatus(applicationId, newStatus) {
       const term = Number(app.term_months || 1);
       const MONTHLY_ADMIN_FEE = 60.00;
       const INITIATION_FEE_RATE = 0.15;
-      const totalAnnualRate = (historyCount < 3) ? 0.20 : 0.18; 
+      const CREDIT_LIFE_RATE = 0.0045; // R4.50/R1,000 Sanlam
+      const totalAnnualRate = (historyCount < 3) ? 0.20 : 0.18;
       const interestOnlyRate = totalAnnualRate - INITIATION_FEE_RATE;
       const totalInterest = principal * interestOnlyRate * (term / 12);
       const totalInitiation = principal * INITIATION_FEE_RATE;
       const totalAdminFees = MONTHLY_ADMIN_FEE * term;
-      const totalRepayment = principal + totalInterest + totalInitiation + totalAdminFees;
+
+      // Reducing-balance credit life (R4.50/R1,000 per month on outstanding balance)
+      let totalCreditLife = 0;
+      const creditLifeSchedule = [];
+      for (let i = 1; i <= term; i++) {
+        const balance = principal * (term - i + 1) / term;
+        const premium = Math.round(balance * CREDIT_LIFE_RATE * 100) / 100;
+        creditLifeSchedule.push({ month: i, balance: Math.round(balance * 100) / 100, premium });
+        totalCreditLife += premium;
+      }
+      totalCreditLife = Math.round(totalCreditLife * 100) / 100;
+      const monthlyCreditLife = Math.round((totalCreditLife / term) * 100) / 100;
+
+      const totalRepayment = principal + totalInterest + totalInitiation + totalAdminFees + totalCreditLife;
       const monthlyPayment = totalRepayment / term;
       const scheduledDate = app.repayment_start_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -241,9 +255,13 @@ export async function updateApplicationStatus(applicationId, newStatus) {
         offer_total_interest: totalInterest,
         offer_total_initiation_fees: totalInitiation,
         offer_total_admin_fees: totalAdminFees,
+        offer_credit_life_monthly: monthlyCreditLife,
+        offer_credit_life_total: totalCreditLife,
+        has_credit_life_insurance: true,
         offer_total_repayment: totalRepayment,
         offer_monthly_repayment: monthlyPayment,
-        repayment_start_date: scheduledDate
+        repayment_start_date: scheduledDate,
+        offer_details: { ...(app.offer_details || {}), credit_life_schedule: creditLifeSchedule }
       };
     }
 
