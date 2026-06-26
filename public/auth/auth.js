@@ -690,30 +690,27 @@ async function handleAuth(e) {
         } else if (viewState === 'signup') {
             const password = e.target.password.value;
             const fullName = e.target.fullName.value;
-            
-            const { data, error } = await supabase.auth.signUp({ 
-                email, 
-                password,
-                options: { data: { full_name: fullName } }
+
+            const resp = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, full_name: fullName }),
             });
+            const result = await resp.json();
+            if (!resp.ok) throw new Error(result.error || 'Registration failed');
 
-            if (error) throw error;
-
-            if (data.user) {
-                supabase.from('profiles').insert({ 
-                    id: data.user.id, 
-                    full_name: fullName, 
-                    email: data.user.email, 
-                    role: 'borrower' 
+            if (result.session) {
+                await supabase.auth.setSession({
+                    access_token: result.session.access_token,
+                    refresh_token: result.session.refresh_token,
                 });
-
-                viewState = 'login';
-                formMessage = {
-                    type: 'success',
-                    text: 'Account created! Check your email to confirm. After confirming your email and logging in, you will be required to complete BOTH Financial Information and Declarations to unlock the user portal.'
-                };
-                render();
+                window.location.replace('/user-portal/index.html');
+                return;
             }
+
+            viewState = 'login';
+            formMessage = { type: 'success', text: 'Account created! You can now sign in.' };
+            render();
 
         } else if (viewState === 'forgot') {
             const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
