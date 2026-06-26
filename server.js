@@ -5934,8 +5934,15 @@ app.post('/api/user/create-application', async (req, res) => {
 
         const { status = 'BUREAU_CHECKING', amount = 0, term_months = 0, purpose = 'Personal Loan' } = req.body || {};
 
+        const { data: maxRow } = await supabaseService.from('loan_applications').select('loan_number').order('loan_number', { ascending: false }).limit(1).maybeSingle();
+        const nextLoanNumber = (maxRow?.loan_number || 1000) + 1;
+
         const { data: newApp, error: appErr } = await supabaseService.from('loan_applications').insert([{
-            user_id: user.id, status, amount, term_months, purpose
+            user_id: user.id, status, amount, term_months, purpose,
+            has_credit_life_insurance: false,
+            offer_credit_life_total: 0,
+            credit_life_contract_signed: false,
+            loan_number: nextLoanNumber,
         }]).select().single();
 
         if (appErr) return res.status(400).json({ error: appErr.message });

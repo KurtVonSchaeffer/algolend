@@ -350,7 +350,9 @@ window.goToStep = function(step) {
 
 // Continue to loan selection
 window.continueToLoanSelection = function() {
-  closeModule();
+  // Close popup if present
+  const popup = document.getElementById('credit-result-popup');
+  if (popup) popup.style.display = 'none';
   if (typeof loadPage === 'function') {
     loadPage('apply-loan-3');
   } else {
@@ -868,6 +870,8 @@ function _showCreditResultPopup(score, riskType, eligibility = null) {
 
   popup.style.display = 'flex';
 }
+
+window.resetCreditCheckProcessing = function() { isProcessing = false; };
 
 window.startCreditCheckSilent = async function(button) {
   if (isProcessing) return;
