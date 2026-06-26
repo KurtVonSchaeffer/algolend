@@ -675,17 +675,28 @@ export async function fetchLoanBook(branchId = null) {
 export async function fetchAnalyticsData() {
     const { data: loans, error: loanError } = await supabase
         .from('loans')
-        .select('id, application_id, user_id, principal_amount, outstanding_balance, monthly_payment, interest_rate, status, created_at, profiles:user_id(full_name)')
+        .select('id, application_id, user_id, principal_amount, outstanding_balance, monthly_payment, interest_rate, status, created_at')
         .order('created_at', { ascending: false });
     if (loanError) return { data: [], error: loanError };
 
+    // Fetch profiles separately to avoid dependency on FK relationship
+    const userIds = [...new Set((loans || []).map(l => l.user_id).filter(Boolean))];
+    let profileMap = {};
+    if (userIds.length) {
+        const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', userIds);
+        (profiles || []).forEach(p => { profileMap[p.id] = p.full_name; });
+    }
+
     const rows = (loans || []).map(loan => ({
         loan_id: loan.id,
-        customer: loan.profiles?.full_name || 'Unknown',
+        customer: profileMap[loan.user_id] || 'Unknown',
         month: (loan.created_at || '').slice(0, 7),
         principal_outstanding: Number(loan.outstanding_balance || loan.principal_amount || 0),
-        interest_receivable: Number(loan.monthly_payment || 0) * 0.2, // estimated interest portion
-        fee_receivable: Number(loan.monthly_payment || 0) * 0.05,     // estimated fee portion
+        interest_receivable: Number(loan.monthly_payment || 0) * 0.2,
+        fee_receivable: Number(loan.monthly_payment || 0) * 0.05,
         arrears_amount: loan.status === 'arrears' || loan.status === 'default'
             ? Number(loan.outstanding_balance || 0) : 0,
     }));
