@@ -948,33 +948,28 @@ window.startCreditCheckSilent = async function(button) {
     }
     hasCreditConsent = true;
 
-    // Get or create application
+    // Get or create application (via server to bypass RLS)
     let applicationId = sessionStorage.getItem('currentApplicationId');
     if (!applicationId) {
-      const { data: newApp, error: appError } = await supabase
-        .from('loan_applications')
-        .insert([{
-          user_id:     session.user.id,
-          status:      'BUREAU_CHECKING',
-          amount:      0,
-          term_months: 0,
-          purpose:     'Personal Loan'
-        }])
-        .select()
-        .single();
-
-      if (appError) {
+      const appResp = await fetch('/api/user/create-application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ status: 'BUREAU_CHECKING', amount: 0, term_months: 0, purpose: 'Personal Loan' })
+      });
+      const appData = await appResp.json();
+      if (!appResp.ok) {
         window.showToast?.('Error', 'Failed to create application. Please try again.', 'error');
         _resetCircleButton(button);
         return;
       }
-      applicationId = newApp.id;
+      applicationId = appData.id;
       sessionStorage.setItem('currentApplicationId', applicationId);
     } else {
-      await supabase
-        .from('loan_applications')
-        .update({ status: 'BUREAU_CHECKING' })
-        .eq('id', applicationId);
+      await fetch(`/api/user/update-application/${applicationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ status: 'BUREAU_CHECKING' })
+      });
     }
 
     // Normalise gender to single char expected by Experian

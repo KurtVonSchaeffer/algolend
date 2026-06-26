@@ -5876,6 +5876,96 @@ if (process.env.VERCEL) {
     });
 }
 
+// POST /api/user/save-declarations — saves financial_profiles + declarations using service role (bypasses RLS)
+app.post('/api/user/save-declarations', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) return res.status(401).json({ error: 'Authentication required' });
+
+        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
+        if (authErr || !user) return res.status(401).json({ error: 'Invalid session' });
+
+        const userId = user.id;
+        const { profile, financial, declarations } = req.body || {};
+
+        // Update profile
+        if (profile && Object.keys(profile).length) {
+            const { error: pErr } = await supabaseService.from('profiles').update({ ...profile, updated_at: new Date().toISOString() }).eq('id', userId);
+            if (pErr) return res.status(400).json({ error: 'Profile save failed: ' + pErr.message });
+        }
+
+        // Upsert financial_profiles
+        if (financial) {
+            const payload = { ...financial, user_id: userId };
+            const { data: existing } = await supabaseService.from('financial_profiles').select('user_id').eq('user_id', userId).maybeSingle();
+            const { error: fErr } = existing
+                ? await supabaseService.from('financial_profiles').update(payload).eq('user_id', userId)
+                : await supabaseService.from('financial_profiles').insert([payload]);
+            if (fErr) return res.status(400).json({ error: 'Financial profile save failed: ' + fErr.message });
+        }
+
+        // Upsert declarations
+        if (declarations) {
+            const payload = { ...declarations, user_id: userId, updated_at: new Date().toISOString() };
+            const { data: existingDecl } = await supabaseService.from('declarations').select('user_id').eq('user_id', userId).maybeSingle();
+            const { error: dErr } = existingDecl
+                ? await supabaseService.from('declarations').update(payload).eq('user_id', userId)
+                : await supabaseService.from('declarations').insert([payload]);
+            if (dErr) return res.status(400).json({ error: 'Declarations save failed: ' + dErr.message });
+        }
+
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('save-declarations error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/user/create-application — creates loan application using service role (bypasses RLS)
+app.post('/api/user/create-application', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) return res.status(401).json({ error: 'Authentication required' });
+
+        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
+        if (authErr || !user) return res.status(401).json({ error: 'Invalid session' });
+
+        const { status = 'BUREAU_CHECKING', amount = 0, term_months = 0, purpose = 'Personal Loan' } = req.body || {};
+
+        const { data: newApp, error: appErr } = await supabaseService.from('loan_applications').insert([{
+            user_id: user.id, status, amount, term_months, purpose
+        }]).select().single();
+
+        if (appErr) return res.status(400).json({ error: appErr.message });
+        return res.json({ id: newApp.id, application: newApp });
+    } catch (err) {
+        console.error('create-application error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// PATCH /api/user/update-application/:id — updates loan application using service role
+app.patch('/api/user/update-application/:id', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) return res.status(401).json({ error: 'Authentication required' });
+
+        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
+        if (authErr || !user) return res.status(401).json({ error: 'Invalid session' });
+
+        const { id } = req.params;
+        const updates = req.body || {};
+        const { error: upErr } = await supabaseService.from('loan_applications').update(updates).eq('id', id).eq('user_id', user.id);
+        if (upErr) return res.status(400).json({ error: upErr.message });
+        return res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/auth/register — server-side registration, auto-confirms email via service role
 app.post('/api/auth/register', async (req, res) => {
     try {

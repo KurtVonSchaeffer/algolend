@@ -5,7 +5,7 @@
       "name": "algolend",
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
-      "port": 3010,
+      "port": 3002,
       "autoPort": false
     },
     {

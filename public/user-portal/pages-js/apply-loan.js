@@ -1049,30 +1049,18 @@ async function handlePopupDeclarationsSave(e) {
     // Store loan purpose in sessionStorage so confirmation.js can attach it
     if (loanPurpose) sessionStorage.setItem('pendingLoanPurpose', loanPurpose);
 
-    const { error: profileErr } = await supabase
-      .from('profiles')
-      .update(profilePayload)
-      .eq('id', userId);
-
-    if (profileErr) throw profileErr;
-
     let affordabilityRatio = null;
     let maxLoanAmount = null;
     try {
       const affordabilityResponse = await fetch('/api/calculate-affordability', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          monthly_income: totalIncome,
-          affordability_percent: 20,
-          annual_interest_rate: 20,
-          loan_term_months: 1
-        })
+        body: JSON.stringify({ monthly_income: totalIncome, affordability_percent: 20, annual_interest_rate: 20, loan_term_months: 1 })
       });
       const affordabilityData = await affordabilityResponse.json();
       affordabilityRatio = totalIncome > 0 ? affordabilityData.max_monthly_payment?.toFixed(2) : null;
       maxLoanAmount = totalIncome > 0 ? affordabilityData.max_loan_amount?.toFixed(2) : null;
-    } catch (error) {
+    } catch (_) {
       const fallbackThreshold = totalIncome * 0.20;
       affordabilityRatio = totalIncome > 0 ? fallbackThreshold.toFixed(2) : null;
       const monthlyRate = (0.20 / 12);
@@ -1080,75 +1068,36 @@ async function handlePopupDeclarationsSave(e) {
       maxLoanAmount = totalIncome > 0 ? fallbackMaxLoan.toFixed(2) : null;
     }
 
-    const financialPayload = {
-      user_id: userId,
-      monthly_income: totalIncome,
-      affordability_ratio: affordabilityRatio,
-      max_loan_amount: maxLoanAmount,
-      parsed_data: {
-        income: {
-          salary: incomeSalary,
-          other_monthly_earnings: incomeOther
+    // Use server endpoint — bypasses RLS on financial_profiles & declarations
+    const saveResp = await fetch('/api/user/save-declarations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify({
+        profile: profilePayload,
+        financial: {
+          monthly_income: totalIncome,
+          affordability_ratio: affordabilityRatio,
+          max_loan_amount: maxLoanAmount,
+          parsed_data: { income: { salary: incomeSalary, other_monthly_earnings: incomeOther } }
+        },
+        declarations: {
+          historically_disadvantaged: hdStatus === 'yes',
+          accepted_std_conditions: acceptedStd,
+          credit_check_consent_accepted: true,
+          home_ownership: homeOwnership || null,
+          marital_status: maritalStatus || null,
+          highest_qualification: highestQualification || null,
+          referral_provided: referralProvided,
+          referral_name: referralProvided ? referralName : null,
+          referral_phone: referralProvided ? referralPhone : null,
+          metadata: declarations,
         }
-      }
-    };
-
-    const { data: existingFinancial } = await supabase
-      .from('financial_profiles')
-      .select('user_id')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    let financialError = null;
-    if (existingFinancial?.user_id) {
-      const updateResult = await supabase
-        .from('financial_profiles')
-        .update(financialPayload)
-        .eq('user_id', userId);
-      financialError = updateResult.error;
-    } else {
-      const insertResult = await supabase
-        .from('financial_profiles')
-        .insert([financialPayload]);
-      financialError = insertResult.error;
+      })
+    });
+    if (!saveResp.ok) {
+      const err = await saveResp.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to save declarations');
     }
-
-    if (financialError) throw financialError;
-
-    // Upsert into declarations table (same shape as profile.js)
-    const payload = {
-      user_id: userId,
-      historically_disadvantaged: hdStatus === 'yes',
-      accepted_std_conditions: acceptedStd,
-      home_ownership: homeOwnership || null,
-      marital_status: maritalStatus || null,
-      highest_qualification: highestQualification || null,
-      referral_provided: referralProvided,
-      referral_name: referralProvided ? referralName : null,
-      referral_phone: referralProvided ? referralPhone : null,
-      metadata: declarations,
-      updated_at: new Date().toISOString()
-    };
-
-    const { data: existingDecl } = await supabase
-      .from('declarations')
-      .select('id')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    let declErr;
-    if (existingDecl?.id) {
-      ({ error: declErr } = await supabase
-        .from('declarations')
-        .update(payload)
-        .eq('user_id', userId));
-    } else {
-      ({ error: declErr } = await supabase
-        .from('declarations')
-        .insert([payload]));
-    }
-
-    if (declErr) throw declErr;
 
     // Also update auth user metadata as backup
     await supabase.auth.updateUser({ data: { declarations: JSON.stringify(declarations) } });
