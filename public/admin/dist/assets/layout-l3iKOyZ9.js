@@ -137,6 +137,7 @@ import{supabase as x}from"./supabaseClient-BXSct5lo.js";import{e as _,b as k,D a
 
       ${t?`
         ${g("Tools")}
+        ${m("/admin/products","inventory_2","Loan Products")}
         ${m("/admin/credit-rules","rule","Credit Rules")}
         ${m("/admin/loan-book","menu_book","Loan Book")}
         ${m("/admin/cash-ledger","account_balance_wallet","Cash Ledger")}

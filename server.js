@@ -2438,6 +2438,10 @@ app.get('/admin/reminders', (req, res) => {
     sendAdminPage('reminders.html', res);
 });
 
+app.get('/admin/products', (req, res) => {
+    sendAdminPage('products.html', res);
+});
+
 // ─── MOVEit / SACRRA transmission routes ─────────────────────────────────────
 
 // Step 1: Initiate auth — returns access_token or triggers MFA email
@@ -5424,6 +5428,55 @@ app.delete('/api/admin/remove-staff/:userId', async (req, res) => {
         console.error('[remove-staff]', err);
         res.status(500).json({ error: err.message });
     }
+});
+
+// ── Loan Products CRUD ────────────────────────────────────────────────────────
+app.get('/api/admin/products', requireAdminSession, async (req, res) => {
+    const { data, error } = await supabaseService
+        .from('loan_products')
+        .select('*')
+        .order('created_at', { ascending: true });
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ data: data || [] });
+});
+
+app.post('/api/admin/products', requireAdminSession, async (req, res) => {
+    const { name, min_amount, max_amount, min_term_months, max_term_months,
+            interest_rate_monthly, initiation_fee_rate, monthly_admin_fee,
+            has_credit_life, description } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const { data, error } = await supabaseService
+        .from('loan_products')
+        .insert([{ name, min_amount, max_amount, min_term_months, max_term_months,
+                   interest_rate_monthly, initiation_fee_rate, monthly_admin_fee,
+                   has_credit_life: !!has_credit_life, description, is_active: true }])
+        .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ data });
+});
+
+app.put('/api/admin/products/:id', requireAdminSession, async (req, res) => {
+    const allowed = ['name','min_amount','max_amount','min_term_months','max_term_months',
+                     'interest_rate_monthly','initiation_fee_rate','monthly_admin_fee',
+                     'has_credit_life','description','is_active'];
+    const patch = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => allowed.includes(k)));
+    if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nothing to update' });
+    const { data, error } = await supabaseService
+        .from('loan_products')
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq('id', req.params.id)
+        .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ data });
+});
+
+app.delete('/api/admin/products/:id', requireAdminSession, async (req, res) => {
+    const { error } = await supabaseService
+        .from('loan_products')
+        .delete()
+        .eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
 });
 
 // POST /api/admin/ledger/sync — backfill cash_journal from historical disbursements + confirmed payments

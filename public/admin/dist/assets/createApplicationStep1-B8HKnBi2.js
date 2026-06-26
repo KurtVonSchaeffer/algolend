@@ -1,4 +1,4 @@
-import{supabase as d}from"./supabaseClient-BXSct5lo.js";/* empty css              *//* empty css               */import{i as w}from"./layout-Ci9LpN5w.js";import"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";import"./theme-CYs9TE7o.js";let r=null,f=null;document.addEventListener("DOMContentLoaded",async()=>{await w(),g()});function g(){const e=document.getElementById("main-content");e&&(e.innerHTML=`
+import{supabase as d}from"./supabaseClient-BXSct5lo.js";/* empty css              *//* empty css               */import{i as w}from"./layout-l3iKOyZ9.js";import"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";import"./theme-CYs9TE7o.js";let r=null,f=null;document.addEventListener("DOMContentLoaded",async()=>{await w(),g()});function g(){const e=document.getElementById("main-content");e&&(e.innerHTML=`
                 <div class="steps-container">
                     <div class="steps-wrapper">
                         <div class="step-item active">

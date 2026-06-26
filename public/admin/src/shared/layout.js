@@ -269,6 +269,7 @@ function renderSidebarNav(role) {
 
       ${isAdmin ? `
         ${navSection('Tools')}
+        ${navLink('/admin/products',      'inventory_2',             'Loan Products')}
         ${navLink('/admin/credit-rules',  'rule',                    'Credit Rules')}
         ${navLink('/admin/loan-book',     'menu_book',               'Loan Book')}
         ${navLink('/admin/cash-ledger',   'account_balance_wallet',  'Cash Ledger')}
