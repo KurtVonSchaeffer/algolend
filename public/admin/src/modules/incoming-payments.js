@@ -12,11 +12,25 @@ let pendingManualPayments = [];
 async function loadPendingManualPayments() {
   const { data, error } = await supabase
     .from('manual_payments')
-    .select('*, profiles:user_id(full_name, cell_tel_no, identity_number), loan_applications:application_id(loan_number, amount, status)')
+    .select('*')
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
-  if (error) { console.warn('[manual-payments]', error.message); return; }
-  pendingManualPayments = data || [];
+  if (error) { console.warn('[manual-payments]', error.message); pendingManualPayments = []; renderPendingPanel(); return; }
+
+  const rows = data || [];
+  if (rows.length > 0) {
+    const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+    const appIds  = [...new Set(rows.map(r => r.application_id).filter(Boolean))];
+    const [pRes, aRes] = await Promise.all([
+      userIds.length ? supabase.from('profiles').select('id, full_name, cell_tel_no, identity_number').in('id', userIds) : Promise.resolve({ data: [] }),
+      appIds.length  ? supabase.from('loan_applications').select('id, loan_number, amount, status').in('id', appIds) : Promise.resolve({ data: [] }),
+    ]);
+    const pm = Object.fromEntries((pRes.data || []).map(p => [p.id, p]));
+    const am = Object.fromEntries((aRes.data || []).map(a => [a.id, a]));
+    rows.forEach(r => { r.profiles = pm[r.user_id] || null; r.loan_applications = am[r.application_id] || null; });
+  }
+
+  pendingManualPayments = rows;
   renderPendingPanel();
 }
 

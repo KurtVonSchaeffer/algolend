@@ -179,29 +179,36 @@ export async function fetchLoanApplications() {
 export async function fetchApplicationDetail(applicationId) {
   const { data: appData, error: appError } = await supabase
     .from('loan_applications')
-    .select(`
-        *,
-        profiles:user_id(*),
-        creator:created_by_admin(full_name, email),
-        reviewer:reviewed_by_admin(full_name, email)
-    `)
+    .select('*')
     .eq('id', applicationId)
     .single();
   if (appError) throw appError;
-  
+
   const userId = appData.user_id;
-  const [finRes, docsRes, payoutRes, bankRes, creditRes, loansRes, appHistoryRes] = await Promise.all([
+  const createdBy = appData.created_by_admin;
+  const reviewedBy = appData.reviewed_by_admin;
+
+  const [
+    profileRes, finRes, docsRes, payoutRes, bankRes, creditRes, loansRes, appHistoryRes,
+    creatorRes, reviewerRes
+  ] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
     supabase.from('financial_profiles').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('document_uploads').select('*').eq('user_id', userId).order('uploaded_at', { ascending: false }),
     supabase.from('payouts').select('status').eq('application_id', applicationId).maybeSingle(),
     supabase.from('bank_accounts').select('*').eq('user_id', userId),
     supabase.from('credit_checks').select('*').eq('user_id', userId).order('checked_at', { ascending: false }),
     supabase.from('loans').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-    supabase.from('loan_applications').select('id, status, amount, created_at, purpose').eq('user_id', userId).neq('id', applicationId).order('created_at', { ascending: false })
+    supabase.from('loan_applications').select('id, status, amount, created_at, purpose').eq('user_id', userId).neq('id', applicationId).order('created_at', { ascending: false }),
+    createdBy  ? supabase.from('profiles').select('full_name, email').eq('id', createdBy).maybeSingle()  : Promise.resolve({ data: null }),
+    reviewedBy ? supabase.from('profiles').select('full_name, email').eq('id', reviewedBy).maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
   return {
     ...appData,
+    profiles:  profileRes.data || null,
+    creator:   creatorRes.data  || null,
+    reviewer:  reviewerRes.data || null,
     financial_profiles: finRes.data ? [finRes.data] : [],
     documents: docsRes.data || [],
     payout: payoutRes.data || null,
@@ -333,34 +340,40 @@ export async function fetchUserDetail(userId) {
 }
 
 export async function fetchPayments() {
-  // Query manual_payments joined with loans for the balance
+  // Fetch payments then profiles/applications separately (no FK joins — avoids 400 if FKs not registered)
   const result = await supabase
     .from('manual_payments')
-    .select(`
-      *,
-      profiles:user_id(full_name, identity_number, cell_tel_no),
-      loan_applications:application_id(
-        id, loan_number, amount, status,
-        offer_monthly_repayment, offer_total_repayment,
-        loans(outstanding_balance)
-      )
-    `)
+    .select('*')
     .order('payment_date', { ascending: false });
 
-  if (result.data) {
+  if (result.error?.message?.includes('manual_payments')) {
+    // Table not yet created — return empty gracefully
+    return { data: [], error: null };
+  }
+
+  if (result.data && result.data.length > 0) {
+    const userIds = [...new Set(result.data.map(p => p.user_id).filter(Boolean))];
+    const appIds  = [...new Set(result.data.map(p => p.application_id).filter(Boolean))];
+
+    const [profilesRes, appsRes] = await Promise.all([
+      userIds.length ? supabase.from('profiles').select('id, full_name, identity_number, cell_tel_no').in('id', userIds) : Promise.resolve({ data: [] }),
+      appIds.length  ? supabase.from('loan_applications').select('id, loan_number, amount, status, offer_monthly_repayment, offer_total_repayment').in('id', appIds) : Promise.resolve({ data: [] }),
+    ]);
+
+    const profileMap = Object.fromEntries((profilesRes.data || []).map(p => [p.id, p]));
+    const appMap     = Object.fromEntries((appsRes.data    || []).map(a => [a.id, a]));
+
     result.data = result.data.map(p => {
-      const app = p.loan_applications;
-      const loan = Array.isArray(app?.loans) ? app.loans[0] : app?.loans;
+      const app = appMap[p.application_id] || null;
       return {
         ...p,
-        // shape expected by incoming-payments table render
-        profile: p.profiles,
-        loan_id: p.application_id,
+        profile:     profileMap[p.user_id] || null,
+        loan_id:     p.application_id,
         loan_number: app?.loan_number || '',
         loan: {
-          outstanding_balance: Number(loan?.outstanding_balance ?? app?.offer_total_repayment ?? 0),
+          outstanding_balance: Number(app?.offer_total_repayment ?? 0),
           principal_amount:    Number(app?.amount ?? 0),
-          application: app || {}
+          application:         app || {}
         }
       };
     });
