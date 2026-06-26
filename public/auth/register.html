@@ -111,7 +111,6 @@
 
     const $ = id => document.getElementById(id);
 
-    // Pre-fill phone from ?ref= URL param (set by the admin SMS link)
     const ref = new URLSearchParams(window.location.search).get('ref');
     if (ref) {
       $('phone').value = ref.startsWith('27') ? '0' + ref.slice(2) : ref;
@@ -131,9 +130,7 @@
     function setLoading(on) {
       const btn = $('submit-btn');
       btn.disabled = on;
-      btn.innerHTML = on
-        ? '<span class="spinner"></span>Creating account…'
-        : 'Create Account';
+      btn.innerHTML = on ? '<span class="spinner"></span>Creating account…' : 'Create Account';
     }
 
     $('register-form').addEventListener('submit', async e => {
@@ -145,10 +142,7 @@
       const password  = $('password').value;
       const confirm   = $('confirm').value;
 
-      if (!firstName || !lastName || !email || !password) {
-        showError('Please fill in all required fields.');
-        return;
-      }
+      if (!firstName || !lastName || !email || !password) { showError('Please fill in all required fields.'); return; }
       if (password !== confirm) { showError('Passwords do not match.'); return; }
       if (password.length < 8)  { showError('Password must be at least 8 characters.'); return; }
 
@@ -156,38 +150,29 @@
       const fullName = `${firstName} ${lastName}`.trim();
 
       try {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName, phone }
-          }
+        const resp = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, full_name: fullName, phone }),
         });
+        const result = await resp.json();
 
-        if (error) throw error;
-
-        if (data.user) {
-          // Insert profile row — non-blocking, may fail if email not confirmed yet
-          await supabase.from('profiles').upsert({
-            id:          data.user.id,
-            full_name:   fullName,
-            email,
-            cell_tel_no: phone || null,
-            role:        'borrower',
-            updated_at:  new Date().toISOString()
-          }, { onConflict: 'id' });
+        if (!resp.ok) {
+          throw new Error(result.error || 'Registration failed');
         }
 
-        // If session exists, email confirmation is disabled — go straight to portal
-        if (data.session) {
+        // Server returns a session — store it and go straight to portal
+        if (result.session) {
+          await supabase.auth.setSession({
+            access_token:  result.session.access_token,
+            refresh_token: result.session.refresh_token,
+          });
           showSuccess('Account created! Redirecting…');
-          setTimeout(() => window.location.replace('/user-portal/'), 1000);
+          setTimeout(() => window.location.replace('/user-portal/'), 800);
         } else {
-          // Email confirmation required
-          showSuccess('Account created! Please check your email to confirm your address, then sign in.');
+          showSuccess('Account created! Please sign in.');
           $('register-form').style.display = 'none';
         }
-
       } catch (err) {
         showError(err.message || 'Registration failed. Please try again.');
         setLoading(false);

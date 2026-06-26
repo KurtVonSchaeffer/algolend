@@ -473,13 +473,17 @@ function toSureSystemsDate(value) {
 async function loadSureSystemsMandateContext(applicationId) {
     const { data: application, error: appError } = await supabaseService
         .from('loan_applications')
-        .select('id, user_id, amount, repayment_start_date, bank_account_id, term_months, profiles:user_id(full_name, email, identity_number)')
+        .select('id, user_id, amount, repayment_start_date, bank_account_id, term_months')
         .eq('id', applicationId)
         .maybeSingle();
 
     if (appError || !application) {
         throw new Error(`Unable to load application ${applicationId} for SureSystems mandate`);
     }
+
+    const { data: _mandateProfile } = await supabaseService
+        .from('profiles').select('full_name, email, identity_number').eq('id', application.user_id).maybeSingle();
+    application.profiles = _mandateProfile || {};
 
     if (!application.bank_account_id) {
         throw new Error(`Application ${applicationId} has no bank_account_id`);
@@ -1581,9 +1585,14 @@ app.get('/api/suresystems/mandates/history', async (req, res) => {
         if (appIds.length) {
             const { data: apps } = await supabaseService
                 .from('loan_applications')
-                .select('id, amount, status, profiles:user_id(full_name, email)')
+                .select('id, amount, status, user_id')
                 .in('id', appIds);
-            (apps || []).forEach((a) => { appsById[a.id] = a; });
+            const userIds = [...new Set((apps || []).map(a => a.user_id).filter(Boolean))];
+            const { data: profs } = userIds.length
+                ? await supabaseService.from('profiles').select('id, full_name, email').in('id', userIds)
+                : { data: [] };
+            const profMap = Object.fromEntries((profs || []).map(p => [p.id, p]));
+            (apps || []).forEach((a) => { appsById[a.id] = { ...a, profiles: profMap[a.user_id] || null }; });
         }
 
         const merged = rows.map((m) => {
@@ -1670,12 +1679,14 @@ app.get('/api/applications/:id/contract', async (req, res) => {
         const { id: applicationId } = req.params;
         const { data: app, error: appErr } = await supabaseService
             .from('loan_applications')
-            .select('*, profiles:user_id(*)')
+            .select('*')
             .eq('id', applicationId)
             .single();
         if (appErr || !app) return res.status(404).json({ error: 'Not found' });
 
-        const profile  = app.profiles || {};
+        const { data: _contractProfile } = await supabaseService
+            .from('profiles').select('*').eq('id', app.user_id).maybeSingle();
+        const profile  = _contractProfile || {};
         const name     = profile.full_name  || 'Client';
         const idNum    = profile.identity_number || profile.id_number || '—';
         const phone    = profile.cell_tel_no || profile.phone || '—';
@@ -2855,14 +2866,7 @@ app.post('/api/payouts/capitec-csv', async (req, res) => {
         // Fetch applications + their bank accounts and profiles
         const { data: apps, error: fetchErr } = await supabaseService
             .from('loan_applications')
-            .select(`
-                id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment,
-                term_months, created_at, status,
-                profiles:user_id ( full_name, identity_number ),
-                bank_accounts:bank_account_id (
-                    bank_name, account_holder, account_number, branch_code, account_type
-                )
-            `)
+            .select('id, user_id, bank_account_id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment, term_months, created_at, status')
             .in('id', applicationIds)
             .in('status', ['READY_TO_DISBURSE', 'AFFORD_OK', 'OFFER_ACCEPTED']);
 
@@ -2870,6 +2874,22 @@ app.post('/api/payouts/capitec-csv', async (req, res) => {
         if (!apps || apps.length === 0) {
             return res.status(404).json({ error: 'No eligible applications found for the given IDs.' });
         }
+
+        // Fetch bank accounts separately
+        const _csvBankIds = [...new Set(apps.map(a => a.bank_account_id).filter(Boolean))];
+        const { data: _csvBanks } = _csvBankIds.length
+            ? await supabaseService.from('bank_accounts').select('id, bank_name, account_holder, account_number, branch_code, account_type').in('id', _csvBankIds)
+            : { data: [] };
+        const _csvBankMap = Object.fromEntries((_csvBanks || []).map(b => [b.id, b]));
+        apps.forEach(a => { a.bank_accounts = _csvBankMap[a.bank_account_id] || {}; });
+
+        // Fetch profiles separately
+        const _csvUserIds = [...new Set(apps.map(a => a.user_id).filter(Boolean))];
+        const { data: _csvProfiles } = _csvUserIds.length
+            ? await supabaseService.from('profiles').select('id, full_name, identity_number').in('id', _csvUserIds)
+            : { data: [] };
+        const _csvProfMap = Object.fromEntries((_csvProfiles || []).map(p => [p.id, p]));
+        apps.forEach(a => { a.profiles = _csvProfMap[a.user_id] || {}; });
 
         // PIN lock — require a download PIN in the request header or body
         const CSV_DOWNLOAD_PIN = process.env.CSV_DOWNLOAD_PIN || '1234';
@@ -3000,15 +3020,28 @@ app.get('/api/payouts/ready', async (req, res) => {
     try {
         const { data, error } = await supabaseService
             .from('loan_applications')
-            .select(`
-                id, amount, offer_principal, offer_total_repayment, term_months, created_at, status,
-                profiles:user_id ( full_name, identity_number ),
-                bank_accounts:bank_account_id ( bank_name, account_number, branch_code, account_type, account_holder )
-            `)
+            .select('id, user_id, bank_account_id, amount, offer_principal, offer_total_repayment, term_months, created_at, status')
             .in('status', ['READY_TO_DISBURSE'])
             .order('created_at', { ascending: false });
 
         if (error) throw error;
+
+        const _rdyBankIds = [...new Set((data || []).map(a => a.bank_account_id).filter(Boolean))];
+        const { data: _rdyBanks } = _rdyBankIds.length
+            ? await supabaseService.from('bank_accounts').select('id, bank_name, account_number, branch_code, account_type, account_holder').in('id', _rdyBankIds)
+            : { data: [] };
+        const _rdyBankMap = Object.fromEntries((_rdyBanks || []).map(b => [b.id, b]));
+
+        const _rdyUserIds = [...new Set((data || []).map(a => a.user_id).filter(Boolean))];
+        const { data: _rdyProfs } = _rdyUserIds.length
+            ? await supabaseService.from('profiles').select('id, full_name, identity_number').in('id', _rdyUserIds)
+            : { data: [] };
+        const _rdyProfMap = Object.fromEntries((_rdyProfs || []).map(p => [p.id, p]));
+        (data || []).forEach(a => {
+            a.profiles = _rdyProfMap[a.user_id] || {};
+            a.bank_accounts = _rdyBankMap[a.bank_account_id] || {};
+        });
+
         return res.json({ applications: data || [] });
     } catch (err) {
         return res.status(500).json({ error: err.message });
@@ -3448,11 +3481,15 @@ app.post('/api/admin/payment/confirm/:id', async (req, res) => {
 
         const { data: payment } = await supabaseService
             .from('manual_payments')
-            .select('*, profiles:user_id(full_name, cell_tel_no, email)')
+            .select('*')
             .eq('id', id)
             .single();
 
         if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+        const { data: _pmtProfile } = await supabaseService
+            .from('profiles').select('full_name, cell_tel_no, email').eq('id', payment.user_id).maybeSingle();
+        payment.profiles = _pmtProfile || {};
 
         await supabaseService.from('manual_payments').update({
             status: 'confirmed', confirmed_by: user?.id, confirmed_at: new Date().toISOString()
@@ -3644,25 +3681,16 @@ app.post('/api/applications/:id/evaluate', async (req, res) => {
         // 1. Load the application + profile + financial data
         const { data: app, error: appErr } = await supabaseService
             .from('loan_applications')
-            .select(`
-                id, user_id, amount, term_months, bureau_score_band,
-                profiles:user_id (
-                    id, full_name, date_of_birth
-                )
-            `)
+            .select('id, user_id, amount, term_months, bureau_score_band')
             .eq('id', id)
             .maybeSingle();
 
         if (appErr || !app) return res.status(404).json({ error: 'Application not found', detail: appErr?.message });
 
-        // Load financial profile separately to avoid join issues
-        const { data: financial } = await supabaseService
-            .from('financial_profiles')
-            .select('monthly_income, monthly_expenses, monthly_debt_repayments')
-            .eq('user_id', app.user_id)
-            .maybeSingle();
-
-        const profile = Array.isArray(app.profiles) ? app.profiles[0] : app.profiles;
+        const [{ data: profile }, { data: financial }] = await Promise.all([
+            supabaseService.from('profiles').select('id, full_name, date_of_birth').eq('id', app.user_id).maybeSingle(),
+            supabaseService.from('financial_profiles').select('monthly_income, monthly_expenses, monthly_debt_repayments').eq('user_id', app.user_id).maybeSingle(),
+        ]);
 
         // 2. Determine credit score (from application or latest credit check)
         let creditScore = app.bureau_score_band ? null : null; // bureau_score_band is a label, not a number
@@ -3910,22 +3938,15 @@ app.get('/api/letters-of-demand/:applicationId', async (req, res) => {
 
         const { data: app, error } = await supabaseService
             .from('loan_applications')
-            .select(`
-                id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment,
-                term_months, created_at, status, repayment_start_date, loan_number,
-                loan_purpose, purpose,
-                profiles:user_id (
-                    full_name, identity_number, contact_number, cell_tel_no,
-                    address, postal_code, suburb_area,
-                    nok_name, nok_phone, nok_relationship
-                )
-            `)
+            .select('id, user_id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment, term_months, created_at, status, repayment_start_date, loan_number, loan_purpose, purpose')
             .eq('id', applicationId)
             .maybeSingle();
 
         if (error || !app) return res.status(404).json({ error: 'Application not found' });
 
-        const profile     = app.profiles || {};
+        const { data: _lodProfile } = await supabaseService
+            .from('profiles').select('full_name, identity_number, contact_number, cell_tel_no, address, postal_code, suburb_area, nok_name, nok_phone, nok_relationship').eq('id', app.user_id).maybeSingle();
+        const profile     = _lodProfile || {};
         const settings    = await getSystemTheme();
         const companyName = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend Financial Services';
         const companyAddr = settings?.company_physical_address || '';
@@ -4116,22 +4137,21 @@ app.get('/api/contracts/:applicationId/preview', async (req, res) => {
         const { data: app, error } = await supabaseService
             .from('loan_applications')
             .select(`
-                id, amount, offer_principal, offer_total_repayment, offer_monthly_repayment,
+                id, user_id, amount, offer_principal, offer_total_repayment, offer_monthly_repayment,
                 offer_total_interest, offer_total_initiation_fees, offer_total_admin_fees,
                 offer_credit_life_monthly, offer_vat_amount, offer_total_cost_of_credit,
                 term_months, repayment_start_date, loan_number, loan_purpose, purpose,
-                is_first_loan, agreement_number,
-                profiles:user_id (
-                    full_name, identity_number, contact_number, cell_tel_no,
-                    address, postal_code, suburb_area, email,
-                    employer_name,
-                    nok_name, nok_phone, nok_relationship
-                )
+                is_first_loan, agreement_number
             `)
             .eq('id', applicationId)
             .maybeSingle();
 
         if (error || !app) return res.status(404).json({ error: 'Application not found' });
+
+        const { data: _previewProfile } = await supabaseService
+            .from('profiles')
+            .select('full_name, identity_number, contact_number, cell_tel_no, address, postal_code, suburb_area, email, employer_name, nok_name, nok_phone, nok_relationship')
+            .eq('id', app.user_id).maybeSingle();
 
         const settings  = await getSystemTheme();
         const company   = settings?.company_name   || process.env.COMPANY_NAME   || 'AlgoLend';
@@ -4141,7 +4161,7 @@ app.get('/api/contracts/:applicationId/preview', async (req, res) => {
         const companyAddr= settings?.company_physical_address || '';
         const logoUrl   = settings?.company_logo_url || 'https://static.wixstatic.com/media/f82622_cde1fbd5680141c5b0fccca81fb92ad6~mv2.png';
 
-        const profile   = app.profiles || {};
+        const profile   = _previewProfile || {};
         const today     = new Date().toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' });
 
         const principal  = Number(app.offer_principal || app.amount || 0);
@@ -4437,24 +4457,20 @@ app.get('/api/contracts/:applicationId/credit-life-schedule', async (req, res) =
 
         const { data: app, error } = await supabaseService
             .from('loan_applications')
-            .select(`
-                id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment,
-                offer_interest_rate, offer_credit_life_monthly,
-                term_months, repayment_start_date, loan_number, agreement_number,
-                profiles:user_id (
-                    full_name, identity_number, contact_number, cell_tel_no, email
-                )
-            `)
+            .select('id, user_id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment, offer_interest_rate, offer_credit_life_monthly, term_months, repayment_start_date, loan_number, agreement_number')
             .eq('id', applicationId)
             .maybeSingle();
 
         if (error || !app) return res.status(404).json({ error: 'Application not found' });
 
+        const { data: _clProfile } = await supabaseService
+            .from('profiles').select('full_name, identity_number, contact_number, cell_tel_no, email').eq('id', app.user_id).maybeSingle();
+
         const settings   = await getSystemTheme();
         const company    = settings?.company_name  || process.env.COMPANY_NAME || 'AlgoLend';
         const ncrNumber  = settings?.ncr_number    || process.env.NCR_NO       || 'NCRCP13510';
         const logoUrl    = settings?.company_logo_url || '';
-        const profile    = app.profiles || {};
+        const profile    = _clProfile || {};
         const today      = new Date().toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' });
 
         const principal  = Number(app.offer_principal || app.amount || 0);
@@ -5018,12 +5034,16 @@ app.get('/api/statement/:applicationId', async (req, res) => {
 
         const { data: app, error: appErr } = await supabaseService
             .from('loan_applications')
-            .select('*, profiles:user_id(full_name, identity_number, cell_tel_no, email)')
+            .select('*')
             .eq('id', applicationId)
-            .eq('user_id', user.id) // ensure client can only get their own
+            .eq('user_id', user.id)
             .single();
 
         if (appErr || !app) return res.status(404).json({ error: 'Loan not found' });
+
+        const { data: _stmtProfile } = await supabaseService
+            .from('profiles').select('full_name, identity_number, cell_tel_no, email').eq('id', user.id).maybeSingle();
+        app.profiles = _stmtProfile || {};
 
         const { data: payments } = await supabaseService
             .from('payments')
@@ -5653,20 +5673,30 @@ app.post('/api/disbursements/payout-csv', async (req, res) => {
 
         const { data: apps, error: fetchErr } = await supabaseService
             .from('loan_applications')
-            .select(`
-                id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment,
-                term_months, loan_number, created_at, status, branch_id,
-                profiles:user_id ( full_name, identity_number ),
-                bank_accounts:bank_account_id (
-                    bank_name, account_holder, account_number, branch_code, account_type
-                )
-            `)
+            .select('id, user_id, bank_account_id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment, term_months, loan_number, created_at, status, branch_id')
             .in('id', applicationIds);
 
         if (fetchErr) throw fetchErr;
         if (!apps || apps.length === 0) {
             return res.status(404).json({ error: 'No applications found for the given IDs.' });
         }
+
+        const _disbUids = [...new Set(apps.map(a => a.user_id).filter(Boolean))];
+        const { data: _disbProfs } = _disbUids.length
+            ? await supabaseService.from('profiles').select('id, full_name, identity_number').in('id', _disbUids)
+            : { data: [] };
+        const _disbProfMap = Object.fromEntries((_disbProfs || []).map(p => [p.id, p]));
+
+        const _disbBankIds = [...new Set(apps.map(a => a.bank_account_id).filter(Boolean))];
+        const { data: _disbBanks } = _disbBankIds.length
+            ? await supabaseService.from('bank_accounts').select('id, bank_name, account_holder, account_number, branch_code, account_type').in('id', _disbBankIds)
+            : { data: [] };
+        const _disbBankMap = Object.fromEntries((_disbBanks || []).map(b => [b.id, b]));
+
+        apps.forEach(a => {
+            a.profiles = _disbProfMap[a.user_id] || {};
+            a.bank_accounts = _disbBankMap[a.bank_account_id] || {};
+        });
 
         const csvHeaders = [
             'Reference', 'Client Name', 'ID Number',
@@ -5727,15 +5757,20 @@ app.post('/api/export/:type', async (req, res) => {
 
         if (type === 'dashboard' || type === 'applications') {
             let q = supabaseService.from('loan_applications')
-                .select('id, loan_number, amount, offer_principal, offer_total_repayment, status, term_months, created_at, profiles:user_id(full_name, identity_number)')
+                .select('id, user_id, loan_number, amount, offer_principal, offer_total_repayment, status, term_months, created_at')
                 .order('created_at', { ascending: false });
             q = dateFilter(q);
             const { data, error } = await q;
             if (error) throw error;
+            const _expAppUids = [...new Set((data || []).map(a => a.user_id).filter(Boolean))];
+            const { data: _expAppProfs } = _expAppUids.length
+                ? await supabaseService.from('profiles').select('id, full_name, identity_number').in('id', _expAppUids)
+                : { data: [] };
+            const _expAppProfMap = Object.fromEntries((_expAppProfs || []).map(p => [p.id, p]));
             rows = (data || []).map(a => ({
                 loan_number:   a.loan_number || '',
-                client:        a.profiles?.full_name || '',
-                id_number:     a.profiles?.identity_number || '',
+                client:        _expAppProfMap[a.user_id]?.full_name || '',
+                id_number:     _expAppProfMap[a.user_id]?.identity_number || '',
                 amount:        a.offer_principal || a.amount || 0,
                 total_repay:   a.offer_total_repayment || 0,
                 term_months:   a.term_months || '',
@@ -5745,14 +5780,19 @@ app.post('/api/export/:type', async (req, res) => {
             filename = `applications-${new Date().toISOString().slice(0,10)}`;
         } else if (type === 'payments' || type === 'incoming-payments') {
             let q = supabaseService.from('manual_payments')
-                .select('id, amount, payment_type, reference, status, created_at, profiles:user_id(full_name)')
+                .select('id, user_id, amount, payment_type, reference, status, created_at')
                 .order('created_at', { ascending: false });
             q = dateFilter(q);
             const { data, error } = await q;
             if (error) throw error;
+            const _expPmtUids = [...new Set((data || []).map(p => p.user_id).filter(Boolean))];
+            const { data: _expPmtProfs } = _expPmtUids.length
+                ? await supabaseService.from('profiles').select('id, full_name').in('id', _expPmtUids)
+                : { data: [] };
+            const _expPmtProfMap = Object.fromEntries((_expPmtProfs || []).map(p => [p.id, p]));
             rows = (data || []).map(p => ({
                 reference:    p.reference || '',
-                client:       p.profiles?.full_name || '',
+                client:       _expPmtProfMap[p.user_id]?.full_name || '',
                 amount:       p.amount || 0,
                 type:         p.payment_type || '',
                 status:       p.status || '',
@@ -5761,15 +5801,20 @@ app.post('/api/export/:type', async (req, res) => {
             filename = `payments-${new Date().toISOString().slice(0,10)}`;
         } else if (type === 'loan-book' || type === 'loans') {
             let q = supabaseService.from('loans')
-                .select('id, principal_amount, outstanding_balance, monthly_payment, status, start_date, next_payment_date, loan_applications(loan_number, profiles:user_id(full_name, identity_number))')
+                .select('id, principal_amount, outstanding_balance, monthly_payment, status, start_date, next_payment_date, loan_applications(loan_number, user_id)')
                 .order('start_date', { ascending: false });
             q = dateFilter(q, 'start_date');
             const { data, error } = await q;
             if (error) throw error;
+            const _lbUids = [...new Set((data || []).map(l => l.loan_applications?.user_id).filter(Boolean))];
+            const { data: _lbProfs } = _lbUids.length
+                ? await supabaseService.from('profiles').select('id, full_name, identity_number').in('id', _lbUids)
+                : { data: [] };
+            const _lbProfMap = Object.fromEntries((_lbProfs || []).map(p => [p.id, p]));
             rows = (data || []).map(l => ({
                 loan_number:       l.loan_applications?.loan_number || '',
-                client:            l.loan_applications?.profiles?.full_name || '',
-                id_number:         l.loan_applications?.profiles?.identity_number || '',
+                client:            _lbProfMap[l.loan_applications?.user_id]?.full_name || '',
+                id_number:         _lbProfMap[l.loan_applications?.user_id]?.identity_number || '',
                 principal:         l.principal_amount || 0,
                 outstanding:       l.outstanding_balance || 0,
                 monthly_payment:   l.monthly_payment || 0,
@@ -5830,6 +5875,58 @@ if (process.env.VERCEL) {
         startNotificationScheduler();
     });
 }
+
+// POST /api/auth/register — server-side registration, auto-confirms email via service role
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { email, password, full_name, phone } = req.body || {};
+        if (!email || !password || !full_name) {
+            return res.status(400).json({ error: 'email, password and full_name are required' });
+        }
+
+        // Create user with email pre-confirmed (no email needed)
+        const { data: newUser, error: createErr } = await supabaseService.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { full_name, phone: phone || null },
+        });
+        if (createErr) {
+            // Handle duplicate email gracefully
+            if (createErr.message?.includes('already registered') || createErr.message?.includes('already been registered')) {
+                return res.status(409).json({ error: 'An account with this email already exists. Please sign in.' });
+            }
+            return res.status(400).json({ error: createErr.message });
+        }
+
+        const userId = newUser.user.id;
+
+        // Create profile row
+        await supabaseService.from('profiles').upsert({
+            id: userId,
+            full_name,
+            email,
+            cell_tel_no: phone || null,
+            role: 'borrower',
+            updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
+
+        // Sign in immediately to return a session
+        const { data: session, error: signInErr } = await supabaseService.auth.signInWithPassword({ email, password });
+        if (signInErr || !session?.session) {
+            return res.status(201).json({ message: 'Account created. Please sign in.', userId });
+        }
+
+        return res.status(201).json({
+            message: 'Account created successfully.',
+            session: session.session,
+            user: session.user,
+        });
+    } catch (err) {
+        console.error('Register error:', err);
+        res.status(500).json({ error: err.message || 'Registration failed' });
+    }
+});
 
 // Export for Vercel serverless handler
 module.exports = app;
