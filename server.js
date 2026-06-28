@@ -5499,6 +5499,25 @@ app.delete('/api/admin/products/:id', requireAdminSession, async (req, res) => {
     res.json({ success: true });
 });
 
+// GET /api/user/loans — fetch loans for the authenticated user (bypasses loans RLS)
+app.get('/api/user/loans', async (req, res) => {
+    try {
+        const token = (req.headers.authorization || '').replace('Bearer ', '');
+        if (!token) return res.status(401).json({ error: 'Unauthorized' });
+        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
+        if (authErr || !user) return res.status(401).json({ error: 'Invalid session' });
+        const { data, error } = await supabaseService
+            .from('loans')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+        if (error) return res.status(400).json({ error: error.message });
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // GET /api/admin/ledger — fetch cash_journal entries (bypasses RLS)
 app.get('/api/admin/ledger', requireAdminSession, async (req, res) => {
     try {

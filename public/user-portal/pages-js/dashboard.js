@@ -821,7 +821,8 @@ async function loadDashboardData() {
         }, {});
         const totalRepaidAllLoans = safePayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-        const { data: loans } = await supabase.from('loans').select('*').eq('user_id', session.user.id).eq('status', 'active').order('created_at', { ascending: false });
+        const _loansRes = await fetch('/api/user/loans', { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const loans = _loansRes.ok ? (await _loansRes.json()).filter(l => l.status === 'active') : [];
         
         if (loans && loans.length > 0) {
             const enrichedLoans = loans.map((loan) => {

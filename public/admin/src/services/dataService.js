@@ -690,7 +690,7 @@ export async function fetchAnalyticsData() {
     // Use server endpoint to bypass RLS — fetch DISBURSED/IN_ARREARS apps as proxy for loans
     const { data: { session } } = await supabase.auth.getSession();
     const token = session?.access_token;
-    const res = await fetch('/api/admin/loan-applications?select=id,application_id,user_id,offer_principal,offer_monthly_repayment,credit_rate_pa,status,repayment_start_date,created_at', { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch('/api/admin/loan-applications?select=id,user_id,offer_principal,offer_monthly_repayment,credit_rate_pa,status,repayment_start_date,created_at', { headers: { Authorization: `Bearer ${token}` } });
     const allApps = res.ok ? (await res.json()) : [];
     const ACTIVE_STATUSES = ['DISBURSED', 'IN_ARREARS', 'IN_DEFAULT', 'OFFER_ACCEPTED', 'READY_TO_DISBURSE', 'SETTLED', 'REPAID'];
     const loans = (Array.isArray(allApps) ? allApps : []).filter(a => ACTIVE_STATUSES.includes(a.status)).map(a => ({
