@@ -615,27 +615,28 @@ export async function syncAllOfferedApplications() {
 // == ANALYTICS & BALANCE SHEET ENGINE
 // =================================================================
 export async function fetchLoanBook(branchId = null) {
-    let query = supabase
-        .from('loan_applications')
-        .select(`
-            id, loan_number, loan_purpose, amount, term_months, status,
-            credit_decision, credit_band_label, credit_rate_pa,
-            repayment_start_date, created_at, updated_at,
-            is_first_loan, routed_to_head_office,
-            offer_principal, offer_monthly_repayment, offer_total_repayment,
-            profiles:user_id ( full_name, identity_number, branch_id ),
-            bank_accounts:bank_account_id ( bank_name, account_number )
-        `)
-        .in('status', ['DISBURSED', 'IN_ARREARS', 'IN_DEFAULT', 'OFFER_ACCEPTED', 'READY_TO_DISBURSE'])
-        .order('created_at', { ascending: false });
+    // Use server endpoint (service role) to bypass RLS
+    const selectFields = 'id,loan_number,loan_purpose,amount,term_months,status,credit_decision,credit_band_label,credit_rate_pa,repayment_start_date,created_at,updated_at,is_first_loan,routed_to_head_office,offer_principal,offer_monthly_repayment,offer_total_repayment,user_id,bank_account_id';
+    const allApps = await fetchLoanAppsViaServer(selectFields);
+    const LOAN_BOOK_STATUSES = ['DISBURSED', 'IN_ARREARS', 'IN_DEFAULT', 'OFFER_ACCEPTED', 'READY_TO_DISBURSE'];
+    let apps = (Array.isArray(allApps) ? allApps : []).filter(a => LOAN_BOOK_STATUSES.includes(a.status));
 
-    if (branchId && branchId !== 'all') {
-        // Filter by branch via profiles join
-        query = query.eq('branch_id', branchId);
+    // Fetch profiles for all user_ids (service role via separate server call or client — profiles are readable)
+    const userIds = [...new Set(apps.map(a => a.user_id).filter(Boolean))];
+    let profileMap = {};
+    if (userIds.length) {
+        const { data: profs } = await supabase.from('profiles').select('id,full_name,identity_number,branch_id').in('id', userIds);
+        (profs || []).forEach(p => { profileMap[p.id] = p; });
     }
 
-    const { data, error } = await query;
-    if (error) return { data: [], error };
+    if (branchId && branchId !== 'all') {
+        apps = apps.filter(a => profileMap[a.user_id]?.branch_id === branchId);
+    }
+
+    apps.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    const data = apps.map(a => ({ ...a, profiles: profileMap[a.user_id] || null, bank_accounts: null }));
+    const error = null;
 
     const now = new Date();
     const rows = (data || []).map(app => {
@@ -686,14 +687,24 @@ export async function fetchLoanBook(branchId = null) {
 }
 
 export async function fetchAnalyticsData() {
-    const { data: loans, error: loanError } = await supabase
-        .from('loans')
-        .select('id, application_id, user_id, principal_amount, outstanding_balance, monthly_payment, interest_rate, status, created_at')
-        .order('created_at', { ascending: false });
-    if (loanError) return { data: [], error: loanError };
+    // Use server endpoint to bypass RLS — fetch DISBURSED/IN_ARREARS apps as proxy for loans
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const res = await fetch('/api/admin/loan-applications?select=id,application_id,user_id,offer_principal,offer_monthly_repayment,credit_rate_pa,status,repayment_start_date,created_at', { headers: { Authorization: `Bearer ${token}` } });
+    const allApps = res.ok ? (await res.json()) : [];
+    const ACTIVE_STATUSES = ['DISBURSED', 'IN_ARREARS', 'IN_DEFAULT', 'OFFER_ACCEPTED', 'READY_TO_DISBURSE', 'SETTLED', 'REPAID'];
+    const loans = (Array.isArray(allApps) ? allApps : []).filter(a => ACTIVE_STATUSES.includes(a.status)).map(a => ({
+        id: a.id, application_id: a.id, user_id: a.user_id,
+        principal_amount: Number(a.offer_principal || 0),
+        outstanding_balance: Number(a.offer_principal || 0),
+        monthly_payment: Number(a.offer_monthly_repayment || 0),
+        interest_rate: Number(a.credit_rate_pa || 0),
+        status: a.status, created_at: a.created_at,
+    }));
+    const loanError = null;
+    if (!loans.length) return { data: [], error: null };
 
-    // Fetch profiles separately to avoid dependency on FK relationship
-    const userIds = [...new Set((loans || []).map(l => l.user_id).filter(Boolean))];
+    const userIds = [...new Set(loans.map(l => l.user_id).filter(Boolean))];
     let profileMap = {};
     if (userIds.length) {
         const { data: profiles } = await supabase
