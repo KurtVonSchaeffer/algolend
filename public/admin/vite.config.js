@@ -11,6 +11,7 @@ export default {
   },
   build: {
     target: 'esnext',
+    emptyOutDir: false,
     rollupOptions: {
       input: {
         // Core

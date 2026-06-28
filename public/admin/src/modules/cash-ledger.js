@@ -31,19 +31,18 @@ async function loadBranches() {
 }
 
 async function loadEntries() {
-    let query = supabase
-        .from('cash_journal')
-        .select('*')
-        .gte('entry_date', dateFrom)
-        .lte('entry_date', dateTo)
-        .order('entry_date', { ascending: false })
-        .order('created_at',  { ascending: false });
-
-    if (activeBranch !== 'all') query = query.eq('branch_id', activeBranch);
-
-    const { data, error } = await query;
-    if (error) { console.error('[cash-ledger]', error); return; }
-    entries = data || [];
+    // Use server endpoint to bypass RLS
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        const params = new URLSearchParams({ from: dateFrom, to: dateTo });
+        if (activeBranch !== 'all') params.set('branch', activeBranch);
+        const res = await fetch(`/api/admin/ledger?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+        entries = res.ok ? (await res.json()) : [];
+    } catch (e) {
+        console.error('[cash-ledger]', e);
+        entries = [];
+    }
     renderTable();
     renderSummary();
 }

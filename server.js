@@ -5499,6 +5499,26 @@ app.delete('/api/admin/products/:id', requireAdminSession, async (req, res) => {
     res.json({ success: true });
 });
 
+// GET /api/admin/ledger — fetch cash_journal entries (bypasses RLS)
+app.get('/api/admin/ledger', requireAdminSession, async (req, res) => {
+    try {
+        const { from, to, branch } = req.query;
+        let query = supabaseService
+            .from('cash_journal')
+            .select('*')
+            .order('entry_date', { ascending: false })
+            .order('created_at',  { ascending: false });
+        if (from)                      query = query.gte('entry_date', from);
+        if (to)                        query = query.lte('entry_date', to);
+        if (branch && branch !== 'all') query = query.eq('branch_id', branch);
+        const { data, error } = await query;
+        if (error) return res.status(400).json({ error: error.message });
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST /api/admin/ledger/sync — backfill cash_journal from historical disbursements + confirmed payments
 app.post('/api/admin/ledger/sync', requireAdminSession, async (req, res) => {
     try {
