@@ -2,6 +2,7 @@
 node_modules/
 
 # Built admin bundle
+public/admin/dist/
 
 
 # Logs
