@@ -457,7 +457,7 @@ function renderTopRecentWidget(payments) {
     list.innerHTML = top5.map(p => {
         const name = p.profile?.full_name || p.profiles?.full_name || 'Unknown';
         const appId = p.loan_id || p.application_id || '';
-        const ref = p.loan_number || appId.slice(0,8).toUpperCase();
+        const ref = p.loan_number || String(appId).slice(0,8).toUpperCase();
         return `
         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:bg-white hover:shadow-sm transition-all cursor-pointer" onclick="window.location.href='/admin/application-detail?id=${appId}'">
             <div class="flex items-center gap-3">

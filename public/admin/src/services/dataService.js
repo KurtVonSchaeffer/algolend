@@ -177,46 +177,11 @@ export async function fetchLoanApplications() {
 }
 
 export async function fetchApplicationDetail(applicationId) {
-  const { data: appData, error: appError } = await supabase
-    .from('loan_applications')
-    .select('*')
-    .eq('id', applicationId)
-    .single();
-  if (appError) throw appError;
-
-  const userId = appData.user_id;
-  const createdBy = appData.created_by_admin;
-  const reviewedBy = appData.reviewed_by_admin;
-
-  const [
-    profileRes, finRes, docsRes, payoutRes, bankRes, creditRes, loansRes, appHistoryRes,
-    creatorRes, reviewerRes
-  ] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-    supabase.from('financial_profiles').select('*').eq('user_id', userId).maybeSingle(),
-    supabase.from('document_uploads').select('*').eq('user_id', userId).order('uploaded_at', { ascending: false }),
-    supabase.from('payouts').select('status').eq('application_id', applicationId).maybeSingle(),
-    supabase.from('bank_accounts').select('*').eq('user_id', userId),
-    supabase.from('credit_checks').select('*').eq('user_id', userId).order('checked_at', { ascending: false }),
-    supabase.from('loans').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-    supabase.from('loan_applications').select('id, status, amount, created_at, purpose').eq('user_id', userId).neq('id', applicationId).order('created_at', { ascending: false }),
-    createdBy  ? supabase.from('profiles').select('full_name, email').eq('id', createdBy).maybeSingle()  : Promise.resolve({ data: null }),
-    reviewedBy ? supabase.from('profiles').select('full_name, email').eq('id', reviewedBy).maybeSingle() : Promise.resolve({ data: null }),
-  ]);
-
-  return {
-    ...appData,
-    profiles:  profileRes.data || null,
-    creator:   creatorRes.data  || null,
-    reviewer:  reviewerRes.data || null,
-    financial_profiles: finRes.data ? [finRes.data] : [],
-    documents: docsRes.data || [],
-    payout: payoutRes.data || null,
-    bank_accounts: bankRes.data || [],
-    credit_checks: creditRes.data || [],
-    loan_history: loansRes.data || [],
-    application_history: appHistoryRes.data || []
-  };
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const res = await fetch(`/api/admin/application-detail/${applicationId}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Failed to load application: ${res.status}`);
+  return res.json();
 }
 
 export async function updateApplicationStatus(applicationId, newStatus) {

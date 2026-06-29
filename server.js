@@ -5513,6 +5513,35 @@ app.get('/api/admin/manual-payments', requireAdminSession, async (req, res) => {
     }
 });
 
+// GET /api/admin/application-detail/:id — full application + related data (bypasses RLS)
+app.get('/api/admin/application-detail/:id', requireAdminSession, async (req, res) => {
+    try {
+        const appId = Number(req.params.id);
+        const { data: appData, error: appErr } = await supabaseService.from('loan_applications').select('*').eq('id', appId).single();
+        if (appErr || !appData) return res.status(404).json({ error: appErr?.message || 'Not found' });
+        const userId = appData.user_id;
+        const [profileRes, finRes, docsRes, payoutRes, bankRes, creditRes, loansRes, appHistRes] = await Promise.all([
+            supabaseService.from('profiles').select('*').eq('id', userId).maybeSingle(),
+            supabaseService.from('financial_profiles').select('*').eq('user_id', userId).maybeSingle(),
+            supabaseService.from('document_uploads').select('*').eq('user_id', userId).order('uploaded_at', { ascending: false }),
+            supabaseService.from('payouts').select('status').eq('application_id', appId).maybeSingle(),
+            supabaseService.from('bank_accounts').select('*').eq('user_id', userId),
+            supabaseService.from('credit_checks').select('*').eq('user_id', userId).order('checked_at', { ascending: false }),
+            supabaseService.from('loans').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+            supabaseService.from('loan_applications').select('id, status, amount, created_at, purpose').eq('user_id', userId).neq('id', appId).order('created_at', { ascending: false }),
+        ]);
+        res.json({
+            ...appData, profiles: profileRes.data || null,
+            financial_profiles: finRes.data ? [finRes.data] : [],
+            documents: docsRes.data || [], payout: payoutRes.data || null,
+            bank_accounts: bankRes.data || [], credit_checks: creditRes.data || [],
+            loan_history: loansRes.data || [], application_history: appHistRes.data || [],
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // GET /api/admin/payouts — fetch payouts (bypasses RLS)
 app.get('/api/admin/payouts', requireAdminSession, async (req, res) => {
     try {
