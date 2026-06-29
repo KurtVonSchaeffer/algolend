@@ -318,11 +318,12 @@ export async function updateApplicationStatus(applicationId, newStatus) {
 }
 
 export const fetchUsers = async () => {
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-    return error ? [] : data;
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        const res = await fetch('/api/admin/profiles', { headers: { Authorization: `Bearer ${token}` } });
+        return res.ok ? (await res.json()) : [];
+    } catch { return []; }
 };
 
 export async function fetchProfile(userId) {

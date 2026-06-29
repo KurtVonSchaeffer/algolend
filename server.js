@@ -5499,6 +5499,20 @@ app.delete('/api/admin/products/:id', requireAdminSession, async (req, res) => {
     res.json({ success: true });
 });
 
+// GET /api/admin/profiles — fetch all profiles (bypasses RLS)
+app.get('/api/admin/profiles', requireAdminSession, async (req, res) => {
+    try {
+        const { data, error } = await supabaseService
+            .from('profiles')
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) return res.status(400).json({ error: error.message });
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // GET /api/user/loans — fetch loans for the authenticated user (bypasses loans RLS)
 app.get('/api/user/loans', async (req, res) => {
     try {
