@@ -5499,6 +5499,34 @@ app.delete('/api/admin/products/:id', requireAdminSession, async (req, res) => {
     res.json({ success: true });
 });
 
+// GET /api/admin/manual-payments — fetch manual_payments (bypasses RLS)
+app.get('/api/admin/manual-payments', requireAdminSession, async (req, res) => {
+    try {
+        const { data, error } = await supabaseService
+            .from('manual_payments')
+            .select('*')
+            .order('payment_date', { ascending: false });
+        if (error) return res.status(400).json({ error: error.message });
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/admin/payouts — fetch payouts (bypasses RLS)
+app.get('/api/admin/payouts', requireAdminSession, async (req, res) => {
+    try {
+        const { data, error } = await supabaseService
+            .from('payouts')
+            .select('*, profile:user_id(full_name, email), application:loan_applications(status, branch_id, bank_account:bank_account_id(*))')
+            .order('created_at', { ascending: false });
+        if (error) return res.status(400).json({ error: error.message });
+        res.json(data || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // GET /api/admin/profiles — fetch all profiles (bypasses RLS)
 app.get('/api/admin/profiles', requireAdminSession, async (req, res) => {
     try {

@@ -341,49 +341,43 @@ export async function fetchUserDetail(userId) {
 }
 
 export async function fetchPayments() {
-  // Fetch payments then profiles/applications separately (no FK joins — avoids 400 if FKs not registered)
-  const result = await supabase
-    .from('manual_payments')
-    .select('*')
-    .order('payment_date', { ascending: false });
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const res = await fetch('/api/admin/manual-payments', { headers: { Authorization: `Bearer ${token}` } });
+    const payments = res.ok ? (await res.json()) : [];
 
-  if (result.error?.message?.includes('manual_payments')) {
-    // Table not yet created — return empty gracefully
+    if (payments.length > 0) {
+      const userIds = [...new Set(payments.map(p => p.user_id).filter(Boolean))];
+      const appIds  = [...new Set(payments.map(p => p.application_id).filter(Boolean))];
+      const [profilesRes, appsRes] = await Promise.all([
+        userIds.length ? supabase.from('profiles').select('id, full_name, identity_number, cell_tel_no').in('id', userIds) : Promise.resolve({ data: [] }),
+        appIds.length  ? supabase.from('loan_applications').select('id, loan_number, amount, status, offer_monthly_repayment, offer_total_repayment').in('id', appIds) : Promise.resolve({ data: [] }),
+      ]);
+      const profileMap = Object.fromEntries((profilesRes.data || []).map(p => [p.id, p]));
+      const appMap     = Object.fromEntries((appsRes.data    || []).map(a => [a.id, a]));
+      const data = payments.map(p => {
+        const app = appMap[p.application_id] || null;
+        return { ...p, profile: profileMap[p.user_id] || null, loan_id: p.application_id, loan_number: app?.loan_number || '', loan: { outstanding_balance: Number(app?.offer_total_repayment ?? 0), principal_amount: Number(app?.amount ?? 0), application: app || {} } };
+      });
+      return { data, error: null };
+    }
+    return { data: payments, error: null };
+  } catch (e) {
     return { data: [], error: null };
   }
-
-  if (result.data && result.data.length > 0) {
-    const userIds = [...new Set(result.data.map(p => p.user_id).filter(Boolean))];
-    const appIds  = [...new Set(result.data.map(p => p.application_id).filter(Boolean))];
-
-    const [profilesRes, appsRes] = await Promise.all([
-      userIds.length ? supabase.from('profiles').select('id, full_name, identity_number, cell_tel_no').in('id', userIds) : Promise.resolve({ data: [] }),
-      appIds.length  ? supabase.from('loan_applications').select('id, loan_number, amount, status, offer_monthly_repayment, offer_total_repayment').in('id', appIds) : Promise.resolve({ data: [] }),
-    ]);
-
-    const profileMap = Object.fromEntries((profilesRes.data || []).map(p => [p.id, p]));
-    const appMap     = Object.fromEntries((appsRes.data    || []).map(a => [a.id, a]));
-
-    result.data = result.data.map(p => {
-      const app = appMap[p.application_id] || null;
-      return {
-        ...p,
-        profile:     profileMap[p.user_id] || null,
-        loan_id:     p.application_id,
-        loan_number: app?.loan_number || '',
-        loan: {
-          outstanding_balance: Number(app?.offer_total_repayment ?? 0),
-          principal_amount:    Number(app?.amount ?? 0),
-          application:         app || {}
-        }
-      };
-    });
-  }
-  return result;
 }
 
 export async function fetchPayouts() {
-  return supabase.from('payouts').select('*, profile:user_id(full_name, email), application:loan_applications(status, branch_id, bank_account:bank_account_id(*))').order('created_at', { ascending: false });
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    const res = await fetch('/api/admin/payouts', { headers: { Authorization: `Bearer ${token}` } });
+    const data = res.ok ? (await res.json()) : [];
+    return { data, error: null };
+  } catch (e) {
+    return { data: [], error: null };
+  }
 }
 
 export async function approvePayout(payoutId) {
