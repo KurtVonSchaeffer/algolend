@@ -20,14 +20,14 @@ const DEFAULT_CAROUSEL_SLIDES = [
 const DEFAULT_SYSTEM_SETTINGS = {
   id: 'global',
   company_name: DEFAULT_COMPANY_NAME,
-  primary_color: '#B026FF', // Luminous neon purple
-  secondary_color: '#4A0E8F', // Deep purple
-  tertiary_color: '#11022A', // Dark aesthetic
+  primary_color: '#B026FF',
+  secondary_color: '#4A0E8F',
+  tertiary_color: '#11022A',
   theme_mode: 'dark',
   company_logo_url: null,
   auth_background_url: null,
   auth_background_flip: false,
-  auth_overlay_color: '#1E0B3B', // Glassmorphic dark purple
+  auth_overlay_color: '#1E0B3B',
   auth_overlay_enabled: true,
   carousel_slides: DEFAULT_CAROUSEL_SLIDES.map((slide) => ({ ...slide }))
 };

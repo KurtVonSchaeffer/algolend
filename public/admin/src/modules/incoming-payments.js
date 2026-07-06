@@ -1,6 +1,7 @@
 import { initLayout } from '../shared/layout.js';
 import { formatCurrency, formatDate } from '../shared/utils.js';
 import { supabase } from '../services/supabaseClient.js';
+import { apiFetch } from '../shared/apiFetch.js';
 import {
   fetchPayments,
   fetchAnalyticsData
@@ -12,25 +13,11 @@ let pendingManualPayments = [];
 async function loadPendingManualPayments() {
   const { data, error } = await supabase
     .from('manual_payments')
-    .select('*')
+    .select('*, profiles:user_id(full_name, cell_tel_no, identity_number), loan_applications:application_id(loan_number, amount, status)')
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
-  if (error) { console.warn('[manual-payments]', error.message); pendingManualPayments = []; renderPendingPanel(); return; }
-
-  const rows = data || [];
-  if (rows.length > 0) {
-    const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
-    const appIds  = [...new Set(rows.map(r => r.application_id).filter(Boolean))];
-    const [pRes, aRes] = await Promise.all([
-      userIds.length ? supabase.from('profiles').select('id, full_name, cell_tel_no, identity_number').in('id', userIds) : Promise.resolve({ data: [] }),
-      appIds.length  ? supabase.from('loan_applications').select('id, loan_number, amount, status').in('id', appIds) : Promise.resolve({ data: [] }),
-    ]);
-    const pm = Object.fromEntries((pRes.data || []).map(p => [p.id, p]));
-    const am = Object.fromEntries((aRes.data || []).map(a => [a.id, a]));
-    rows.forEach(r => { r.profiles = pm[r.user_id] || null; r.loan_applications = am[r.application_id] || null; });
-  }
-
-  pendingManualPayments = rows;
+  if (error) { console.warn('[manual-payments]', error.message); return; }
+  pendingManualPayments = data || [];
   renderPendingPanel();
 }
 
@@ -102,10 +89,9 @@ function renderPendingPanel() {
 window.confirmManualPayment = async (id, payType, clientName) => {
   if (!confirm(`Confirm ${payType === 'settlement' ? 'SETTLEMENT' : 'payment'} from ${clientName}?\n\nThis will:\n• Mark as confirmed\n• Post to Cash Ledger\n• Send SMS to client${payType === 'settlement' ? '\n• Set loan status to SETTLED' : ''}`)) return;
 
-  const { data: { session } } = await supabase.auth.getSession();
-  const res = await fetch(`/api/admin/payment/confirm/${id}`, {
+  const res = await apiFetch(`/api/admin/payment/confirm/${id}`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json' }
   });
   const json = await res.json();
   if (json.success) {
@@ -457,7 +443,7 @@ function renderTopRecentWidget(payments) {
     list.innerHTML = top5.map(p => {
         const name = p.profile?.full_name || p.profiles?.full_name || 'Unknown';
         const appId = p.loan_id || p.application_id || '';
-        const ref = p.loan_number || String(appId).slice(0,8).toUpperCase();
+        const ref = p.loan_number || appId.slice(0,8).toUpperCase();
         return `
         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:bg-white hover:shadow-sm transition-all cursor-pointer" onclick="window.location.href='/admin/application-detail?id=${appId}'">
             <div class="flex items-center gap-3">

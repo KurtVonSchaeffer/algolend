@@ -32,7 +32,7 @@
         gap: 16px;
         color: #64748b;
       }
-      .auth-loading i { font-size: 28px; color: var(--color-primary, #E7762E); }
+      .auth-loading i { font-size: 28px; color: var(--color-primary, #7C3AED); }
       .auth-loading p { font-size: 14px; font-weight: 500; }
     </style>
 </head>
@@ -43,6 +43,13 @@
           <p>Loading...</p>
         </div>
     </div>
+    <script>
+      // Load safe-to-expose public config (e.g. Cloudflare Turnstile site key)
+      window.__ALGOLEND_CONFIG__ = { turnstileSiteKey: '' };
+      fetch('/api/public/config').then(r => r.json()).then(c => {
+        window.__ALGOLEND_CONFIG__ = { ...window.__ALGOLEND_CONFIG__, ...c };
+      }).catch(() => {});
+    </script>
     <script type="module" src="/auth/auth.js"></script>
 </body>
 </html>

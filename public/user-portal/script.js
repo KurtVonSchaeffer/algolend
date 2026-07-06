@@ -17,7 +17,7 @@ const NAV_SEARCH_ITEMS = [
   { label: 'Apply Loan - Offers', page: 'apply-loan-2', keywords: ['credit', 'offer', 'summary'] },
   { label: 'Apply Loan - Config', page: 'apply-loan-3', keywords: ['loan config', 'terms', 'offer builder'] },
   { label: 'Confirmation', page: 'confirmation', keywords: ['bank', 'payout', 'final'] },
-  { label: 'Payments', page: 'documents', keywords: ['transactions', 'payments', 'bank accounts'] },
+  { label: 'Payments', page: 'payments', keywords: ['transactions', 'payments', 'bank accounts', 'statement', 'history'] },
   { label: 'Transcripts', page: 'transcripts', keywords: ['credit report', 'history', 'documents'] },
   { label: 'Notifications', page: 'notifications', keywords: ['alerts', 'messages'] },
   { label: 'Support', page: 'support', keywords: ['help', 'contact'] },
@@ -27,9 +27,9 @@ const NAV_SEARCH_ITEMS = [
 let navSearchMatches = [];
 let navSearchActiveIndex = -1;
 let globalUserProfile = null;
-const DEFAULT_BRAND_LOGO = 'https://placehold.co/240x80/E7762E/ffffff?text=AlgoLend';
+const DEFAULT_BRAND_LOGO = 'https://static.wixstatic.com/media/f82622_cde1fbd5680141c5b0fccca81fb92ad6~mv2.png';
 const FALLBACK_SYSTEM_THEME = {
-  primary_color: '#E7762E',
+  primary_color: '#7C3AED',
   secondary_color: '#F97316',
   tertiary_color: '#FACC15',
   theme_mode: 'light',
@@ -203,7 +203,7 @@ function hexToRgbString(hex) {
 /** Apply brand colours as CSS variables on :root so every stylesheet responds */
 function applyBrandColors(theme) {
   const root = document.documentElement;
-  const primary   = (theme?.primary_color   || '#E7762E').trim();
+  const primary   = (theme?.primary_color   || '#7C3AED').trim();
   const secondary = (theme?.secondary_color || '#F97316').trim();
   const tertiary  = (theme?.tertiary_color  || '#FACC15').trim();
 
@@ -251,16 +251,15 @@ setInterval(async () => {
 // ================================================================
 document.addEventListener('DOMContentLoaded', async () => {
   // Check authentication first
-  const userProfile = await checkAuth();
-  if (!userProfile) return; // auth failed — redirect already in progress
+  const userProfile = await checkAuth(); 
   globalUserProfile = userProfile;
   window.globalUserProfile = userProfile;
-
+  
   // Load navbar & sidebar
-  await loadNavbar();
-  setNavbarOffset();
-  await loadSidebar();
-  setNavbarOffset();
+  await loadNavbar(); 
+  setNavbarOffset(); 
+  await loadSidebar(); 
+  setNavbarOffset(); 
   
   // Populate user info (Initials & Dropdown data)
   if (userProfile) {
@@ -303,18 +302,29 @@ async function checkAuth() {
     return null;
   }
 
-  const { data: profile } = await supabase
+  const { data: profileData, error: profileErr } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', session.user.id)
-    .single();
+    .maybeSingle();
 
-  if (!profile) {
+  if (!profileData && !profileErr) {
     console.log('⛔ No profile row found for user');
     await supabase.auth.signOut();
     window.location.replace('/auth/login.html');
     return null;
   }
+  if (profileErr) {
+    console.warn('Profile fetch error (RLS?) — continuing with session data:', profileErr.message);
+  }
+
+  // Fall back to session metadata if RLS blocked the profile read
+  const profile = profileData || {
+    id: session.user.id,
+    full_name: session.user.user_metadata?.full_name || '',
+    identity_number: session.user.user_metadata?.id_number || null,
+    cell_tel_no: session.user.user_metadata?.mobile || null,
+  };
   profile.role = role;
   profile.email = profile.email || session.user?.email;
   
@@ -331,10 +341,7 @@ async function checkAuth() {
     .maybeSingle();
   
   profile.hasFinancialProfile = !!financialProfile && financialProfile.monthly_income > 0;
-  // Fall back to auth user_metadata if RLS blocks declarations table read
-  const _metaDecl = (() => { try { const s = session?.user?.user_metadata?.declarations; return s ? JSON.parse(s) : null; } catch(_){return null;} })();
-  profile.hasDeclarations = (!!declarations && declarations.accepted_std_conditions === true)
-    || (_metaDecl?.accepted_std_conditions === true);
+  profile.hasDeclarations = !!declarations && declarations.accepted_std_conditions === true;
   profile.isProfileComplete = profile.hasFinancialProfile && profile.hasDeclarations;
 
   // Track last active time (non-blocking)
@@ -822,7 +829,7 @@ function populateUserDropdown(profile) {
     btn.innerHTML = ''; // Clean old icon
     const circle = document.createElement('div');
     circle.style.cssText = `
-      width: 32px; height: 32px; background: var(--color-primary, #E7762E); 
+      width: 32px; height: 32px; background: var(--color-primary, #7C3AED); 
       color: #fff; border-radius: 50%; display: flex; align-items: center; 
       justify-content: center; font-size: 14px; font-weight: 700;
       border: 2px solid #fff; user-select: none;

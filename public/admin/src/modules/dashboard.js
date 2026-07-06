@@ -10,6 +10,7 @@ import {
   fetchPortfolioAnalytics,
   fetchFinancialTrends
 } from '../services/dataService.js';
+import { apiFetch } from '../shared/apiFetch.js';
 
 // ---------- Shared Animation Config ----------
 const APEX_ANIM = {
@@ -41,14 +42,30 @@ const loadApexCharts = () =>
 const STYLE_ID = 'admin-dashboard-analytics-style';
 const getThemeColors = () => {
   const root = getComputedStyle(document.documentElement);
-  const primary = (root.getPropertyValue('--color-primary') || '#0ea5e9').trim() || '#0ea5e9';
-  const secondary = (root.getPropertyValue('--color-secondary') || '#f97316').trim() || '#f97316';
+  const primary = (root.getPropertyValue('--color-primary') || '#7C3AED').trim() || '#7C3AED';
+  const secondary = (root.getPropertyValue('--color-secondary') || '#1A1F36').trim() || '#1A1F36';
   return { primary, secondary };
+};
+
+// Distinct palette used across charts — each chart picks its own slice
+const CHART_PALETTE = {
+  orange:  '#7C3AED',
+  teal:    '#0D9488',
+  indigo:  '#6366F1',
+  rose:    '#F43F5E',
+  amber:   '#F59E0B',
+  sky:     '#0EA5E9',
+  emerald: '#10B981',
+  purple:  '#A855F7',
+  // Semantic
+  success: '#10B981',
+  warning: '#F59E0B',
+  danger:  '#EF4444',
 };
 
 async function fetchSureSystemsActivationStatus() {
   try {
-    const response = await fetch('/api/suresystems/activation-status');
+    const response = await apiFetch('/api/suresystems/activation-status');
     if (!response.ok) {
       throw new Error(`SureSystems status fetch failed (${response.status})`);
     }
@@ -61,6 +78,12 @@ async function fetchSureSystemsActivationStatus() {
 
 // ---------- Bootstrap ----------
 document.addEventListener('DOMContentLoaded', async () => {
+  // Layout/auth init doesn't depend on the charts CDN script — run them in
+  // parallel instead of blocking initLayout() behind the chart fetch (the
+  // sequential wait was pushing the layout chunk's first use past the
+  // browser's unused-preload window).
+  const layoutPromise = initLayout();
+
   try {
     await loadApexCharts();
   } catch (err) {
@@ -73,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  const authInfo = await initLayout();
+  const authInfo = await layoutPromise;
   if (!authInfo) return;
 
   const profile = getProfile();
@@ -200,9 +223,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             <span class="w-2 h-2 rounded-full animate-pulse" style="background:${systemStatus.color}"></span>
             <span style="color:${systemStatus.color}">${systemStatus.text}</span>
           </div>
-          <div class="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest rounded-full border border-outline-variant/30 text-xs font-semibold">
-            <span class="w-2 h-2 rounded-full" style="background:${sureSystemsState.color}"></span>
-            <span style="color:${sureSystemsState.color}">${sureSystemsState.text}</span>
+          <div class="relative group">
+            <button id="ss-status-pill" class="flex items-center gap-2 px-4 py-2 bg-surface-container-lowest rounded-full border border-outline-variant/30 text-xs font-semibold cursor-pointer hover:shadow-sm transition-all">
+              <span class="w-2 h-2 rounded-full ${sureSystemsActivation?.recent?.failed > 0 && sureSystemsActivation?.recent?.success === 0 ? 'animate-pulse' : ''}" style="background:${sureSystemsState.color}"></span>
+              <span style="color:${sureSystemsState.color}">${sureSystemsState.text}</span>
+              ${sureSystemsActivation?.recent?.failed > 0 ? '<span class="material-symbols-outlined text-[12px] text-gray-400">expand_more</span>' : ''}
+            </button>
+            ${sureSystemsActivation?.applications?.filter(a => a.status === 'failed').length > 0 ? `
+            <div id="ss-error-dropdown" class="hidden absolute right-0 top-full mt-2 w-80 bg-white border border-red-100 rounded-2xl shadow-xl z-50 p-4 space-y-3">
+              <p class="text-xs font-bold text-red-700 flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">error</span> Recent Activation Failures</p>
+              <div class="space-y-2 max-h-48 overflow-y-auto">
+                ${sureSystemsActivation.applications.filter(a => a.status === 'failed').slice(0, 5).map(a => `
+                  <div class="bg-red-50 rounded-xl px-3 py-2 border border-red-100">
+                    <p class="text-[10px] text-red-800 font-semibold truncate">${a.message || 'Unknown error'}</p>
+                    <p class="text-[10px] text-gray-400 mt-0.5">${a.at ? new Date(a.at).toLocaleDateString('en-ZA') : ''}</p>
+                  </div>`).join('')}
+              </div>
+            </div>` : ''}
           </div>
           <button id="btn-export-dashboard" class="flex items-center gap-2 px-4 py-2 rounded-full border border-outline-variant/30 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors">
             <span class="material-symbols-outlined text-[14px]">download</span> Export Dashboard
@@ -304,141 +341,155 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       <!-- Charts Row -->
       <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 fade-in delay-200">
-        <div class="lg:col-span-2 glass-card p-8 rounded-2xl">
-          <div class="flex items-center justify-between pb-4 mb-6 border-b border-outline-variant/10">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:var(--color-primary-container,#ede9fe)">
-                <span class="material-symbols-outlined text-[18px]" style="color:var(--color-primary)">swap_horiz</span>
+
+        <!-- Money In vs Out -->
+        <div class="lg:col-span-2 glass-card rounded-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-8 pt-7 pb-5 border-b border-gray-100">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:color-mix(in srgb,var(--color-primary) 12%,transparent)">
+                <span class="material-symbols-outlined text-[20px]" style="color:var(--color-primary)">swap_vert</span>
               </div>
               <div>
-                <h4 class="font-headline font-bold text-on-surface">Money In vs Money Out</h4>
-                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">How much we've lent out vs how much has been paid back</p>
+                <h4 class="font-bold text-gray-900 text-base">Money In vs Money Out</h4>
+                <p class="text-xs text-gray-400 mt-0.5">How much we lent vs how much clients paid back each month</p>
               </div>
             </div>
             <div id="tabs-velocity" class="tab-group"></div>
           </div>
-          <div id="velocityChart" class="chart-wrapper"></div>
+          <div class="p-6"><div id="velocityChart" class="chart-wrapper"></div></div>
         </div>
 
-        <div class="glass-card p-8 rounded-2xl">
-          <div class="pb-4 mb-6 border-b border-outline-variant/10 flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-blue-50">
-              <span class="material-symbols-outlined text-[18px] text-blue-600">donut_large</span>
-            </div>
-            <div>
-              <h4 class="font-headline font-bold text-on-surface">Where Loans Stand</h4>
-              <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Current status of every loan in the portfolio</p>
+        <!-- Where Loans Stand -->
+        <div class="glass-card rounded-2xl overflow-hidden">
+          <div class="px-8 pt-7 pb-5 border-b border-gray-100">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:color-mix(in srgb,var(--color-primary) 12%,transparent)">
+                <span class="material-symbols-outlined text-[20px]" style="color:var(--color-primary)">donut_large</span>
+              </div>
+              <div>
+                <h4 class="font-bold text-gray-900 text-base">Where Loans Stand</h4>
+                <p class="text-xs text-gray-400 mt-0.5">Current breakdown of all loans by status</p>
+              </div>
             </div>
           </div>
-          <div id="donutChart" class="chart-wrapper" style="min-height:320px;"></div>
+          <div class="p-6"><div id="donutChart" class="chart-wrapper" style="min-height:320px;"></div></div>
         </div>
       </section>
 
       <!-- Analytics Row -->
       <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 fade-in delay-300">
-        <div class="glass-card p-8 rounded-2xl">
-          <div class="flex items-center justify-between pb-4 mb-6 border-b border-outline-variant/10">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-green-50">
-                <span class="material-symbols-outlined text-[18px] text-green-600">calendar_month</span>
+
+        <!-- Repayment by Month -->
+        <div class="glass-card rounded-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-8 pt-7 pb-5 border-b border-gray-100">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-green-50">
+                <span class="material-symbols-outlined text-[20px] text-green-600">bar_chart</span>
               </div>
               <div>
-                <h4 class="font-headline font-bold text-on-surface">Repayment by Month</h4>
-                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Green = paying well · Red = at risk</p>
+                <h4 class="font-bold text-gray-900 text-base">Repayment by Month</h4>
+                <p class="text-xs text-gray-400 mt-0.5">Which month's loans are being paid back — green = good, red = at risk</p>
               </div>
             </div>
             <div id="tabs-vintage" class="tab-group"></div>
           </div>
-          <div id="vintageChart" class="chart-wrapper"></div>
+          <div class="p-6"><div id="vintageChart" class="chart-wrapper"></div></div>
         </div>
 
-        <div class="glass-card p-8 rounded-2xl">
-          <div class="pb-4 mb-6 border-b border-outline-variant/10 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-orange-50">
-                <span class="material-symbols-outlined text-[18px] text-orange-500">bubble_chart</span>
+        <!-- Loan Risk Overview -->
+        <div class="glass-card rounded-2xl overflow-hidden">
+          <div class="flex items-center justify-between px-8 pt-7 pb-5 border-b border-gray-100">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-red-50">
+                <span class="material-symbols-outlined text-[20px] text-red-400">bubble_chart</span>
               </div>
               <div>
-                <h4 class="font-headline font-bold text-on-surface">Loan Risk Overview</h4>
-                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Each bubble = one loan · Red = defaulted</p>
+                <h4 class="font-bold text-gray-900 text-base">Loan Risk Overview</h4>
+                <p class="text-xs text-gray-400 mt-0.5">Each bubble is a loan — bigger = larger loan, red = in default</p>
               </div>
             </div>
             <div class="flex items-center gap-3 text-[11px] font-semibold">
-              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span>Paid</span>
-              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:var(--color-primary)"></span>Active</span>
-              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span>Default</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>Repaid</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full" style="background:var(--color-primary)"></span>Active</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>Defaulted</span>
             </div>
           </div>
-          <div id="riskChart" class="chart-wrapper"></div>
+          <div class="p-6"><div id="riskChart" class="chart-wrapper"></div></div>
         </div>
       </section>
 
-      <!-- Funnel -->
-      <section class="glass-card p-8 rounded-2xl fade-in delay-400">
-        <div class="flex items-center justify-between pb-4 mb-6 border-b border-outline-variant/10">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-purple-50">
-              <span class="material-symbols-outlined text-[18px] text-purple-600">filter_alt</span>
+      <!-- Application Pipeline -->
+      <section class="glass-card rounded-2xl overflow-hidden fade-in delay-400">
+        <div class="flex items-center justify-between px-8 pt-7 pb-5 border-b border-gray-100">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50">
+              <span class="material-symbols-outlined text-[20px] text-blue-500">filter_alt</span>
             </div>
             <div>
-              <h4 class="font-headline font-bold text-on-surface">Application Pipeline</h4>
-              <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">How many applicants make it through each step</p>
+              <h4 class="font-bold text-gray-900 text-base">Application Pipeline</h4>
+              <p class="text-xs text-gray-400 mt-0.5">How many applications are at each stage right now</p>
             </div>
           </div>
-          <div class="text-right">
-            <div class="text-3xl font-bold text-on-surface font-headline">${analytics.funnel?.STARTED || 0}</div>
-            <div class="text-[11px] uppercase tracking-widest text-outline font-semibold">Total Started</div>
+          <div class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-black" style="background:color-mix(in srgb,var(--color-primary) 10%,transparent);color:var(--color-primary)">
+            ${analytics.funnel?.STARTED || 0} <span class="font-normal text-xs ml-1">applications started</span>
           </div>
         </div>
-        <div id="funnelChart" class="chart-wrapper" style="min-height:300px;"></div>
+        <div class="p-6"><div id="funnelChart" class="chart-wrapper" style="min-height:280px;"></div></div>
       </section>
 
       <!-- Historical Trends -->
       <section class="fade-in delay-400">
-        <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center justify-between mb-5">
           <div>
-            <h3 class="font-headline text-xl font-bold text-on-surface">How We're Trending</h3>
-            <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Performance over time</p>
+            <h3 class="font-bold text-gray-900 text-lg">Business Trends</h3>
+            <p class="text-xs text-gray-400 mt-0.5">How the business has grown over time</p>
           </div>
           <div id="tabs-trends" class="tab-group"></div>
         </div>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div class="lg:col-span-2 glass-card p-8 rounded-2xl">
-            <div class="pb-4 mb-6 border-b border-outline-variant/10 flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-indigo-50">
-                <span class="material-symbols-outlined text-[18px] text-indigo-600">stacked_bar_chart</span>
+
+          <!-- Monthly Loan Book -->
+          <div class="lg:col-span-2 glass-card rounded-2xl overflow-hidden">
+            <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-center gap-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:color-mix(in srgb,var(--color-primary) 12%,transparent)">
+                <span class="material-symbols-outlined text-[20px]" style="color:var(--color-primary)">stacked_bar_chart</span>
               </div>
               <div>
-                <h4 class="font-headline font-bold text-on-surface mb-0.5">Book Growth Over Time</h4>
-                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline">How the loan book has grown month by month</p>
+                <h4 class="font-bold text-gray-900 text-base">Monthly Loan Book</h4>
+                <p class="text-xs text-gray-400 mt-0.5">Total loans issued each month — dark = principal lent, light = projected earnings</p>
               </div>
             </div>
-            <div id="comboChart" class="chart-wrapper"></div>
+            <div class="p-6"><div id="comboChart" class="chart-wrapper"></div></div>
           </div>
-          <div class="glass-card p-8 rounded-2xl">
-            <div class="pb-4 mb-6 border-b border-outline-variant/10 flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-teal-50">
-                <span class="material-symbols-outlined text-[18px] text-teal-600">speed</span>
+
+          <!-- Business Health -->
+          <div class="glass-card rounded-2xl overflow-hidden">
+            <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-center gap-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-50">
+                <span class="material-symbols-outlined text-[20px] text-emerald-600">monitor_heart</span>
               </div>
               <div>
-                <h4 class="font-headline font-bold text-on-surface mb-0.5">Portfolio Health Score</h4>
-                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline">How healthy the book is right now</p>
+                <h4 class="font-bold text-gray-900 text-base">Business Health</h4>
+                <p class="text-xs text-gray-400 mt-0.5">Key metrics — higher is better, aim for all above 80%</p>
               </div>
             </div>
-            <div id="radialChart" class="chart-wrapper" style="min-height:320px;"></div>
+            <div class="p-6"><div id="radialChart" class="chart-wrapper" style="min-height:320px;"></div></div>
           </div>
-          <div class="glass-card p-8 rounded-2xl">
-            <div class="pb-4 mb-6 border-b border-outline-variant/10 flex items-center gap-3">
-              <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-amber-50">
-                <span class="material-symbols-outlined text-[18px] text-amber-600">trending_up</span>
+
+          <!-- Portfolio Size Over Time -->
+          <div class="glass-card rounded-2xl overflow-hidden">
+            <div class="px-8 pt-7 pb-5 border-b border-gray-100 flex items-center gap-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-purple-50">
+                <span class="material-symbols-outlined text-[20px] text-purple-500">trending_up</span>
               </div>
               <div>
-                <h4 class="font-headline font-bold text-on-surface mb-0.5">Total Exposure Growth</h4>
-                <p class="text-[11px] font-semibold uppercase tracking-widest text-outline">Total amount at risk in the market over time</p>
+                <h4 class="font-bold text-gray-900 text-base">Portfolio Size Over Time</h4>
+                <p class="text-xs text-gray-400 mt-0.5">Total value of active loans on the books each month</p>
               </div>
             </div>
-            <div id="growthChart" class="chart-wrapper" style="min-height:320px;"></div>
+            <div class="p-6"><div id="growthChart" class="chart-wrapper" style="min-height:280px;"></div></div>
           </div>
+
         </div>
       </section>
 
@@ -504,9 +555,18 @@ let _dashboardSnapshot = null;
 
 function captureDashboardSnapshot(dash, fin, pipeline, perf) {
     _dashboardSnapshot = { dash, fin, pipeline, perf, capturedAt: new Date().toISOString() };
-    // Wire export button once data is ready
+    // Wire export button and SureSystems error dropdown once data is ready
     setTimeout(() => {
         document.getElementById('btn-export-dashboard')?.addEventListener('click', exportDashboardCSV);
+        const ssPill = document.getElementById('ss-status-pill');
+        const ssDropdown = document.getElementById('ss-error-dropdown');
+        if (ssPill && ssDropdown) {
+            ssPill.addEventListener('click', (e) => {
+                e.stopPropagation();
+                ssDropdown.classList.toggle('hidden');
+            });
+            document.addEventListener('click', () => ssDropdown.classList.add('hidden'), { once: false });
+        }
     }, 500);
 }
 
@@ -588,8 +648,8 @@ function initFunnelChart(apps) {
   const options = {
     series: [{ name: 'Applications', data: counts }],
     chart: { type: 'bar', height: 300, toolbar: { show: false }, fontFamily: 'Inter' },
-    plotOptions: { bar: { borderRadius: 8, horizontal: true, barHeight: '60%' } },
-    colors: [primaryColor],
+    plotOptions: { bar: { borderRadius: 8, horizontal: true, barHeight: '60%', distributed: true } },
+    colors: [CHART_PALETTE.sky, CHART_PALETTE.indigo, CHART_PALETTE.orange, CHART_PALETTE.emerald],
     dataLabels: { enabled: true, style: { fontSize: '12px', fontWeight: '700', colors: ['#fff'] } },
     xaxis: { categories: ['Just Applied', 'Being Checked', 'Almost Ready', 'Approved'], labels: { style: { colors: '#64748b', fontSize: '12px', fontWeight: '600' } } },
     yaxis: { labels: { style: { colors: '#64748b', fontSize: '12px', fontWeight: '600' } } },
@@ -621,13 +681,13 @@ function initPerformanceRadial(fin, vintage) {
         dataLabels: {
           name: { fontSize: '14px', fontWeight: '700', color: '#64748b' },
           value: { fontSize: '24px', fontWeight: '800', color: '#0f172a' },
-          total: { show: true, label: 'Avg Health', fontSize: '13px', fontWeight: '700', color: '#64748b', formatter: () => Math.round(health) + '%' }
+          total: { show: true, label: 'Overall Health', fontSize: '13px', fontWeight: '700', color: '#64748b', formatter: () => Math.round(health) + '%' }
         }
       }
     },
     stroke: { lineCap: 'round' },
-    labels: ['Profit Margin', 'Portfolio Health', 'Recovery Rate'],
-    colors: [primaryColor, '#10b981', secondaryColor]
+    labels: ['Profit Margin', 'On-Time Payments', 'Repayment Rate'],
+    colors: [CHART_PALETTE.orange, CHART_PALETTE.emerald, CHART_PALETTE.indigo]
   };
   new ApexCharts(document.querySelector('#radialChart'), withAnim(options)).render();
 }
@@ -645,7 +705,7 @@ function renderVelocityChart(perf) {
     chart: { type: 'line', height: 350, fontFamily: 'Inter', zoom: { enabled: false }, toolbar: { show: false } },
     stroke: { width: 3, curve: 'smooth' },
     fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1 } },
-    colors: [primaryColor, secondaryColor],
+    colors: [CHART_PALETTE.orange, CHART_PALETTE.teal],
     dataLabels: { enabled: false },
     labels: data.map((p) => p.month_year),
     xaxis: { labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: '600' } } },
@@ -666,7 +726,7 @@ function initRiskScatter(data) {
         x: p.credit_score || 0,
         y: p.dti_ratio,
         z: p.principal_amount / 100,
-        fillColor: p.status === 'defaulted' ? '#ef4444' : primaryColor
+        fillColor: p.status === 'defaulted' ? CHART_PALETTE.rose : p.status === 'repaid' ? CHART_PALETTE.emerald : CHART_PALETTE.sky
       }))
     : [];
   const options = {
@@ -674,8 +734,8 @@ function initRiskScatter(data) {
     chart: { type: 'bubble', height: 350, fontFamily: 'Inter', zoom: { enabled: false }, toolbar: { show: false } },
     dataLabels: { enabled: false },
     fill: { opacity: 0.7 },
-    xaxis: { title: { text: 'Credit Score', style: { fontSize: '12px', fontWeight: '700', color: '#64748b' } }, min: 0, max: 850, labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: '600' } } },
-    yaxis: { title: { text: 'DTI Ratio (%)', style: { fontSize: '12px', fontWeight: '700', color: '#64748b' } }, max: 100, labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: '600' } } },
+    xaxis: { title: { text: 'Credit Score  →  Higher = Better', style: { fontSize: '12px', fontWeight: '700', color: '#64748b' } }, min: 0, max: 850, labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: '600' } } },
+    yaxis: { title: { text: 'Monthly Debt Burden (%)  →  Lower = Safer', style: { fontSize: '12px', fontWeight: '700', color: '#64748b' } }, max: 100, labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: '600' } } },
     grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }
   };
   new ApexCharts(document.querySelector('#riskChart'), withAnim(options)).render();
@@ -690,7 +750,7 @@ function renderVintageChart(data) {
     return;
   }
   const options = {
-    series: [{ name: 'Recovery Rate', data: data.map((d) => ({ x: d.cohort, y: d.recovery_rate })) }],
+    series: [{ name: 'Repayment Rate', data: data.map((d) => ({ x: d.cohort, y: d.recovery_rate })) }],
     chart: { type: 'bar', height: 350, fontFamily: 'Inter', toolbar: { show: false } },
     plotOptions: {
       bar: {
@@ -708,7 +768,7 @@ function renderVintageChart(data) {
     dataLabels: { enabled: true, formatter: (val) => val + '%', style: { fontSize: '11px', fontWeight: '700', colors: ['#fff'] } },
     yaxis: { max: 120, labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: '600' } } },
     xaxis: { labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: '600' } } },
-    colors: [primaryColor],
+    colors: [CHART_PALETTE.emerald],
     grid: { borderColor: '#f1f5f9', strokeDashArray: 4 }
   };
   if (vintageChartInstance) vintageChartInstance.destroy();
@@ -738,12 +798,12 @@ function renderTrendCharts(data) {
   if (trendChart1) trendChart1.destroy();
   trendChart1 = new ApexCharts(document.querySelector('#comboChart'), withAnim({
     series: [
-      { name: 'Principal', data: sorted.map((d) => d.total_principal || 0) },
-      { name: 'Projected Interest', data: sorted.map((d) => d.projected_interest || 0) }
+      { name: 'Amount Lent', data: sorted.map((d) => d.total_principal || 0) },
+      { name: 'Projected Earnings', data: sorted.map((d) => d.projected_interest || 0) }
     ],
     chart: { height: 350, type: 'bar', stacked: true, toolbar: { show: false }, fontFamily: 'Inter' },
     plotOptions: { bar: { borderRadius: 6, columnWidth: '50%' } },
-    colors: [primaryColor, secondaryColor],
+    colors: [CHART_PALETTE.indigo, CHART_PALETTE.amber],
     labels: months,
     xaxis: { labels: { style: { colors: '#64748b', fontSize: '11px', fontWeight: '600' } } },
     yaxis: { labels: { formatter: (val) => formatCurrency(val), style: { colors: '#64748b', fontSize: '11px', fontWeight: '600' } } },
@@ -756,15 +816,15 @@ function renderTrendCharts(data) {
 
   if (trendChart3) trendChart3.destroy();
   trendChart3 = new ApexCharts(document.querySelector('#growthChart'), withAnim({
-    series: [{ name: 'Total Exposure', data: sorted.map((d) => (d.total_principal || 0) + (d.projected_interest || 0)) }],
+    series: [{ name: 'Total Portfolio Value', data: sorted.map((d) => (d.total_principal || 0) + (d.projected_interest || 0)) }],
     chart: {
       height: 300,
       type: 'area',
       toolbar: { show: false },
       fontFamily: 'Inter',
-      dropShadow: { enabled: true, color: primaryColor, top: 8, blur: 10, opacity: 0.2 }
+      dropShadow: { enabled: true, color: CHART_PALETTE.purple, top: 8, blur: 10, opacity: 0.2 }
     },
-    colors: [primaryColor],
+    colors: [CHART_PALETTE.purple],
     stroke: { curve: 'smooth', width: 3 },
     fill: {
       type: 'gradient',
@@ -810,7 +870,7 @@ function initStatusDonut(statusData) {
     series: safeData.map((s) => s.value),
     labels: safeData.map((s) => s.name),
     chart: { type: 'donut', height: 320, fontFamily: 'Inter' },
-    colors: [primaryColor, secondaryColor, '#10b981', '#f59e0b'],
+    colors: [CHART_PALETTE.orange, CHART_PALETTE.emerald, CHART_PALETTE.sky, CHART_PALETTE.indigo, CHART_PALETTE.rose, CHART_PALETTE.amber],
     plotOptions: {
       pie: {
         donut: {

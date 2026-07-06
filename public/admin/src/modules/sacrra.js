@@ -1,7 +1,7 @@
 import { supabase } from '../services/supabaseClient.js';
-import { apiFetch } from '../shared/apiFetch.js';
 import { ensureThemeLoaded, getCompanyName } from '../shared/theme.js';
 import * as openpgp from 'openpgp';
+import { apiFetch } from '../shared/apiFetch.js';
 
 const sacrraState = {
     view: 'overview',
@@ -821,7 +821,8 @@ function renderBureauCards(bureaux) {
 window.toggleBureau = async (key, enabled) => {
     await apiFetch(`/api/sacrra/bureaux/${key}`, {
         method: 'PUT',
-        body:   JSON.stringify({ is_enabled: enabled })
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ is_enabled: enabled })
     });
 };
 
@@ -836,7 +837,8 @@ window.saveBureau = async (key) => {
 
     const res = await apiFetch(`/api/sacrra/bureaux/${key}`, {
         method: 'PUT',
-        body:   JSON.stringify(payload)
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload)
     });
     const { success, error } = await res.json();
     if (success) {
@@ -863,7 +865,8 @@ window.submitOneBureau = async (key) => {
         const fileName = `SACRRA_MONTHLY_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.txt`;
         const res = await apiFetch(`/api/sacrra/submit/${key}`, {
             method: 'POST',
-            body:   JSON.stringify({ fileContent, fileName })
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ fileContent, fileName })
         });
         const result = await res.json();
         if (result.success) {
@@ -1014,59 +1017,116 @@ async function buildSacrraFileContent(settings) {
     const monthEnd     = dt(lastDay.toISOString().slice(0,10).replace(/-/g,''));
     const creationDate = dt(new Date().toISOString().slice(0,10).replace(/-/g,''));
 
-    // Supplier Reference Number — 10 chars, RIGHT-aligned (issued by SACRRA)
-    const srn = (sacrraState.members[0]?.f02_supplier_ref || '').trim().padStart(10, ' ').slice(-10);
+    // Supplier Reference Number — 10 chars, LEFT-aligned (alpha field per SACRRA Layout 700v2)
+    const srnRaw = (sacrraState.members[0]?.f02_supplier_ref || '').trim();
+    const srn    = srnRaw.padEnd(10, ' ').slice(0, 10);
 
     // Trading name — pulled from theme (same source as sidebar/navbar branding)
     const _theme = await ensureThemeLoaded().catch(() => null);
     const tradingName = aL(
-        (getCompanyName(_theme) || 'ZWANE FINANCIAL SERVICES').toUpperCase(),
+        (getCompanyName(_theme) || 'ALGOLEND').toUpperCase(),
         60
     );
 
     // ── HEADER (700 chars) ────────────────────────────────────────────────
     // Pos 1:     H
-    // Pos 2-11:  SRN (A10, right-aligned)
+    // Pos 2-11:  SRN (A10, LEFT-aligned, e.g. "TT0109    ")
     // Pos 12-19: MONTH END DATE (N8, CCYYMMDD)
     // Pos 20-21: VERSION NUMBER (N2) = "06" for Layout 700v2
     // Pos 22-29: FILE CREATION DATE (N8, CCYYMMDD)
     // Pos 30-89: TRADING NAME/BRAND NAME (A60)
     // Pos 90-700: FILLER spaces
+    // Expected (after H): TT0109    202606030620260603ALGOLEND
     let content = ('H' + srn + monthEnd + '06' + creationDate + tradingName).padEnd(700, ' ').slice(0,700) + '\r\n';
 
-    // Branch code from system_settings (SACRRA-assigned, 7 chars, stored as sacrra_branch_code)
-    // Format: space-padded to 8 chars = ' ' + 7-char code, e.g. ' CS06626'
-    const rawBranchCode = (sacrraState.members[0]?.f02_supplier_ref || '').trim();
-    // Use sacrra_branch_code system setting if available, fallback to SRN right-padded
-    const branchCode = aL(rawBranchCode.slice(0, 7).padStart(7, ' ').padStart(8, ' '), 8);
+    // Branch code (pos 40-47, 8 chars): SACRRA explicitly flagged that SRN must NOT appear here.
+    // Leave blank unless a SACRRA-assigned branch code is stored in system_settings.sacrra_branch_code.
+    // The f02b_branch_code field from the view is already pre-set to 8 spaces.
+    const rawBranchCode = (sacrraState.members[0]?.f02b_branch_code || '').trim();
+    const branchCode = rawBranchCode ? aL(rawBranchCode, 8) : aL('', 8);
+
+    // Status codes where Status Date must not exceed monthEnd (SACRRA rejection rule)
+    const STATUS_DATE_CAP_CODES = new Set(['B','C','D','G','H','K','M','P','S','T','V','X','Z']);
+    // Status codes where Last Payment Date must not exceed monthEnd (SACRRA rejection rule)
+    const LASTPAY_CAP_CODES = new Set(['','E','I','L','J','W','Y']);
 
     sacrraState.members.forEach(m => {
         // Monthly = 'D' (Data). Daily = 'R' (Registration) or 'C' (Closure) per prefix
         const recordType  = settings.type === 'DAILY' ? (settings.prefix || 'R') : 'D';
         const accountType = aL(m.f03_account_type || 'P', 2);
 
-        // STATUS CODE: blank '  ' for active/current (matches dummy for normal loans)
-        // Only populate for special states: C=Closed, T=Settled, L=Legal, W=WriteOff, D=DebtReview
+        // STATUS CODE: blank '  ' for active/current
         const rawStatus   = (m.f50_status_code || '').trim();
         const statusCode  = aL(rawStatus || '  ', 2);
 
-        // LOAN REASON CODE: 'O '=Other/Standard (12/16 dummy), 'D '=DebtReview, 'I '=Insolvency, 'G '=Guarantee
+        // LOAN REASON CODE
         const rawReason   = (m.f30_loan_reason || '').trim();
-        const loanReason  = aL(rawReason || 'O', 2);  // Default 'O ' = standard personal loan
+        const loanReason  = aL(rawReason || 'O', 2);
 
-        const isPositive  = ['C','T','V'].includes(rawStatus);  // Closed, Settled, Cancelled = zero balances
+        // Closed/settled = zero-balance
+        const isPositive  = ['C','T','V','P'].includes(rawStatus);
         const saId        = (m.f10_id_number || '').replace(/\D/g,'').padStart(13,'0').slice(0,13);
         const accountNo   = aL(m.f40_account_number || m.internal_id || '', 25);
-
-        // Owner/Tenant: 'O' if they have a residential address, 'T' if blank address (matches dummy)
         const ownerTenant = (m.f13_address_1 || '').trim() ? 'O' : 'T';
 
+        // ── Date validation helpers ───────────────────────────────────────────
+        const toInt8 = s => parseInt((s || '').replace(/\D/g,'').slice(0,8) || '0') || 0;
+        const monthEndInt = toInt8(monthEnd);
+
+        // DATE OPENED
+        const rawDateOpened = (m.f43_date_opened || '').replace(/-/g,'').slice(0,8) || '0';
+        const dateOpenedInt = toInt8(rawDateOpened);
+
+        // STATUS DATE:
+        //   - Must be 00000000 when Status Code is blank/active (SACRRA warning fix)
+        //   - Must not exceed monthEnd for B,C,D,G,H,K,M,P,S,T,V,X,Z (SACRRA rejection fix)
+        let statusDateStr = (m.f51_status_date || '').replace(/-/g,'').slice(0,8) || '0';
+        if (!rawStatus) {
+            statusDateStr = '0';
+        } else if (STATUS_DATE_CAP_CODES.has(rawStatus) && toInt8(statusDateStr) > monthEndInt) {
+            statusDateStr = monthEnd;
+        }
+
+        // LAST PAYMENT DATE:
+        //   - Must not exceed monthEnd for blank/'',E,I,L,J,W,Y (SACRRA rejection fix)
+        //   - Must not be before Date Opened (SACRRA warning fix)
+        let lastPayStr = (m.f46_last_payment_date || '').replace(/-/g,'').slice(0,8) || '0';
+        if (LASTPAY_CAP_CODES.has(rawStatus) && toInt8(lastPayStr) > monthEndInt) {
+            lastPayStr = monthEnd;
+        }
+        if (toInt8(lastPayStr) > 0 && dateOpenedInt > 0 && toInt8(lastPayStr) < dateOpenedInt) {
+            lastPayStr = '0'; // Cannot pay before account was opened
+        }
+
         // Financial (N9, whole rands — zero for closed/settled/cancelled)
-        const openBal     = nR(isPositive ? 0 : (m.f41_opening_balance || '0').replace(/\D/g,''), 9);
-        const currBal     = nR(isPositive ? 0 : (m.f44_current_balance || '0').replace(/\D/g,''), 9);
-        const amtOverdue  = nR(isPositive ? 0 : (m.f49_arrears_amount  || '0').replace(/\D/g,''), 9);
-        const instalment  = nR(isPositive ? 0 : (m.f45_installment     || '0').replace(/\D/g,''), 9);
-        const mthsArr     = isPositive ? '00' : zeroPad(m.f53_months_in_arrears || 0, 2);
+        const openBal    = nR(isPositive ? 0 : (m.f41_opening_balance || '0').replace(/\D/g,''), 9);
+        const currBal    = nR(isPositive ? 0 : (m.f44_current_balance || '0').replace(/\D/g,''), 9);
+        const instalment = nR(isPositive ? 0 : (m.f45_installment     || '0').replace(/\D/g,''), 9);
+        const rawOverdue = isPositive ? 0 : parseInt((m.f49_arrears_amount || '0').replace(/\D/g,'')) || 0;
+
+        // MONTHS IN ARREARS: cap to actual account age (SACRRA warning fix)
+        const openYear   = dateOpenedInt ? Math.floor(dateOpenedInt / 10000) : 0;
+        const openMonth  = dateOpenedInt ? Math.floor((dateOpenedInt % 10000) / 100) : 0;
+        const endYear    = Math.floor(monthEndInt / 10000);
+        const endMonth   = Math.floor((monthEndInt % 10000) / 100);
+        const ageMonths  = openYear ? Math.max(0, (endYear - openYear) * 12 + (endMonth - openMonth)) : 999;
+        const rawMthsArr = parseInt(m.f53_months_in_arrears || '0') || 0;
+        let   mthsArrInt = isPositive ? 0 : Math.min(rawMthsArr, ageMonths);
+
+        // SACRRA rejection: Amount Overdue and Months in Arrears must stay in sync —
+        // one cannot be non-zero while the other is zero.
+        let finalOverdue = rawOverdue;
+        if (mthsArrInt === 0) finalOverdue = 0;
+        else if (finalOverdue === 0) mthsArrInt = 0;
+
+        const amtOverdue = nR(finalOverdue, 9);
+        const mthsArr    = zeroPad(mthsArrInt, 2);
+
+        // SURNAME: strip company suffixes and "& Co" patterns
+        const cleanSurname = (m.f06_surname || '')
+            .replace(/\s*(PTY\.?\s*LTD\.?|LTD\.?|\bCC\b|INC\.?|CORP\.?|\(PTY\)|BK|NPC|RF)\s*$/i, '')
+            .replace(/\s*&.*$/, '')
+            .trim();
 
         // Build 700-char data record — all positions verified against official SACRRA dummy data
         let r = '';
@@ -1078,9 +1138,11 @@ async function buildSacrraFileContent(settings) {
         r += branchCode;                       // 40-47:    BRANCH CODE (SACRRA-assigned, 8 chars)
         r += accountNo.trim().padStart(25,' '); // 48-72:    ACCOUNT NO (right-aligned per dummy)
         r += aL('', 4);                        // 73-76:    SUB-ACCOUNT NO
-        r += aL(m.f06_surname || '', 25);      // 77-101:   SURNAME (mixed case per dummy)
+        r += aL(cleanSurname, 25);             // 77-101:   SURNAME (company suffixes stripped)
         r += aL(deriveTitle(m.f11_gender), 5); // 102-106:  TITLE
-        r += aL(m.f07_first_names || '', 14);  // 107-120:  FORENAME 1 (mixed case per dummy)
+        // FORENAME: SACRRA allows [A-Z], [a-z], [-], [`], ['], [ ] — strip everything else
+        const cleanForename = (m.f07_first_names || '').replace(/[^A-Za-z\-`' ]/g, '').trim();
+        r += aL(cleanForename, 14);            // 107-120:  FORENAME 1
         r += aL('', 14);                       // 121-134:  FORENAME 2
         r += aL('', 14);                       // 135-148:  FORENAME 3
         r += aL(m.f13_address_1 || '', 25);    // 149-173:  RES ADDRESS 1
@@ -1098,19 +1160,21 @@ async function buildSacrraFileContent(settings) {
         r += loanReason;                       // 364-365:  LOAN REASON: O=Standard, D=DebtReview, I=Insolvency, G=Guarantee
         r += aL('00', 2);                      // 366-367:  PAYMENT TYPE (00 per dummy standard)
         r += aL(accountType, 2);               // 368-369:  TYPE OF ACCOUNT (M=1-month, P=Personal)
-        r += nR((m.f43_date_opened||'').replace(/-/g,'') || '0', 8); // 370-377: DATE OPENED
+        r += nR(rawDateOpened || '0', 8);      // 370-377:  DATE OPENED
         r += nR('0', 8);                       // 378-385:  DEFERRED PAYMENT DATE (00000000 unless deferred)
-        r += nR((m.f46_first_payment_date||'').replace(/-/g,'') || '0', 8); // 386-393: DATE LAST PAYMENT
+        r += nR(lastPayStr || '0', 8);         // 386-393:  DATE LAST PAYMENT (capped to monthEnd, validated vs opened)
         r += openBal;                          // 394-402:  OPENING BALANCE (N9 whole rands)
         r += currBal;                          // 403-411:  CURRENT BALANCE (N9 whole rands)
-        r += aL(isPositive ? 'P' : 'D', 1);   // 412:      BALANCE INDICATOR D=Debit P=Paid/Credit
+        r += aL(isPositive ? 'C' : 'D', 1);   // 412:      BALANCE INDICATOR — only D or C allowed (C=paid/credit)
         r += amtOverdue;                       // 413-421:  AMOUNT OVERDUE (N9)
         r += instalment;                       // 422-430:  INSTALMENT (N9)
-        r += mthsArr;                          // 431-432:  MONTHS IN ARREARS (N2)
+        r += mthsArr;                          // 431-432:  MONTHS IN ARREARS (capped to account age)
         r += statusCode;                       // 433-434:  STATUS CODE: '  '=Active, C=Closed, T=Settled, L=Legal
         r += nR(m.f54_repayment_frequency || '03', 2); // 435-436: FREQ: 01=Weekly 02=Fortnight 03=Monthly
-        r += nR(m.f42_terms || m.term_months || '1', 4); // 437-440: TERMS (months)
-        r += nR((m.f51_status_date||'').replace(/-/g,'') || '0', 8); // 441-448: STATUS DATE
+        // TERMS: must be 0000 for Account Type M (SACRRA rule — SACRRA warning fix)
+        const termsVal = (accountType.trim() === 'M') ? '0' : (m.f42_terms || m.term_months || '1');
+        r += nR(termsVal, 4);                  // 437-440: TERMS (months, 0000 for M type)
+        r += nR(statusDateStr || '0', 8);      // 441-448: STATUS DATE (cleared for active, capped to monthEnd)
         r += aL('', 8);                        // 449-456:  OLD SUPPLIER BRANCH CODE
         r += aL('', 25);                       // 457-481:  OLD ACCOUNT NUMBER
         r += aL('', 4);                        // 482-485:  OLD SUB-ACCOUNT
@@ -1145,6 +1209,20 @@ async function buildSacrraFileContent(settings) {
 window.generateSacrraFile = async () => {
     if (sacrraState.members.length === 0) return alert("No data found.");
 
+    // Guard: warn if no reporting period is selected — the header date will default to today's
+    // month-end, which may not match the submission period SACRRA expects.
+    const backdateInput = document.getElementById('sacrra-backdate-month')?.value;
+    if (!backdateInput) {
+        const now = new Date();
+        const defaultPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const confirmed = confirm(
+            `No reporting period selected.\n\n` +
+            `The file header will use the current month-end (${defaultPeriod}).\n\n` +
+            `If you are resubmitting for a prior month, click Cancel and set the Reporting Period first.`
+        );
+        if (!confirmed) return;
+    }
+
     // Pre-flight validation
     const invalidStatus = sacrraState.members.filter(m => !VALID_STATUS_CODES.has((m.f50_status_code || '').trim()));
     const invalidId     = sacrraState.members.filter(m => !m.isValidId);
@@ -1155,10 +1233,13 @@ window.generateSacrraFile = async () => {
         if (!confirm(`⚠️ Compliance issues detected:\n• ${msg.join('\n• ')}\n\nThese records will likely be rejected by the bureaux. Generate file anyway?`)) return;
     }
 
-    const settings  = sacrraState.exportSettings;
-    const dateStr   = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const plainName = `SACRRA_${settings.type}_${dateStr}.txt`;
-    const pgpName   = `SACRRA_${settings.type}_${dateStr}.pgp`;
+    const settings   = sacrraState.exportSettings;
+    const dateStr    = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const srnForFile = (sacrraState.members[0]?.f02_supplier_ref || '').trim();
+    const typeChar   = settings.type === 'MONTHLY' ? 'M' : 'D';
+    // Filename format per SACRRA/SureSystems: {SRN}_ALL_T702_{M|D}_{YYYYMMDD}_1_1
+    const plainName  = `${srnForFile}_ALL_T702_${typeChar}_${dateStr}_1_1`;
+    const pgpName    = `${srnForFile}_ALL_T702_${typeChar}_${dateStr}_1_1.pgp`;
 
     // Build fixed-width content
     const fileContent = await buildSacrraFileContent(settings);
@@ -1246,8 +1327,9 @@ async function transmitToMoveIt(fileName, fileContent) {
             if (!otp) { updateTransmitStatus(statusEl, 'Transmission cancelled.', 'warn'); return; }
 
             const mfaRes  = await apiFetch('/api/moveit/auth/mfa', {
-                method: 'POST',
-                body:   JSON.stringify({ mfaToken: authData.mfaToken, otpCode: otp }),
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ mfaToken: authData.mfaToken, otpCode: otp }),
             });
             const mfaData = await mfaRes.json();
             if (!mfaData.success) {
@@ -1267,8 +1349,9 @@ async function transmitToMoveIt(fileName, fileContent) {
             : btoa(String.fromCharCode(...new Uint8Array(await fileContent.arrayBuffer())));
 
         const uploadRes  = await apiFetch('/api/moveit/upload', {
-            method: 'POST',
-            body:   JSON.stringify({ accessToken, fileName, fileContent: contentBase64 }),
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ accessToken, fileName, fileContent: contentBase64 }),
         });
         const uploadData = await uploadRes.json();
 
@@ -1345,8 +1428,9 @@ window.checkSACRRAResponse = async (submissionId, fileName) => {
         if (statusEl) statusEl.textContent = `Downloading ${target.name || 'response file'}…`;
 
         const importRes = await apiFetch('/api/sacrra/import-response', {
-            method: 'POST',
-            body:   JSON.stringify({ fileId: target.id, submissionId })
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ fileId: target.id, submissionId })
         });
         const result = await importRes.json();
         _handleResponseResult(result, submissionId, statusEl);
@@ -1373,8 +1457,9 @@ window.importResponseFile = async (event, submissionId) => {
 
     try {
         const importRes = await apiFetch('/api/sacrra/import-response', {
-            method: 'POST',
-            body:   JSON.stringify({ content, fileName: file.name, submissionId: submissionId || null })
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ content, fileName: file.name, submissionId: submissionId || null })
         });
         const result = await importRes.json();
         _handleResponseResult(result, submissionId, statusEl);

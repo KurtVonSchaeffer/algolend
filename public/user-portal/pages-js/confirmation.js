@@ -128,12 +128,8 @@ function ensureLoanSummary(config) {
   const totalInterest       = amount * INTEREST_RATE * period;
   const totalInitiationFees = isFirstLoan ? 0 : amount * INITIATION_RATE;
   const totalServiceFees    = SERVICE_FEE * period;
-  let totalCreditLife = 0;
-  for (let i = 1; i <= period; i++) {
-    totalCreditLife += (amount * (period - i + 1) / period) * CREDIT_LIFE;
-  }
-  totalCreditLife = Math.round(totalCreditLife * 100) / 100;
-  const monthlyCreditLife = Math.round((totalCreditLife / period) * 100) / 100;
+  const totalCreditLife     = amount * CREDIT_LIFE * period;
+  const monthlyCreditLife   = amount * CREDIT_LIFE;
   const vatAmount           = (totalInitiationFees + totalServiceFees) * VAT;
   const totalCostOfCredit   = totalInterest + totalInitiationFees + totalServiceFees + totalCreditLife + vatAmount;
   const totalRepayment      = amount + totalCostOfCredit;
@@ -490,8 +486,6 @@ async function handleBankFormSubmit() {
       offer_total_admin_fees:      Number(summary?.totalServiceFees ?? summary?.totalMonthlyFees) || 0,
       offer_total_initiation_fees: Number(summary?.totalInitiationFees) || 0,
       offer_credit_life_monthly:   Number(summary?.monthlyCreditLife) || 0,
-      offer_credit_life_total:     Number(summary?.totalCreditLife) || 0,
-      has_credit_life_insurance:   true,
       offer_vat_amount:            Number(summary?.vatAmount) || 0,
       offer_total_cost_of_credit:  Number(summary?.totalCostOfCredit) || 0,
       offer_monthly_repayment:     Number(summary?.monthlyPayment) || 0,

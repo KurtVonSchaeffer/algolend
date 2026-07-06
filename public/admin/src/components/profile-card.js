@@ -1,6 +1,6 @@
 /**
  * Institutional Profile Card - Professional Energy Design
- * Designed for AlgoLend SACRRA Compliance
+ * Designed for AlgoLend Finance SACRRA Compliance
  */
 
 export function renderProfileCard(profile, options = {}) {

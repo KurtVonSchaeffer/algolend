@@ -17,10 +17,10 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data?.json() || {};
   } catch (err) {
-    data = { title: 'AlgoLend', body: event.data?.text() || 'New notification' };
+    data = { title: 'AlgoLend Financial', body: event.data?.text() || 'New notification' };
   }
 
-  const title   = data.title  || 'AlgoLend';
+  const title   = data.title  || 'AlgoLend Financial';
   const options = {
     body:    data.body  || '',
     icon:    data.icon  || '/user-portal/icon-192.png',

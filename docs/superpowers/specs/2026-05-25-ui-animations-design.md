@@ -1,6 +1,6 @@
 # UI Animations Implementation Specification
 
-This document details the visual and functional specifications for integrating comprehensive UI animations into the Zwane Official Admin Portal. The goal is to elevate the user experience with fluid, premium motion that is responsive, modern, and visually impressive.
+This document details the visual and functional specifications for integrating comprehensive UI animations into the AlgoLend Official Admin Portal. The goal is to elevate the user experience with fluid, premium motion that is responsive, modern, and visually impressive.
 
 ## 1. Core Transitions & Feeds
 

@@ -1,14 +1,16 @@
-// SACRRA Validator — validate an external loan book against Layout 700v2 rules
-// Use case: client supplies loan book from old system, we validate before migration
-
 import { initLayout } from '../shared/layout.js';
+import { apiFetch } from '../shared/apiFetch.js';
 
-let loadedRecords  = [];
-let validatedRows  = [];
-let columnMap      = {};
+let lastResults   = null;
+let activeFilter  = 'all';
+let activeTab     = 'live';   // 'live' | 'csv'
+
+// CSV state
+let csvRecords    = [];
+let csvColumnMap  = {};
 
 // ─────────────────────────────────────────────
-// SA ID VALIDATION (Luhn algorithm)
+// SA ID helpers
 // ─────────────────────────────────────────────
 function validateLuhn(id) {
     if (!/^\d{13}$/.test(id)) return false;
@@ -20,283 +22,233 @@ function validateLuhn(id) {
     }
     return (10 - sum % 10) % 10 === parseInt(id[12]);
 }
-
 function parseDOBFromID(id) {
     if (!/^\d{13}$/.test(id)) return null;
-    const yy = parseInt(id.slice(0,2));
-    const mm = parseInt(id.slice(2,4));
-    const dd = parseInt(id.slice(4,6));
-    const century = yy >= 25 ? 1900 : 2000; // crude — adjust per use
-    const date = new Date(century + yy, mm - 1, dd);
-    if (date.getMonth() !== mm - 1) return null;
-    return `${century + yy}${String(mm).padStart(2,'0')}${String(dd).padStart(2,'0')}`;
+    const yy = parseInt(id.slice(0,2)), mm = parseInt(id.slice(2,4)), dd = parseInt(id.slice(4,6));
+    const yr = yy >= 25 ? 1900 + yy : 2000 + yy;
+    const d  = new Date(yr, mm - 1, dd);
+    if (d.getMonth() !== mm - 1) return null;
+    return `${yr}${String(mm).padStart(2,'0')}${String(dd).padStart(2,'0')}`;
 }
-
 function genderFromID(id) {
-    if (!/^\d{13}$/.test(id)) return null;
-    return parseInt(id[6]) < 5 ? 'F' : 'M';
+    return /^\d{13}$/.test(id) ? (parseInt(id[6]) < 5 ? 'F' : 'M') : null;
 }
 
 // ─────────────────────────────────────────────
-// RULES — each returns null (pass) or error message
+// CSV client-side rules (Layout 700v2)
 // ─────────────────────────────────────────────
-const VALIDATION_RULES = [
-    {
-        field: 'identity_number',
-        label: 'SA ID Number',
-        check: (v) => {
-            if (!v) return 'Required';
-            const s = String(v).replace(/\s/g,'');
-            if (!/^\d{13}$/.test(s)) return `Must be 13 digits (got ${s.length})`;
-            if (!validateLuhn(s)) return 'Invalid checksum (Luhn fails)';
-            return null;
-        }
-    },
-    {
-        field: 'date_of_birth',
-        label: 'Date of Birth',
-        check: (v, row) => {
-            if (!v) return 'Required';
-            const dob = String(v).replace(/[-\/\s]/g, '');
-            if (!/^\d{8}$/.test(dob)) return 'Must be YYYYMMDD format';
+function parseNum(v)  { return parseFloat(String(v || 0).replace(/[R,\s]/g,'')); }
+function parseDate(v) {
+    if (!v) return null;
+    const d = String(v).replace(/[-\/\s]/g,'');
+    if (!/^\d{8}$/.test(d)) return null;
+    const dt = new Date(`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`);
+    return isNaN(dt.getTime()) ? null : dt;
+}
+const CUTOFF_36M     = new Date(Date.now() - 36 * 30 * 24 * 60 * 60 * 1000);
+const COMPANY_SUFFIX = /\s*(PTY\.?\s*LTD\.?|LTD\.?|\bCC\b|INC\.?|CORP\.?|\(PTY\))\s*$/i;
+function normStatus(v) {
+    const s = String(v || '').trim().toLowerCase();
+    if (['t','paid','closed','settled','repaid','paid_up'].includes(s)) return 'T';
+    if (['v','cancelled','rejected','declined'].includes(s))            return 'V';
+    return '';
+}
+function isActive(row) { return normStatus(row.status_code) === ''; }
 
-            // Must match SA ID
-            const id = String(row.identity_number || '').replace(/\s/g,'');
-            const idDob = parseDOBFromID(id);
-            if (idDob && idDob !== dob) return `Doesn't match SA ID (expected ${idDob})`;
-            return null;
-        }
-    },
-    {
-        field: 'gender',
-        label: 'Gender',
-        check: (v, row) => {
-            if (!v) return 'Required';
-            const g = String(v).toUpperCase().charAt(0);
-            if (!['M','F'].includes(g)) return `Must be M or F (got "${v}")`;
-
-            const id = String(row.identity_number || '').replace(/\s/g,'');
-            const idGender = genderFromID(id);
-            if (idGender && idGender !== g) return `Doesn't match SA ID (expected ${idGender})`;
-            return null;
-        }
-    },
-    { field: 'surname',      label: 'Surname',     check: (v) => !v || !String(v).trim() ? 'Required' : (String(v).length > 25 ? `Max 25 chars (got ${String(v).length})` : null) },
-    { field: 'first_names',  label: 'First Names', check: (v) => !v || !String(v).trim() ? 'Required' : (String(v).length > 14 ? `Max 14 chars (got ${String(v).length})` : null) },
-    { field: 'address',      label: 'Address',     check: (v) => !v || !String(v).trim() ? 'Required (no SACRRA submission without address)' : null },
-    {
-        field: 'cell_tel_no',
-        label: 'Mobile Number',
-        check: (v) => {
-            if (!v) return null; // optional
-            const cleaned = String(v).replace(/[\s\-+]/g,'');
-            if (!/^(0|27)\d{9}$/.test(cleaned)) return 'Invalid SA mobile format';
-            return null;
-        }
-    },
-    {
-        field: 'postal_code',
-        label: 'Postal Code',
-        check: (v) => {
-            if (!v) return null;
-            if (!/^\d{4}$/.test(String(v).trim())) return 'Must be 4 digits';
-            return null;
-        }
-    },
-    {
-        field: 'account_number',
-        label: 'Account/Loan Number',
-        check: (v) => !v ? 'Required' : null
-    },
-    {
-        field: 'status_code',
-        label: 'Status Code',
-        check: (v) => {
-            const valid = ['C','P','D','T','V','L','W','E','G','K','M','S','I','O','R','N'];
-            if (!v) return null; // blank = active per spec
-            const s = String(v).trim().toUpperCase();
-            if (!valid.includes(s)) return `Invalid status. Valid: ${valid.join(', ')}`;
-            return null;
-        }
-    },
-    {
-        field: 'opening_balance',
-        label: 'Opening Balance',
-        check: (v) => {
-            if (v === null || v === undefined || v === '') return 'Required';
-            const n = parseFloat(String(v).replace(/[R,\s]/g,''));
-            if (isNaN(n)) return `Not a number: "${v}"`;
-            if (n < 0) return 'Must be >= 0';
-            if (n > 999999999) return 'Exceeds N9 max (R999,999,999)';
-            return null;
-        }
-    },
-    {
-        field: 'current_balance',
-        label: 'Current Balance',
-        check: (v) => {
-            if (v === null || v === undefined || v === '') return 'Required';
-            const n = parseFloat(String(v).replace(/[R,\s]/g,''));
-            if (isNaN(n)) return `Not a number: "${v}"`;
-            if (n < 0) return 'Must be >= 0';
-            if (n > 999999999) return 'Exceeds N9 max';
-            return null;
-        }
-    },
-    {
-        field: 'installment',
-        label: 'Monthly Installment',
-        check: (v) => {
-            if (v === null || v === undefined || v === '') return null;
-            const n = parseFloat(String(v).replace(/[R,\s]/g,''));
-            if (isNaN(n)) return `Not a number: "${v}"`;
-            if (n < 0) return 'Must be >= 0';
-            return null;
-        }
-    },
-    {
-        field: 'date_opened',
-        label: 'Date Account Opened',
-        check: (v) => {
-            if (!v) return 'Required';
-            const d = String(v).replace(/[-\/\s]/g, '');
-            if (!/^\d{8}$/.test(d)) return 'Must be YYYYMMDD format';
-            const date = new Date(`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`);
-            if (isNaN(date.getTime())) return 'Invalid date';
-            if (date > new Date()) return 'Cannot be in future';
-            return null;
-        }
-    },
-    {
-        field: 'term_months',
-        label: 'Term (Months)',
-        check: (v) => {
-            if (!v) return 'Required';
-            const n = parseInt(v);
-            if (isNaN(n) || n < 1) return 'Must be >= 1';
-            if (n > 9999) return 'Max 4 digits';
-            return null;
-        }
-    },
-    {
-        field: 'months_in_arrears',
-        label: 'Months In Arrears',
-        check: (v, row) => {
-            const n = parseInt(v || 0);
-            if (isNaN(n) || n < 0) return 'Must be >= 0';
-            if (n > 99) return 'Max 99';
-
-            // Cross-check: if status is current (C) but arrears > 0, that's inconsistent
-            const status = String(row.status_code || '').trim().toUpperCase();
-            if (['C','P','T','V'].includes(status) && n > 0) {
-                return `Arrears > 0 but status is "${status}" (current/closed)`;
-            }
-            if (status === 'D' && n === 0) {
-                return `Status is "D" (defaulted) but arrears = 0`;
-            }
-            return null;
-        }
-    }
+const CSV_RULES = [
+    { field:'identity_number', label:'SA ID (f10)',
+      check: v => {
+        if (!v) return 'Required';
+        const s = String(v).replace(/\s/g,'');
+        if (!/^\d{13}$/.test(s)) return `Must be 13 digits (got ${s.length})`;
+        if (!validateLuhn(s)) return 'Luhn checksum fails';
+        return null;
+      }},
+    { field:'date_of_birth', label:'Date of Birth (f12)',
+      check: (v, r) => {
+        if (!v) return 'Required';
+        const dob = String(v).replace(/[-\/\s]/g,'');
+        if (!/^\d{8}$/.test(dob)) return 'Must be YYYYMMDD';
+        const idDob = parseDOBFromID(String(r.identity_number||'').replace(/\s/g,''));
+        if (idDob && idDob !== dob) return `Mismatch with SA ID (expected ${idDob})`;
+        return null;
+      }},
+    { field:'gender', label:'Gender (f11)',
+      check: (v, r) => {
+        if (!v) return 'Required';
+        const g = String(v).toUpperCase().charAt(0);
+        if (!['M','F'].includes(g)) return `Must be M or F`;
+        const ig = genderFromID(String(r.identity_number||'').replace(/\s/g,''));
+        if (ig && ig !== g) return `Mismatch with SA ID (expected ${ig})`;
+        return null;
+      }},
+    { field:'surname', label:'Surname (f06)',
+      check: v => {
+        if (!v || !String(v).trim()) return 'Required';
+        const s = String(v).trim();
+        if (s.length > 25) return `Max 25 chars (got ${s.length})`;
+        if (COMPANY_SUFFIX.test(s)) return 'Contains company suffix — bureaux will reject';
+        return null;
+      }},
+    { field:'first_names', label:'First Names (f07)',
+      check: v => {
+        if (!v || !String(v).trim()) return 'Required';
+        if (String(v).length > 14) return `Max 14 chars (got ${String(v).length})`;
+        return null;
+      }},
+    { field:'address',       label:'Address (f13)',         check: v => (!v || !String(v).trim()) ? 'Required' : null },
+    { field:'postal_code',   label:'Postal Code (f17)',     check: v => v && !/^\d{4}$/.test(String(v).trim()) ? 'Must be 4 digits' : null },
+    { field:'cell_tel_no',   label:'Mobile (f31)',          check: v => { if (!v) return null; const c = String(v).replace(/[\s\-+]/g,''); return /^(0|27)\d{9}$/.test(c) ? null : 'Invalid SA mobile'; }},
+    { field:'account_number',label:'Account Number (f40)',  check: v => !v ? 'Required' : null },
+    { field:'account_type',  label:'Account Type (f03)',    check: v => { if (!v) return null; return !['M','P'].includes(String(v).trim().toUpperCase()) ? 'Must be M or P' : null; }},
+    { field:'status_code',   label:'Status Code (f50)',
+      check: v => {
+        if (!v || String(v).trim() === '') return null;
+        const s = String(v).trim().toUpperCase();
+        if (!['T','V'].includes(s) && !['paid','closed','settled','repaid','cancelled','rejected'].includes(s.toLowerCase()))
+            return `Layout 700v2 only uses blank/T/V — got "${v}"`;
+        return null;
+      }},
+    { field:'date_opened', label:'Date Opened (f43)',
+      check: v => {
+        if (!v) return 'Required';
+        const d = parseDate(v);
+        if (!d) return 'Must be YYYYMMDD';
+        if (d > new Date()) return 'Cannot be in future';
+        return null;
+      }},
+    { field:'date_last_payment', label:'Last Payment (f46)',
+      check: (v, r) => {
+        if (!isActive(r)) return null;
+        const opened = parseDate(r.date_opened);
+        if (!opened) return null;
+        const days = (Date.now() - opened) / 86400000;
+        if (days > 60 && !v) return 'Required for accounts open > 60 days';
+        if (v && !parseDate(v)) return 'Must be YYYYMMDD';
+        return null;
+      }},
+    { field:'term_months', label:'Term Months (f42)',
+      check: (v, r) => {
+        if (String(r.account_type||'').trim().toUpperCase() === 'M') return null;
+        if (!v) return 'Required';
+        const n = parseInt(v);
+        if (isNaN(n) || n < 1) return 'Must be >= 1';
+        if (n > 9999) return 'Max 9999';
+        return null;
+      }},
+    { field:'opening_balance', label:'Opening Balance (f41)',
+      check: v => {
+        if (v===null||v===undefined||v==='') return 'Required';
+        const n = parseNum(v);
+        if (isNaN(n)) return `Not a number`;
+        if (n < 0) return 'Must be >= 0';
+        return null;
+      }},
+    { field:'current_balance', label:'Current Balance (f44)',
+      check: (v, r) => {
+        if (v===null||v===undefined||v==='') return 'Required';
+        const n = parseNum(v);
+        if (isNaN(n)) return `Not a number`;
+        if (isActive(r) && n === 0) return 'Active account must have balance > 0';
+        return null;
+      }},
+    { field:'installment', label:'Installment (f45)',
+      check: (v, r) => {
+        if (!isActive(r)) return null;
+        const n = parseNum(v);
+        if (isNaN(n) || n === 0) return 'Active account must have installment > 0';
+        return null;
+      }},
+    { field:'amount_overdue', label:'Amount Overdue (f49)',
+      check: (v, r) => {
+        const arrears = parseInt(r.months_in_arrears || 0);
+        if (arrears > 0 && (!v || parseNum(v) === 0))
+            return `${arrears} month(s) in arrears but overdue amount = 0`;
+        return null;
+      }},
+    { field:'months_in_arrears', label:'Months In Arrears (f53)',
+      check: v => {
+        const n = parseInt(v || 0);
+        if (isNaN(n) || n < 0) return 'Must be >= 0';
+        if (n > 99) return 'Max 99';
+        return null;
+      }},
+    { field:'_36m', label:'36-Month Rule',
+      check: (_, r) => {
+        const d = parseDate(r.date_last_payment) || parseDate(r.status_date);
+        if (d && d < CUTOFF_36M) return `Last activity ${d.toISOString().slice(0,10)} > 36 months ago`;
+        return null;
+      }},
 ];
 
-// ─────────────────────────────────────────────
-// FIELD MAPPING — auto-detect common column names
-// ─────────────────────────────────────────────
 const FIELD_ALIASES = {
-    identity_number: ['id_number','idnumber','sa_id','said','identity_number','identity','rsa_id','national_id'],
-    date_of_birth:   ['dob','date_of_birth','birth_date','birthdate'],
-    gender:          ['gender','sex'],
-    surname:         ['surname','last_name','lastname','family_name'],
-    first_names:     ['first_name','firstname','first_names','given_name','name','forename'],
-    address:         ['address','address_1','address1','street_address','residential_address','res_address'],
-    cell_tel_no:     ['cell','cellphone','mobile','phone','tel_no','contact_number','cell_tel_no'],
-    postal_code:     ['postal','postal_code','postcode','zip'],
-    account_number:  ['account_number','account','loan_number','loan_no','ref','reference','contract_no','contract_reference'],
-    status_code:     ['status','status_code','loan_status','account_status'],
-    opening_balance: ['opening_balance','principal','original_amount','loan_amount','amount','disbursed'],
-    current_balance: ['current_balance','outstanding','balance','outstanding_balance','remaining_balance'],
-    installment:     ['installment','instalment','monthly_payment','monthly','repayment','emi'],
-    date_opened:     ['date_opened','open_date','start_date','disbursed_date','disbursement_date','effective_date'],
-    term_months:     ['term','term_months','duration','months','number_of_installments','n_installments'],
-    months_in_arrears: ['months_in_arrears','arrears_months','m_in_arrears','overdue_months']
+    identity_number:   ['id_number','idnumber','sa_id','said','identity_number','identity','rsa_id','national_id'],
+    date_of_birth:     ['dob','date_of_birth','birth_date','birthdate'],
+    gender:            ['gender','sex'],
+    surname:           ['surname','last_name','lastname','family_name'],
+    first_names:       ['first_name','firstname','first_names','given_name','forename'],
+    address:           ['address','address_1','address1','street_address','residential_address'],
+    postal_code:       ['postal','postal_code','postcode','zip'],
+    cell_tel_no:       ['cell','cellphone','mobile','phone','tel_no','contact_number'],
+    account_number:    ['account_number','account','loan_number','loan_no','ref','reference','contract_no'],
+    account_type:      ['account_type','type','loan_type','product_type'],
+    status_code:       ['status','status_code','loan_status','account_status'],
+    status_date:       ['status_date','status_change_date','updated_date'],
+    date_opened:       ['date_opened','open_date','start_date','disbursed_date','disbursement_date','effective_date'],
+    date_last_payment: ['date_last_payment','last_payment','last_payment_date','repayment_start_date'],
+    term_months:       ['term','term_months','duration','months','number_of_installments'],
+    opening_balance:   ['opening_balance','principal','original_amount','loan_amount','amount','disbursed'],
+    current_balance:   ['current_balance','outstanding','balance','outstanding_balance'],
+    installment:       ['installment','instalment','monthly_payment','monthly','repayment','emi'],
+    amount_overdue:    ['amount_overdue','overdue_amount','arrears_amount','total_overdue','overdue'],
+    months_in_arrears: ['months_in_arrears','arrears_months','m_in_arrears','overdue_months'],
 };
 
-function autoMapColumns(headers) {
+function autoMap(headers) {
     const map = {};
-    const normalised = headers.map(h => String(h).toLowerCase().replace(/[\s_\-\.]/g,'_').replace(/__+/g,'_'));
-
+    const norm = headers.map(h => String(h).toLowerCase().replace(/[\s\-\.]/g,'_').replace(/__+/g,'_'));
     Object.entries(FIELD_ALIASES).forEach(([field, aliases]) => {
-        for (let i = 0; i < normalised.length; i++) {
-            const h = normalised[i];
-            if (aliases.some(a => h === a || h.includes(a))) {
-                map[field] = headers[i];
-                break;
-            }
+        for (let i = 0; i < norm.length; i++) {
+            if (aliases.some(a => norm[i] === a || norm[i].includes(a))) { map[field] = headers[i]; break; }
         }
     });
     return map;
 }
 
-// ─────────────────────────────────────────────
-// CSV PARSING (simple — handles quoted fields)
-// ─────────────────────────────────────────────
 function parseCSV(text) {
     const lines = text.split(/\r?\n/).filter(l => l.trim());
-    if (lines.length === 0) return { headers: [], rows: [] };
-
     function parseLine(line) {
-        const cells = [];
-        let cur = '';
-        let inQuotes = false;
+        const cells = []; let cur = '', q = false;
         for (let i = 0; i < line.length; i++) {
             const c = line[i];
-            if (c === '"') {
-                if (inQuotes && line[i+1] === '"') { cur += '"'; i++; }
-                else inQuotes = !inQuotes;
-            } else if (c === ',' && !inQuotes) {
-                cells.push(cur); cur = '';
-            } else { cur += c; }
+            if (c === '"') { if (q && line[i+1]==='"') { cur+='"'; i++; } else q=!q; }
+            else if (c===',' && !q) { cells.push(cur); cur=''; }
+            else cur+=c;
         }
-        cells.push(cur);
-        return cells;
+        cells.push(cur); return cells;
     }
-
     const headers = parseLine(lines[0]).map(h => h.trim().replace(/^"|"$/g,''));
     const rows = lines.slice(1).map(line => {
-        const cells = parseLine(line);
-        const obj = {};
-        headers.forEach((h, i) => obj[h] = (cells[i] || '').trim().replace(/^"|"$/g,''));
+        const cells = parseLine(line); const obj = {};
+        headers.forEach((h,i) => obj[h] = (cells[i]||'').trim().replace(/^"|"$/g,''));
         return obj;
     });
     return { headers, rows };
 }
 
-// ─────────────────────────────────────────────
-// MAIN VALIDATION
-// ─────────────────────────────────────────────
-function validateRecords(records, map) {
+function validateCSV(records, map) {
     return records.map((rec, idx) => {
-        const mapped = {};
-        Object.entries(map).forEach(([field, sourceCol]) => {
-            mapped[field] = rec[sourceCol];
-        });
-
+        const m = {};
+        Object.entries(map).forEach(([f, col]) => { m[f] = col ? rec[col] : undefined; });
         const errors = [];
-        const warnings = [];
-
-        VALIDATION_RULES.forEach(rule => {
-            const err = rule.check(mapped[rule.field], mapped);
-            if (err) errors.push({ field: rule.label, error: err });
+        CSV_RULES.forEach(rule => {
+            const val = rule.field.startsWith('_') ? null : m[rule.field];
+            const err = rule.check(val, m);
+            if (err) errors.push({ field: rule.label, msg: err });
         });
-
-        return {
-            row:      idx + 2, // +2 because line 1 is header, rows are 1-indexed
-            valid:    errors.length === 0,
-            errors,
-            warnings,
-            original: rec,
-            mapped
-        };
+        return { row: idx+2, valid: errors.length===0, errors,
+                 account: m.account_number, name: `${m.first_names||''} ${m.surname||''}`.trim(),
+                 status: normStatus(m.status_code)||'active', issues: errors };
     });
 }
 
@@ -310,7 +262,7 @@ function render() {
     if (!content) {
         content = document.createElement('div');
         content.id = 'validator-content';
-        content.className = 'p-6 max-w-[1400px] mx-auto';
+        content.className = 'p-6 max-w-5xl mx-auto';
         main.appendChild(content);
     }
 
@@ -318,243 +270,424 @@ function render() {
       <div class="flex items-center justify-between mb-6">
         <div>
           <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <span class="material-symbols-outlined" style="color:var(--color-primary,#E7762E)">fact_check</span>
-            SACRRA Migration Validator
+            <span class="material-symbols-outlined" style="color:var(--color-primary,#7C3AED)">fact_check</span>
+            SACRRA Compliance Validator
           </h1>
-          <p class="text-sm text-gray-500 mt-0.5">Validate external loan book against Layout 700v2 rules before importing</p>
+          <p class="text-sm text-gray-500 mt-0.5">Layout 700v2 rules — validate live data or test a loan book before importing</p>
         </div>
         <a href="/admin/sacrra" class="text-xs font-bold text-orange-600 border border-orange-200 bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-lg flex items-center gap-1">
           <span class="material-symbols-outlined text-[16px]">arrow_back</span> Back to SACRRA
         </a>
       </div>
 
-      <!-- Step 1: Upload -->
-      <section id="step-upload" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center font-black text-orange-600">1</div>
-          <h2 class="font-bold text-gray-900">Upload Loan Book</h2>
-        </div>
-        <p class="text-sm text-gray-500 mb-4">Upload the loan book CSV from AlgoLend. Auto-detects. Auto-detects common column names.</p>
-        <input type="file" id="csv-upload" accept=".csv,.txt"
-          class="block w-full text-sm border-2 border-dashed border-gray-200 rounded-xl p-6 cursor-pointer hover:border-orange-300 hover:bg-orange-50/30 transition-colors">
-        <p class="text-xs text-gray-400 mt-2">Max 50MB. CSV with header row required.</p>
-      </section>
-
-      <!-- Step 2: Column mapping -->
-      <section id="step-map" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 hidden">
-        <div class="flex items-center gap-3 mb-4">
-          <div class="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center font-black text-orange-600">2</div>
-          <h2 class="font-bold text-gray-900">Column Mapping</h2>
-        </div>
-        <p class="text-sm text-gray-500 mb-4">Match the columns from the uploaded file to SACRRA fields. Required fields are bold.</p>
-        <div id="mapping-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-        <button id="run-validation"
-          class="mt-6 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-sm flex items-center gap-2">
-          <span class="material-symbols-outlined text-[18px]">play_arrow</span>
-          Validate Records
+      <!-- Tab switcher -->
+      <div class="flex gap-1 mb-5 bg-gray-100 p-1 rounded-xl w-fit">
+        <button id="tab-live" onclick="window._switchTab('live')"
+          class="tab-btn px-5 py-2 text-sm font-bold rounded-lg bg-white shadow-sm text-gray-900 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[16px] text-orange-500">database</span> Live Data
         </button>
-      </section>
+        <button id="tab-csv" onclick="window._switchTab('csv')"
+          class="tab-btn px-5 py-2 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[16px]">upload_file</span> Upload Loan Book
+        </button>
+      </div>
 
-      <!-- Step 3: Results -->
-      <section id="step-results" class="hidden mb-6">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div class="bg-white rounded-2xl border border-gray-100 p-4">
-            <p class="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Total Records</p>
-            <p id="stat-total" class="text-2xl font-black text-gray-900 mt-1">0</p>
+      <!-- ── LIVE TAB ── -->
+      <div id="panel-live">
+        <div id="live-cta" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 flex flex-col items-center text-center gap-4 mb-5">
+          <span class="material-symbols-outlined text-5xl text-gray-200">shield_check</span>
+          <div>
+            <p class="font-bold text-gray-900 text-lg">Check your live database</p>
+            <p class="text-sm text-gray-500 mt-1">Scans all records in the SACRRA view against the same rules bureaux use to reject submissions.</p>
           </div>
-          <div class="bg-white rounded-2xl border border-gray-100 p-4">
-            <p class="text-[10px] font-semibold uppercase tracking-widest text-green-500">Valid</p>
-            <p id="stat-valid" class="text-2xl font-black text-green-600 mt-1">0</p>
+          <button onclick="window._runLive()"
+            class="flex items-center gap-2 px-8 py-3 text-white font-bold rounded-xl text-sm shadow-md hover:-translate-y-0.5 transition-transform"
+            style="background:var(--color-primary,#7C3AED)">
+            <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+            Run Compliance Check
+          </button>
+        </div>
+        <div id="live-results" class="hidden"></div>
+      </div>
+
+      <!-- ── CSV TAB ── -->
+      <div id="panel-csv" class="hidden">
+
+        <!-- Step 1 upload -->
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center font-black text-orange-600 text-sm">1</div>
+            <h2 class="font-bold text-gray-900">Upload Loan Book CSV</h2>
           </div>
-          <div class="bg-white rounded-2xl border border-gray-100 p-4">
-            <p class="text-[10px] font-semibold uppercase tracking-widest text-red-500">Errors</p>
-            <p id="stat-errors" class="text-2xl font-black text-red-600 mt-1">0</p>
-          </div>
-          <div class="bg-white rounded-2xl border border-gray-100 p-4">
-            <p class="text-[10px] font-semibold uppercase tracking-widest text-orange-500">Compliance %</p>
-            <p id="stat-compliance" class="text-2xl font-black text-orange-600 mt-1">0%</p>
-          </div>
+          <input type="file" id="csv-upload" accept=".csv,.txt"
+            class="block w-full text-sm border-2 border-dashed border-gray-200 rounded-xl p-6 cursor-pointer hover:border-orange-300 hover:bg-orange-50/30 transition-colors">
+          <p class="text-xs text-gray-400 mt-2">CSV with header row. Column names are auto-detected — common formats supported.</p>
         </div>
 
-        <!-- Filter tabs -->
-        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <div class="flex gap-1">
-              <button data-filter="all" class="filter-tab active px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-100">All</button>
-              <button data-filter="failed" class="filter-tab px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-gray-50">Failed Only</button>
-              <button data-filter="passed" class="filter-tab px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-gray-50">Passed Only</button>
-            </div>
-            <div class="flex gap-2">
-              <button id="btn-download-errors" class="text-xs font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg flex items-center gap-1">
-                <span class="material-symbols-outlined text-[14px]">download</span> Errors CSV
-              </button>
-              <button id="btn-download-valid" class="text-xs font-bold text-green-600 border border-green-200 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg flex items-center gap-1">
-                <span class="material-symbols-outlined text-[14px]">download</span> Valid CSV
-              </button>
-            </div>
+        <!-- Step 2 map (hidden until upload) -->
+        <div id="csv-step-map" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-4 hidden">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center font-black text-orange-600 text-sm">2</div>
+            <h2 class="font-bold text-gray-900">Column Mapping <span id="csv-rowcount" class="text-xs font-normal text-gray-400"></span></h2>
           </div>
-          <div class="overflow-x-auto max-h-[600px]">
-            <table class="w-full text-sm">
-              <thead class="bg-gray-50 sticky top-0">
-                <tr>
-                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Row</th>
-                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">SA ID</th>
-                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Name</th>
-                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Balance</th>
-                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
-                  <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Issues</th>
-                </tr>
-              </thead>
-              <tbody id="results-tbody" class="divide-y divide-gray-50"></tbody>
-            </table>
-          </div>
+          <p class="text-xs text-gray-500 mb-4">Auto-detected below. Adjust if any are wrong, then click Validate.</p>
+          <div id="csv-map-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-5"></div>
+          <button onclick="window._runCSV()"
+            class="flex items-center gap-2 px-6 py-3 text-white font-bold rounded-xl text-sm"
+            style="background:var(--color-primary,#7C3AED)">
+            <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+            Validate Records
+          </button>
         </div>
-      </section>
+
+        <!-- Step 3 results -->
+        <div id="csv-results" class="hidden"></div>
+      </div>
     `;
 
-    // Wire up file upload
-    document.getElementById('csv-upload').addEventListener('change', handleFileUpload);
-    document.getElementById('run-validation').addEventListener('click', runValidation);
-    document.getElementById('btn-download-errors').addEventListener('click', () => downloadResults('errors'));
-    document.getElementById('btn-download-valid').addEventListener('click', () => downloadResults('valid'));
-
-    // Filter tabs
-    document.querySelectorAll('.filter-tab').forEach(t => {
-        t.addEventListener('click', (e) => {
-            document.querySelectorAll('.filter-tab').forEach(t2 => { t2.classList.remove('active','bg-gray-100'); });
-            e.target.classList.add('active','bg-gray-100');
-            renderResultsTable(e.target.dataset.filter);
-        });
-    });
+    document.getElementById('csv-upload').addEventListener('change', handleCSVUpload);
 }
 
-function handleFileUpload(e) {
+// ─────────────────────────────────────────────
+// TAB SWITCH
+// ─────────────────────────────────────────────
+window._switchTab = function(tab) {
+    activeTab = tab;
+    document.getElementById('panel-live').classList.toggle('hidden', tab !== 'live');
+    document.getElementById('panel-csv').classList.toggle('hidden',  tab !== 'csv');
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        const isActive = b.id === `tab-${tab}`;
+        b.classList.toggle('bg-white',   isActive);
+        b.classList.toggle('shadow-sm',  isActive);
+        b.classList.toggle('text-gray-900', isActive);
+        b.classList.toggle('text-gray-500', !isActive);
+    });
+};
+
+// ─────────────────────────────────────────────
+// LIVE RUN
+// ─────────────────────────────────────────────
+window._runLive = async function() {
+    const cta = document.getElementById('live-cta');
+    const btn = cta.querySelector('button');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[18px]">refresh</span> Checking…';
+    try {
+        const res  = await apiFetch('/api/sacrra/validate');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Validation failed');
+        lastResults = data;
+        document.getElementById('live-cta').classList.add('hidden');
+        const panel = document.getElementById('live-results');
+        panel.classList.remove('hidden');
+        panel.innerHTML = buildResultsHTML(data.summary, data.failed, 'live');
+        wireResultsEvents('live');
+    } catch(err) {
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">play_arrow</span> Run Compliance Check';
+    }
+};
+
+// ─────────────────────────────────────────────
+// CSV UPLOAD + MAPPING
+// ─────────────────────────────────────────────
+const REQUIRED_FIELDS = ['identity_number','surname','first_names','address','account_number','opening_balance','current_balance','installment','date_opened','term_months'];
+
+function handleCSVUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = ev => {
         const { headers, rows } = parseCSV(ev.target.result);
-        if (rows.length === 0) { alert('No rows found in file.'); return; }
+        if (!rows.length) { alert('No rows found.'); return; }
+        csvRecords = rows;
+        csvColumnMap = autoMap(headers);
 
-        loadedRecords = rows;
-        columnMap = autoMapColumns(headers);
-        renderMappingUI(headers);
-        document.getElementById('step-map').classList.remove('hidden');
-        document.getElementById('step-map').scrollIntoView({ behavior: 'smooth' });
+        const missing = REQUIRED_FIELDS.filter(f => !csvColumnMap[f]);
+
+        if (missing.length === 0) {
+            // All required columns detected — show confirmation banner and auto-run
+            showAutoMapBanner(headers, rows.length);
+        } else {
+            // Some required fields undetected — show only those
+            showPartialMapUI(headers, rows, missing);
+        }
     };
     reader.readAsText(file);
 }
 
-function renderMappingUI(headers) {
-    const grid = document.getElementById('mapping-grid');
-    const required = ['identity_number','surname','first_names','address','account_number','opening_balance','current_balance','date_opened','term_months'];
+function showAutoMapBanner(headers, rowCount) {
+    const step = document.getElementById('csv-step-map');
+    step.classList.remove('hidden');
+    step.innerHTML = `
+      <div class="flex items-start gap-4 p-5 bg-green-50 border border-green-200 rounded-2xl mb-4">
+        <span class="material-symbols-outlined text-green-500 text-[28px] mt-0.5 shrink-0">check_circle</span>
+        <div class="flex-1">
+          <p class="font-bold text-green-800">All columns detected automatically</p>
+          <p class="text-xs text-green-700 mt-0.5">${rowCount.toLocaleString()} records ready — validating now…</p>
+          <div class="flex flex-wrap gap-1.5 mt-3">
+            ${Object.entries(csvColumnMap).map(([field, col]) => `
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-green-200 rounded-full text-[11px] text-green-700 font-semibold">
+                <span class="material-symbols-outlined text-[12px] text-green-500">check</span>
+                ${field.replace(/_/g,' ')} → <span class="text-gray-500">${col}</span>
+              </span>`).join('')}
+          </div>
+        </div>
+        <button onclick="showFullMapUI()" class="text-xs font-bold text-green-700 underline underline-offset-2 hover:text-green-900 shrink-0 mt-0.5">Edit mapping</button>
+      </div>`;
+    step.scrollIntoView({ behavior:'smooth' });
+    // Auto-run after a short delay so the user sees the confirmation
+    setTimeout(() => window._runCSV(), 600);
+}
 
-    grid.innerHTML = Object.entries(FIELD_ALIASES).map(([field, _]) => {
-        const isReq = required.includes(field);
-        const fieldLabel = field.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
-        return `
-          <div class="border border-gray-100 rounded-xl p-3">
-            <label class="block text-xs ${isReq ? 'font-black text-gray-900' : 'font-semibold text-gray-500'} uppercase tracking-wide mb-1">
-              ${fieldLabel} ${isReq ? '<span class="text-red-500">*</span>' : '<span class="text-gray-300 normal-case">(optional)</span>'}
-            </label>
-            <select data-field="${field}" class="map-select w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-400 outline-none bg-white">
-              <option value="">— Skip —</option>
-              ${headers.map(h => `<option value="${h}" ${columnMap[field] === h ? 'selected' : ''}>${h}</option>`).join('')}
-            </select>
-          </div>`;
-    }).join('');
+window.showFullMapUI = function() {
+    const step = document.getElementById('csv-step-map');
+    const allHeaders = Object.keys(csvRecords[0] || {});
+    step.innerHTML = buildMapGrid(allHeaders, Object.keys(FIELD_ALIASES), false);
+    wireMapSelects(step);
+};
 
-    grid.querySelectorAll('.map-select').forEach(s => {
-        s.addEventListener('change', (e) => {
-            columnMap[e.target.dataset.field] = e.target.value;
+function showPartialMapUI(headers, rows, missing) {
+    const step = document.getElementById('csv-step-map');
+    step.classList.remove('hidden');
+
+    const detected = Object.entries(csvColumnMap);
+    step.innerHTML = `
+      <div class="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
+        <span class="material-symbols-outlined text-amber-500 text-[20px] mt-0.5 shrink-0">warning</span>
+        <div>
+          <p class="font-bold text-amber-800 text-sm">Couldn't detect ${missing.length} required column${missing.length>1?'s':''}</p>
+          <p class="text-xs text-amber-700 mt-0.5">Match them below, then click Validate.</p>
+        </div>
+      </div>
+
+      ${detected.length ? `
+      <div class="mb-4 flex flex-wrap gap-1.5">
+        <span class="text-[10px] font-black uppercase tracking-widest text-gray-400 w-full mb-1">Auto-detected</span>
+        ${detected.map(([field, col]) => `
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 border border-green-100 rounded-full text-[11px] text-green-700 font-semibold">
+            <span class="material-symbols-outlined text-[11px]">check</span>
+            ${field.replace(/_/g,' ')} → ${col}
+          </span>`).join('')}
+      </div>` : ''}
+
+      <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Needs manual match</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+        ${missing.map(field => {
+            const label = field.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+            return `
+              <div class="border-2 border-amber-200 bg-amber-50/50 rounded-xl p-3">
+                <label class="block text-[10px] font-bold text-gray-900 uppercase tracking-widest mb-1">
+                  ${label} <span class="text-red-500">*</span>
+                </label>
+                <select data-field="${field}" class="map-sel w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white outline-none focus:ring-2 focus:ring-orange-400">
+                  <option value="">— Select column —</option>
+                  ${headers.map(h => `<option value="${h}">${h}</option>`).join('')}
+                </select>
+              </div>`;
+        }).join('')}
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="window._runCSV()"
+          class="flex items-center gap-2 px-6 py-3 text-white font-bold rounded-xl text-sm"
+          style="background:var(--color-primary,#7C3AED)">
+          <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+          Validate Records
+        </button>
+        <span class="text-xs text-gray-400">${rows.length.toLocaleString()} records</span>
+      </div>`;
+
+    wireMapSelects(step);
+    step.scrollIntoView({ behavior:'smooth' });
+}
+
+function wireMapSelects(container) {
+    container.querySelectorAll('.map-sel').forEach(s =>
+        s.addEventListener('change', e => { csvColumnMap[e.target.dataset.field] = e.target.value || undefined; })
+    );
+}
+
+window._runCSV = function() {
+    if (!csvRecords.length) return;
+    const rows    = validateCSV(csvRecords, csvColumnMap);
+    const failed  = rows.filter(r => !r.valid);
+    const passed  = rows.filter(r => r.valid);
+    const byField = {};
+    failed.forEach(r => r.issues.forEach(i => { byField[i.field] = (byField[i.field]||0)+1; }));
+    const summary = { total: rows.length, passed: passed.length, failed: failed.length,
+                      compliance: Math.round(passed.length/rows.length*100), by_field: byField };
+    const panel = document.getElementById('csv-results');
+    panel.classList.remove('hidden');
+    panel.innerHTML = buildResultsHTML(summary, failed, 'csv');
+    wireResultsEvents('csv', rows);
+    panel.scrollIntoView({ behavior:'smooth' });
+};
+
+// ─────────────────────────────────────────────
+// SHARED RESULTS HTML
+// ─────────────────────────────────────────────
+function buildResultsHTML(summary, failed, prefix) {
+    const byField = summary.by_field || {};
+    const sorted  = Object.entries(byField).sort((a,b) => b[1]-a[1]);
+    const max     = sorted[0]?.[1] || 1;
+
+    return `
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="bg-white rounded-2xl border border-gray-100 p-4 text-center">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Total</p>
+          <p class="text-3xl font-black text-gray-900">${summary.total.toLocaleString()}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-green-100 p-4 text-center">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-green-500 mb-1">Passing</p>
+          <p class="text-3xl font-black text-green-600">${summary.passed.toLocaleString()}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-red-100 p-4 text-center">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-red-500 mb-1">Issues</p>
+          <p class="text-3xl font-black text-red-600">${summary.failed.toLocaleString()}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-orange-100 p-4 text-center">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1">Compliance</p>
+          <p class="text-3xl font-black text-orange-600">${summary.compliance}%</p>
+        </div>
+      </div>
+
+      ${sorted.length ? `
+      <div class="bg-white rounded-2xl border border-gray-100 p-5 mb-4">
+        <p class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Issue Breakdown</p>
+        <div class="space-y-2">
+          ${sorted.map(([field,count]) => `
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-semibold text-gray-700 w-56 shrink-0">${field}</span>
+              <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div class="h-2 rounded-full bg-red-400" style="width:${Math.round(count/max*100)}%"></div>
+              </div>
+              <span class="text-xs font-bold text-red-600 w-10 text-right">${count}</span>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-wrap gap-2">
+          <div class="flex gap-1 flex-wrap">
+            <button data-filter="all"     class="ftab-${prefix} px-3 py-1.5 text-xs font-bold rounded-lg bg-gray-100">All Issues</button>
+            <button data-filter="balance" class="ftab-${prefix} px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-gray-50">Balance</button>
+            <button data-filter="id"      class="ftab-${prefix} px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-gray-50">ID / Name</button>
+            <button data-filter="payment" class="ftab-${prefix} px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-gray-50">Payment Date</button>
+            <button data-filter="stale"   class="ftab-${prefix} px-3 py-1.5 text-xs font-bold rounded-lg hover:bg-gray-50">36-Month</button>
+          </div>
+          ${prefix==='csv' ? `
+          <div class="flex gap-2">
+            <button id="${prefix}-dl-errors" class="text-xs font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">download</span> Errors CSV
+            </button>
+            <button id="${prefix}-dl-valid" class="text-xs font-bold text-green-600 border border-green-200 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">download</span> Valid CSV
+            </button>
+          </div>` : ''}
+        </div>
+        <div class="overflow-x-auto max-h-[500px]">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Account</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Name</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Issues</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-${prefix}"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+}
+
+const FILTER_KW = {
+    balance: ['balance','installment','overdue'],
+    id:      ['id','surname','first names','name'],
+    payment: ['payment','last payment'],
+    stale:   ['36-month','36 month','stale'],
+};
+
+function wireResultsEvents(prefix, allRows) {
+    // filter tabs
+    document.querySelectorAll(`.ftab-${prefix}`).forEach(t => {
+        t.addEventListener('click', e => {
+            document.querySelectorAll(`.ftab-${prefix}`).forEach(x => x.classList.remove('bg-gray-100'));
+            e.target.classList.add('bg-gray-100');
+            renderResultsTbody(prefix, e.target.dataset.filter, allRows);
         });
     });
+
+    // downloads (CSV mode only)
+    const dlErr = document.getElementById(`${prefix}-dl-errors`);
+    const dlVal = document.getElementById(`${prefix}-dl-valid`);
+    if (dlErr && allRows) dlErr.addEventListener('click', () => downloadCSV(allRows.filter(r=>!r.valid), 'errors'));
+    if (dlVal && allRows) dlVal.addEventListener('click', () => downloadCSV(allRows.filter(r=>r.valid),  'valid'));
+
+    // initial render
+    renderResultsTbody(prefix, 'all', allRows);
 }
 
-function runValidation() {
-    if (loadedRecords.length === 0) return;
-    validatedRows = validateRecords(loadedRecords, columnMap);
+function renderResultsTbody(prefix, filter, allRows) {
+    const tbody  = document.getElementById(`tbody-${prefix}`);
+    const source = allRows ? allRows.filter(r => !r.valid) : (lastResults?.failed || []);
+    const kw     = FILTER_KW[filter];
+    const rows   = filter === 'all' ? source : source.filter(r =>
+        r.issues.some(i => kw.some(k => i.field.toLowerCase().includes(k) || i.msg.toLowerCase().includes(k)))
+    );
 
-    const valid  = validatedRows.filter(r => r.valid).length;
-    const errors = validatedRows.length - valid;
-    const pct    = Math.round((valid / validatedRows.length) * 100);
-
-    document.getElementById('stat-total').textContent      = validatedRows.length;
-    document.getElementById('stat-valid').textContent      = valid;
-    document.getElementById('stat-errors').textContent     = errors;
-    document.getElementById('stat-compliance').textContent = pct + '%';
-
-    document.getElementById('step-results').classList.remove('hidden');
-    renderResultsTable('all');
-    document.getElementById('step-results').scrollIntoView({ behavior: 'smooth' });
-}
-
-function renderResultsTable(filter = 'all') {
-    const tbody = document.getElementById('results-tbody');
-    let rows = validatedRows;
-    if (filter === 'failed') rows = rows.filter(r => !r.valid);
-    if (filter === 'passed') rows = rows.filter(r => r.valid);
-
-    if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="p-12 text-center text-gray-400 text-sm">No records match this filter.</td></tr>`;
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="p-10 text-center text-gray-400 text-sm">
+          ${filter==='all' ? '✅ No issues — all records pass Layout 700v2.' : 'No records match this filter.'}
+        </td></tr>`;
         return;
     }
 
-    // Cap at 500 rows for browser perf
-    const capped = rows.slice(0, 500);
-    tbody.innerHTML = capped.map(r => {
-        const id = r.mapped.identity_number || '—';
-        const name = (r.mapped.first_names || '') + ' ' + (r.mapped.surname || '');
-        const bal  = r.mapped.current_balance ? 'R' + Number(String(r.mapped.current_balance).replace(/[R,\s]/g,'')).toLocaleString('en-ZA') : '—';
-        const status = r.mapped.status_code || '—';
-
-        return `
-          <tr class="${r.valid ? 'hover:bg-green-50/20' : 'bg-red-50/20 hover:bg-red-50/40'}">
-            <td class="px-4 py-2 text-xs font-mono ${r.valid ? 'text-gray-400' : 'text-red-500 font-bold'}">${r.row}</td>
-            <td class="px-4 py-2 text-xs font-mono text-gray-700">${id}</td>
-            <td class="px-4 py-2 text-xs font-semibold text-gray-900 truncate max-w-[200px]" title="${name}">${name.trim() || '—'}</td>
-            <td class="px-4 py-2 text-xs font-bold text-gray-700">${bal}</td>
-            <td class="px-4 py-2 text-xs">${status === '—' ? '—' : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-700">${status}</span>`}</td>
-            <td class="px-4 py-2">
-              ${r.valid
-                ? `<span class="inline-flex items-center gap-1 text-xs font-bold text-green-600"><span class="material-symbols-outlined text-[14px]">check_circle</span>OK</span>`
-                : `<div class="space-y-0.5">${r.errors.slice(0,3).map(e =>
-                    `<div class="text-[10px] text-red-600"><strong>${e.field}:</strong> ${e.error}</div>`).join('')}${r.errors.length > 3 ? `<div class="text-[10px] text-gray-400">+${r.errors.length-3} more</div>` : ''}</div>`}
-            </td>
-          </tr>`;
-    }).join('');
+    tbody.innerHTML = rows.slice(0,500).map(r => `
+      <tr class="border-t border-gray-50 hover:bg-red-50/30">
+        <td class="px-4 py-3 text-xs font-mono text-gray-600">${r.account || r.id || `Row ${r.row}`}</td>
+        <td class="px-4 py-3 text-xs font-semibold text-gray-900 max-w-[180px] truncate">${r.name||'—'}</td>
+        <td class="px-4 py-3">
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
+            r.status==='T'?'bg-gray-100 text-gray-500':r.status==='V'?'bg-purple-50 text-purple-600':'bg-green-50 text-green-700'
+          }">${r.status==='T'?'CLOSED':r.status==='V'?'VOID':'ACTIVE'}</span>
+        </td>
+        <td class="px-4 py-3">
+          <div class="space-y-0.5">
+            ${r.issues.slice(0,4).map(i=>`
+              <div class="flex items-start gap-1">
+                <span class="material-symbols-outlined text-red-400 text-[12px] mt-0.5 shrink-0">error</span>
+                <span class="text-[11px] text-gray-700"><strong class="text-red-600">${i.field}:</strong> ${i.msg}</span>
+              </div>`).join('')}
+            ${r.issues.length>4?`<div class="text-[10px] text-gray-400 pl-4">+${r.issues.length-4} more</div>`:''}
+          </div>
+        </td>
+      </tr>`).join('');
 
     if (rows.length > 500) {
-        tbody.innerHTML += `<tr><td colspan="6" class="p-4 text-center text-xs text-gray-400 bg-gray-50">Showing first 500 of ${rows.length}. Download CSV for full list.</td></tr>`;
+        tbody.innerHTML += `<tr><td colspan="4" class="p-3 text-center text-xs text-gray-400 bg-gray-50">
+          Showing 500 of ${rows.length}. Download Errors CSV for full list.
+        </td></tr>`;
     }
 }
 
-function downloadResults(type) {
-    const rows = type === 'valid' ? validatedRows.filter(r => r.valid) : validatedRows.filter(r => !r.valid);
-    if (rows.length === 0) { alert('No records to export.'); return; }
-
+function downloadCSV(rows, type) {
+    if (!rows.length) { alert('No records.'); return; }
     let csv;
     if (type === 'valid') {
-        // Export mapped fields for clean import
         const fields = Object.keys(FIELD_ALIASES);
-        csv = fields.join(',') + '\n';
-        csv += rows.map(r => fields.map(f => `"${(r.mapped[f] || '').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+        csv = fields.join(',') + '\n' + rows.map(r => fields.map(f => `"${(r.mapped?.[f]||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
     } else {
-        // Export with errors per row
-        csv = 'Row,SA_ID,Name,Errors\n';
-        csv += rows.map(r => {
-            const name = `${r.mapped.first_names || ''} ${r.mapped.surname || ''}`.trim();
-            const errors = r.errors.map(e => `${e.field}: ${e.error}`).join('; ');
-            return `${r.row},"${r.mapped.identity_number || ''}","${name}","${errors.replace(/"/g,'""')}"`;
-        }).join('\n');
+        csv = 'Row,Account,Name,Errors\n' + rows.map(r =>
+            `${r.row||''},"${r.account||''}","${r.name||''}","${r.issues.map(i=>`${i.field}: ${i.msg}`).join('; ').replace(/"/g,'""')}"`
+        ).join('\n');
     }
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8;' }));
     a.download = `sacrra_${type}_${new Date().toISOString().slice(0,10)}.csv`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
 // ─────────────────────────────────────────────

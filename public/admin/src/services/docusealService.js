@@ -1,9 +1,9 @@
 import { supabase } from './supabaseClient.js';
 
-// DocuSeal Configuration (via backend proxy)
+// DocuSeal is disabled — portal-native signing is used instead
 const DOCUSEAL_PROXY_URL = '/api/docuseal';
-const DOCUSEAL_TEMPLATE_ID = import.meta.env.VITE_DOCUSEAL_TEMPLATE_ID;
-const DOCUSEAL_ENABLED = import.meta.env.VITE_DOCUSEAL_ENABLED !== 'false';
+const DOCUSEAL_TEMPLATE_ID = undefined;
+const DOCUSEAL_ENABLED = false;
 
 /**
  * Checks if DocuSeal is configured with API key and template ID.

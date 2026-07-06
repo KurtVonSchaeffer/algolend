@@ -27,17 +27,20 @@ function toggleFAQ(element) {
 }
 
 function openResource(type) {
-  const pageMap = {
-    'privacy': 'privacy-policy',
-    'terms':   'terms',
+  const resourceNames = {
+    'user-guide': 'User Guide',
+    'terms': 'Terms & Conditions',
+    'privacy': 'Privacy Policy'
   };
-  if (pageMap[type] && typeof loadPage === 'function') {
-    loadPage(pageMap[type]);
-    return false;
-  }
+  
+  const name = resourceNames[type] || type;
+  
   if (typeof showToast === 'function') {
-    showToast('Coming Soon', 'This document will be available soon.', 'info', 3000);
+    showToast('Coming Soon', `${name} document will be available soon.`, 'info', 3000);
+  } else {
+    alert(`${name} document will be available soon.`);
   }
+  
   return false;
 }
 
@@ -91,7 +94,7 @@ window.openSupportTicketModal = function() {
     modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:16px';
     modal.innerHTML = `
       <div style="background:#fff;border-radius:24px;width:100%;max-width:440px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.2)">
-        <div style="background:var(--color-primary,#E7762E);padding:20px 24px;display:flex;justify-content:space-between;align-items:center">
+        <div style="background:var(--color-primary,#7C3AED);padding:20px 24px;display:flex;justify-content:space-between;align-items:center">
           <div>
             <p style="color:rgba(255,255,255,.8);font-size:11px;font-weight:700;text-transform:uppercase;margin:0">Support</p>
             <h3 style="color:#fff;font-size:18px;font-weight:800;margin:4px 0 0">Send a Message</h3>
@@ -122,7 +125,7 @@ window.openSupportTicketModal = function() {
               style="width:100%;border:2px solid #e5e7eb;border-radius:12px;padding:10px 14px;font-size:14px;outline:none;resize:none;box-sizing:border-box"></textarea>
           </div>
           <button id="ticket-submit-btn" onclick="window.submitSupportTicket()"
-            style="width:100%;padding:14px;background:var(--color-primary,#E7762E);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer">
+            style="width:100%;padding:14px;background:var(--color-primary,#7C3AED);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:800;cursor:pointer">
             Send Message
           </button>
           <div id="ticket-result" style="display:none;margin-top:12px;text-align:center"></div>

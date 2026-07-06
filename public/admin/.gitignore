@@ -8,6 +8,7 @@
 
 # Build and Temp Directories
 /build
+/dist
 /out
 .vitepress/dist
 
@@ -27,3 +28,4 @@
 # IDE/OS generated files
 .DS_Store
 Thumbs.db
+.vercel

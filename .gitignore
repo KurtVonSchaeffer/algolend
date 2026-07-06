@@ -1,9 +1,8 @@
 # Node
 node_modules/
 
-# Built admin bundle
+# Built admin bundle — never commit, Vercel rebuilds it fresh on each deploy
 public/admin/dist/
-
 
 # Logs
 npm-debug.log*
@@ -33,5 +32,4 @@ scratch/
 *private*key*
 *pgp_key*
 .vercel
-.env*.local
-demo-video/
+.env*

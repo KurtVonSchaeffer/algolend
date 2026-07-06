@@ -1,5 +1,5 @@
 /**
- * AlgoLend — Animation Engine
+ * AlgoLendPortal — Animation Engine
  * Scroll reveals · Ripples · Tilt · Magnetic · Counter · Bottom nav bounce
  */
 

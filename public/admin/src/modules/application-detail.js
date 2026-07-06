@@ -10,8 +10,19 @@ import {
   deletePayout,
   updateApplicationNotes
 } from '../services/dataService.js';
-import { supabase } from '../services/supabaseClient.js'; 
-// DocuSeal removed — contracts are now signed in-app
+import { supabase } from '../services/supabaseClient.js';
+import { apiFetch } from '../shared/apiFetch.js';
+import { 
+  sendContract, 
+  getSubmissionStatus, 
+  getApplicationSubmissions, 
+  getEmbedUrl, 
+  resendContract, 
+  voidSubmission, 
+  isDocuSealConfigured,
+  getSubmitterIdFromSubmission,
+  getSubmitterDetails
+} from '../services/docusealService.js';
 
 let currentApplication = null;
 let actionToConfirm = null;
@@ -185,28 +196,28 @@ const pageTemplate = `
                       <img id="profile-image" src="" alt="Profile" class="w-full h-full object-cover" onerror="this.src='https://ui-avatars.com/api/?name=User&background=random'">
                    </div>
                 </div>
-                <div class="flex-grow grid grid-cols-1 gap-y-5">
-                   <div class="grid grid-cols-1 sm:grid-cols-3 items-center gap-2">
-                      <span class="text-sm font-medium text-outline">Full Name</span>
-                      <div class="sm:col-span-2">
-                         <div id="detail-fullname" class="w-full p-3 bg-surface-container border border-outline-variant/20 rounded-xl text-on-surface text-sm font-semibold"></div>
+                <div class="flex-grow min-w-0 flex flex-col gap-4">
+                   <div class="flex items-center gap-4">
+                      <span class="text-sm font-medium text-outline w-28 shrink-0">Full Name</span>
+                      <div class="flex-1 min-w-0">
+                         <div id="detail-fullname" class="w-full p-3 bg-surface-container border border-outline-variant/20 rounded-xl text-on-surface text-sm font-semibold truncate"></div>
                       </div>
                    </div>
-                   <div class="grid grid-cols-1 sm:grid-cols-3 items-center gap-2">
-                      <span class="text-sm font-medium text-outline">Email Address</span>
-                      <div class="sm:col-span-2">
-                         <div id="detail-email" class="w-full p-3 bg-surface-container border border-outline-variant/20 rounded-xl text-on-surface text-sm"></div>
+                   <div class="flex items-center gap-4">
+                      <span class="text-sm font-medium text-outline w-28 shrink-0">Email Address</span>
+                      <div class="flex-1 min-w-0">
+                         <div id="detail-email" class="w-full p-3 bg-surface-container border border-outline-variant/20 rounded-xl text-on-surface text-sm truncate"></div>
                       </div>
                    </div>
-                   <div class="grid grid-cols-1 sm:grid-cols-3 items-center gap-2">
-                      <span class="text-sm font-medium text-outline">Mobile Number</span>
-                      <div class="sm:col-span-2">
+                   <div class="flex items-center gap-4">
+                      <span class="text-sm font-medium text-outline w-28 shrink-0">Mobile Number</span>
+                      <div class="flex-1 min-w-0">
                          <div id="detail-mobile" class="w-full p-3 bg-surface-container border border-outline-variant/20 rounded-xl text-on-surface text-sm"></div>
                       </div>
                    </div>
-                   <div class="grid grid-cols-1 sm:grid-cols-3 items-center gap-2">
-                      <span class="text-sm font-medium text-outline">ID Number</span>
-                      <div class="sm:col-span-2">
+                   <div class="flex items-center gap-4">
+                      <span class="text-sm font-medium text-outline w-28 shrink-0">ID Number</span>
+                      <div class="flex-1 min-w-0">
                          <div id="detail-identity-number" class="w-full p-3 bg-surface-container border border-outline-variant/20 rounded-xl text-on-surface text-sm font-mono"></div>
                       </div>
                    </div>
@@ -385,9 +396,6 @@ const pageTemplate = `
                          <button id="credit-life-download-contract-btn" class="hidden px-3 py-1.5 text-xs font-semibold rounded-xl border border-blue-200 text-blue-700 hover:bg-blue-50 transition-all flex items-center gap-1">
                            <span class="material-symbols-outlined text-[14px]">download</span> Download file
                          </button>
-                         <button id="credit-life-schedule-btn" class="hidden px-3 py-1.5 text-xs font-semibold rounded-xl border border-purple-200 text-purple-700 hover:bg-purple-50 transition-all flex items-center gap-1">
-                           <span class="material-symbols-outlined text-[14px]">table_chart</span> Policy schedule
-                         </button>
                       </div>
                       <div id="credit-life-contract-summary" class="space-y-3 text-sm text-outline"></div>
                    </div>
@@ -454,6 +462,27 @@ const pageTemplate = `
               <h4 class="text-[10px] font-semibold text-outline uppercase tracking-widest mb-3">History</h4>
               <div id="contract-status-content" class="space-y-2">
                 </div>
+            </div>
+           </div>
+
+           <div id="mandate-status-card" class="glass-card rounded-2xl p-6">
+            <h3 class="font-headline font-bold text-on-surface mb-4 flex items-center gap-2 text-xs uppercase tracking-widest">
+              <span class="material-symbols-outlined text-[16px]" style="color:var(--color-primary)">autorenew</span> Debit Order
+            </h3>
+            <div id="mandate-card-body" class="text-sm text-outline bg-surface-container border border-dashed border-outline-variant/30 rounded-xl px-4 py-6 text-center">
+              Loading debit order status...
+            </div>
+           </div>
+
+           <!-- FICA Compliance card -->
+           <div id="fica-compliance-card" class="glass-card rounded-2xl p-6">
+            <h3 class="font-headline font-bold text-on-surface mb-4 flex items-center gap-2 text-xs uppercase tracking-widest">
+              <span class="material-symbols-outlined text-[16px]" style="color:var(--color-primary)">shield</span> FICA Compliance
+            </h3>
+            <div id="fica-card-body" class="space-y-3 text-sm text-outline">
+              <div class="flex items-center justify-center py-4">
+                <i class="fa-solid fa-circle-notch fa-spin text-gray-300"></i>
+              </div>
             </div>
            </div>
     </div>
@@ -671,7 +700,7 @@ window.viewTruidReport = () => {
     const employer = sp.employment || sp.employer || {};
 
     const row = (label, val, highlight = false) => val
-        ? `<tr><td style="color:#888;font-size:12px;padding:5px 10px;width:35%">${label}</td><td style="font-weight:${highlight?'700':'500'};font-size:13px;padding:5px 10px;color:${highlight?'#E7762E':'#1a1a1a'}">${val}</td></tr>`
+        ? `<tr><td style="color:#888;font-size:12px;padding:5px 10px;width:35%">${label}</td><td style="font-weight:${highlight?'700':'500'};font-size:13px;padding:5px 10px;color:${highlight?'#7C3AED':'#1a1a1a'}">${val}</td></tr>`
         : '';
 
     const x = window.open('', '_blank');
@@ -768,57 +797,409 @@ const showFeedback = (message, type = 'success') => {
 };
 
 // --- 3. Logic Implementation ---
-// ===== In-App Contract Card =====
+// ===== DocuSeal Functions =====
 const initDocuSealCard = async () => {
   const emptyState = document.getElementById('contract-status-empty');
   const statusSection = document.getElementById('contract-status-section');
-  if (!emptyState) return;
+  if (!currentApplication) return;
 
-  const od = currentApplication?.offer_details || {};
-  const signedAt = currentApplication?.contract_signed_at || od.contract_signed_at;
-  const signerName = od.contract_signed_name;
-  const sigImg = od.signature_data_url;
+  const signedAt   = currentApplication.contract_signed_at;
+  const sigUrl     = currentApplication.contract_signature_url;
+  const contractUrl= currentApplication.contract_pdf_url;
 
-  if (!signedAt) {
-    emptyState.classList.remove('hidden');
-    emptyState.innerHTML = `
-      <div class="flex flex-col items-center gap-2 py-2">
-        <span class="material-symbols-outlined text-3xl text-outline">draw</span>
-        <p class="text-sm text-outline">Awaiting client signature</p>
-        <p class="text-xs text-outline-variant">The client will sign in the app once an offer is accepted.</p>
-      </div>`;
+  if (signedAt) {
     if (statusSection) statusSection.classList.add('hidden');
+    if (emptyState) {
+      emptyState.classList.remove('hidden');
+      const date = new Date(signedAt).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const viewHref = contractUrl || `/api/contracts/${currentApplication.id}/preview`;
+      emptyState.innerHTML = `
+        <div class="rounded-xl border border-green-200 bg-green-50 p-4 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-green-600">verified</span>
+            <span class="text-sm font-bold text-green-900">Agreement Signed</span>
+          </div>
+          <div class="flex items-center justify-between text-xs border-t border-green-200 pt-2">
+            <span class="text-outline">Signed on</span>
+            <span class="font-semibold text-on-surface">${date}</span>
+          </div>
+          ${sigUrl ? `
+          <div class="border-t border-green-200 pt-2">
+            <p class="text-[10px] text-outline uppercase tracking-widest mb-2">Client Signature</p>
+            <img src="${sigUrl}" alt="Client signature" class="max-h-16 border border-outline-variant/20 rounded-lg bg-white p-1">
+          </div>` : ''}
+          <div class="flex gap-2 border-t border-green-200 pt-2">
+            <a href="${viewHref}" target="_blank"
+              class="flex-1 py-2 text-xs font-bold rounded-xl border border-green-300 text-green-800 hover:bg-green-100 transition-all flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">open_in_new</span> View Signed Contract
+            </a>
+            <a href="/api/contracts/${currentApplication.id}/preview" target="_blank"
+              class="flex-1 py-2 text-xs font-bold rounded-xl border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low transition-all flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">description</span> Preview Template
+            </a>
+          </div>
+        </div>`;
+    }
     return;
   }
 
-  const signedDate = new Date(signedAt).toLocaleString('en-ZA', {
-    day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-  });
-
-  emptyState.classList.remove('hidden');
-  emptyState.innerHTML = `
-    <div class="space-y-3">
-      <div class="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-xl">
-        <span class="material-symbols-outlined text-green-600 text-[18px]">verified</span>
-        <div class="flex-1">
-          <p class="text-sm font-semibold text-green-800">Contract Signed</p>
-          <p class="text-xs text-green-600">${signerName ? `By ${signerName} · ` : ''}${signedDate}</p>
-        </div>
-      </div>
-      ${sigImg ? `
-      <div>
-        <p class="text-[10px] font-semibold text-outline uppercase tracking-widest mb-2">Client Signature</p>
-        <div class="border border-outline-variant/30 rounded-xl bg-white p-3">
-          <img src="${sigImg}" alt="Client signature" class="w-full h-24 object-contain">
-        </div>
-      </div>` : ''}
-    </div>`;
+  // Not yet signed — show preview + status
   if (statusSection) statusSection.classList.add('hidden');
+  if (emptyState) {
+    emptyState.classList.remove('hidden');
+    const canSend = ['BUREAU_OK', 'APPROVED', 'OFFERED', 'CONTRACT_SIGN'].includes(currentApplication.status);
+    emptyState.innerHTML = `
+      <div class="space-y-3">
+        <p class="text-sm text-outline text-center py-2">Not yet signed by client.</p>
+        <button onclick="window.open('/api/contracts/${currentApplication.id}/preview','_blank')"
+          class="w-full py-2.5 text-xs font-bold rounded-xl border border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low transition-all flex items-center justify-center gap-1">
+          <span class="material-symbols-outlined text-[14px]">open_in_new</span> Preview Agreement
+        </button>
+        ${canSend ? `
+        <button onclick="window.notifyClientToSign(${currentApplication.id})" id="notify-sign-btn"
+          class="w-full py-2.5 text-xs font-bold rounded-xl text-white transition-all flex items-center justify-center gap-1"
+          style="background:var(--color-primary)">
+          <span class="material-symbols-outlined text-[14px]">send</span> Send Signing Link to Client
+        </button>` : ''}
+      </div>`;
+  }
 };
 
-// DocuSeal polling stubs (kept to avoid reference errors from legacy var declarations)
+window.notifyClientToSign = async (appId) => {
+  const btn = document.getElementById('notify-sign-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined text-[14px] align-middle animate-spin">progress_activity</span> Sending...'; }
+  try {
+    const res = await apiFetch('/api/contracts/notify-to-sign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicationId: currentApplication?.id })
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(payload?.error || 'Send failed');
+    const channels = payload.sent?.join(' & ') || 'SMS/email';
+    showFeedback(`Signing link sent to client via ${channels}.`, 'success');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">check_circle</span> Sent'; }
+  } catch (err) {
+    showFeedback('Could not send signing link: ' + err.message, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">send</span> Send Signing Link to Client'; }
+  }
+};
+
+const handleSendContract = async (triggerButton = null) => {
+  if (!currentApplication || !currentApplication.profiles) {
+    alert('Error: Application data not loaded');
+    return;
+  }
+  const btn = triggerButton || document.getElementById('btn-send-contract');
+  const originalHTML = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin align-middle">progress_activity</span> Sending...';
+  }
+  try {
+    const submission = await sendContract(currentApplication, currentApplication.profiles);
+    // Show success message
+    alert(`✅ Contract sent successfully to ${currentApplication.profiles.email}`);
+    await updateApplicationStatus(currentApplication.id, 'OFFERED');
+    // Reload contract status
+    await loadContractStatus();
+    await loadApplicationData();
+  } catch (error) {
+    console.error('Send contract error:', error);
+    alert(`❌ Failed to send contract: ${error.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+    }
+  }
+};
+
+const handlePreviewContract = () => {
+  if (!currentApplication?.id) return;
+  // Open full NCA pre-agreement quote in new tab (print-ready)
+  window.open(`/api/contracts/${currentApplication.id}/preview`, '_blank');
+};
+
+const shouldPollContractStatus = () => {
+  if (!currentApplication) return false;
+  const status = currentApplication.status || '';
+  return ['OFFERED'].includes(status);
+};
+
+const startContractStatusPolling = () => {
+  if (contractStatusPoller || !shouldPollContractStatus()) return;
+  contractStatusPoller = setInterval(() => {
+    loadContractStatus(true);
+  }, CONTRACT_POLL_INTERVAL);
+};
+
 const stopContractStatusPolling = () => {
-  if (contractStatusPoller) { clearInterval(contractStatusPoller); contractStatusPoller = null; }
+  if (contractStatusPoller) {
+    clearInterval(contractStatusPoller);
+    contractStatusPoller = null;
+  }
+};
+
+const handleContractCompleted = async () => {
+  if (isHandlingContractCompletion || hasAutoAdvancedToSigned || !currentApplication) return;
+  isHandlingContractCompletion = true;
+  hasAutoAdvancedToSigned = true;
+  stopContractStatusPolling();
+  try {
+    let statusChangedToOfferAccepted = false;
+    if (currentApplication.status !== 'OFFER_ACCEPTED') {
+      const { error } = await updateApplicationStatus(currentApplication.id, 'OFFER_ACCEPTED');
+      if (error) {
+        console.error('Auto advance to Contract Signed failed:', error);
+        hasAutoAdvancedToSigned = false;
+        return;
+      }
+      currentApplication.status = 'OFFER_ACCEPTED';
+      currentApplication.contract_signed_at = new Date().toISOString();
+      statusChangedToOfferAccepted = true;
+    }
+
+    if (statusChangedToOfferAccepted) {
+      try {
+        const activationResponse = await apiFetch('/api/suresystems/activate-application', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ applicationId: currentApplication.id })
+        });
+        const activationPayload = await activationResponse.json().catch(() => ({}));
+        if (!activationResponse.ok || activationPayload?.success === false) {
+          const activationError = new Error(activationPayload?.error || activationPayload?.message || 'SureSystems mandate activation failed');
+          activationError.details = activationPayload?.details || null;
+          throw activationError;
+        }
+      } catch (activationError) {
+        console.error('SureSystems activation failed during contract auto-complete:', {
+          message: activationError?.message || 'Unknown activation error',
+          details: activationError?.details || null
+        });
+        showFeedback(activationError?.message || 'SureSystems mandate activation failed', 'error');
+      }
+    }
+
+    renderSidePanel(currentApplication);
+    updateHeaderStatusBadge('OFFER_ACCEPTED');
+    showFeedback('Contract signed! Advanced to approval phase.', 'success');
+    await loadApplicationData();
+  } catch (error) {
+    console.error('handleContractCompleted error:', error);
+    hasAutoAdvancedToSigned = false;
+  } finally {
+    isHandlingContractCompletion = false;
+  }
+};
+
+const loadContractStatus = async (isPoll = false) => {
+  if (!currentApplication?.id) return;
+  try {
+    const submissions = await getApplicationSubmissions(currentApplication.id);
+    const statusSection = document.getElementById('contract-status-section');
+    const emptyState = document.getElementById('contract-status-empty');
+    if (submissions.length === 0) {
+      if (statusSection) statusSection.classList.add('hidden');
+      if (emptyState) {
+        emptyState.classList.remove('hidden');
+        emptyState.textContent = 'No contracts sent yet.';
+      }
+      stopContractStatusPolling();
+      markContractDeclinedState(false);
+      return;
+    }
+    if (emptyState) emptyState.classList.add('hidden');
+    if (statusSection) statusSection.classList.remove('hidden');
+    // Render submissions
+    renderContractSubmissions(submissions);
+    const latestStatus = submissions[0]?.status?.toLowerCase?.() || '';
+    markContractDeclinedState(latestStatus === 'declined');
+    if (latestStatus === 'completed' && !hasAutoAdvancedToSigned) {
+      await handleContractCompleted();
+    } else if (latestStatus !== 'completed' && !isPoll) {
+      startContractStatusPolling();
+    }
+  } catch (error) {
+    console.error('Load contract status error:', error);
+  }
+};
+
+const renderContractSubmissions = (submissions) => {
+  const container = document.getElementById('contract-status-content');
+  if (!container) return;
+  container.innerHTML = submissions.map(sub => {
+    const statusColor = getSubmissionStatusColor(sub.status);
+    const statusIcon = getSubmissionStatusIcon(sub.status);
+    return `
+      <div class="bg-surface-container-lowest border border-outline-variant/20 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl ${statusColor.bg} ${statusColor.text} flex items-center justify-center">
+              <span class="material-symbols-outlined text-[20px]">${statusIcon}</span>
+            </div>
+            <div>
+              <div class="font-semibold text-on-surface text-sm">Contract #${sub.submission_id.slice(-8)}</div>
+              <div class="text-xs text-outline">Sent ${formatDate(sub.created_at)}</div>
+            </div>
+          </div>
+          <span class="px-3 py-1 text-xs font-semibold rounded-full ${statusColor.badge}">${sub.status}</span>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="window.viewSubmission('${sub.slug || ''}', '${sub.submitter_id || ''}', '${sub.embed_src || ''}')" class="flex-1 px-3 py-2 bg-surface-container border border-outline-variant/30 text-on-surface-variant rounded-xl hover:bg-surface-container-low text-xs font-semibold flex items-center justify-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">visibility</span> View
+          </button>
+          ${sub.status === 'pending' ? `
+            <button onclick="window.resendSubmission('${sub.submitter_id}', '${sub.submission_id}')" class="flex-1 px-3 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-xl hover:bg-blue-100 text-xs font-semibold flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">send</span> Resend
+            </button>
+          ` : ''}
+          ${sub.status !== 'completed' && sub.status !== 'voided' ? `
+            <button onclick="window.voidSubmission('${sub.submission_id}')" class="px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded-xl hover:bg-red-100 text-xs font-semibold flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">block</span> Void
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+};
+
+const markContractDeclinedState = (isDeclined) => {
+  if (typeof isDeclined !== 'boolean' || !currentApplication) return;
+
+  if (isDeclined === isContractDeclinedUI) return;
+  isContractDeclinedUI = isDeclined;
+
+  const bannerId = 'contract-declined-banner';
+  const existingBanner = document.getElementById(bannerId);
+  const contractCard = document.getElementById('contract-status-card');
+
+  if (isDeclined) {
+    if (!originalStatusBeforeDecline && currentApplication.status !== 'DECLINED') {
+      originalStatusBeforeDecline = currentApplication.status;
+    }
+    currentApplication.status = 'DECLINED';
+    updateHeaderStatusBadge('DECLINED');
+    renderSidePanel(currentApplication);
+
+    if (!existingBanner && contractCard) {
+      const banner = document.createElement('div');
+      banner.id = bannerId;
+      banner.className = 'mt-3 p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700 font-semibold flex items-center gap-2';
+      banner.innerHTML = `
+        <span class="material-symbols-outlined text-red-500 text-[16px]">cancel</span>
+        <span>Contract was declined by the applicant.</span>
+      `;
+      const heading = contractCard.querySelector('h3');
+      if (heading && heading.parentNode) {
+        heading.parentNode.insertBefore(banner, heading.nextSibling);
+      } else {
+        contractCard.prepend(banner);
+      }
+    }
+  } else {
+    if (existingBanner) existingBanner.remove();
+    if (originalStatusBeforeDecline) {
+      currentApplication.status = originalStatusBeforeDecline;
+    }
+    originalStatusBeforeDecline = null;
+    renderSidePanel(currentApplication);
+    updateHeaderStatusBadge(currentApplication.status);
+  }
+};
+
+const getSubmissionStatusColor = (status) => {
+  const normalized = (status || '').toLowerCase();
+  const colors = {
+    pending: { bg: 'bg-yellow-100', text: 'text-yellow-600', badge: 'bg-yellow-100 text-yellow-700' },
+    completed: { bg: 'bg-green-100', text: 'text-green-600', badge: 'bg-green-100 text-green-700' },
+    expired: { bg: 'bg-red-100', text: 'text-red-600', badge: 'bg-red-100 text-red-700' },
+    voided: { bg: 'bg-gray-100', text: 'text-gray-600', badge: 'bg-gray-100 text-gray-700' },
+    declined: { bg: 'bg-red-100', text: 'text-red-600', badge: 'bg-red-100 text-red-700' }
+  };
+  return colors[normalized] || colors.pending;
+};
+
+const getSubmissionStatusIcon = (status) => {
+  const normalized = (status || '').toLowerCase();
+  const icons = {
+    pending: 'schedule',
+    completed: 'check_circle',
+    expired: 'error',
+    voided: 'block',
+    declined: 'cancel'
+  };
+  return icons[normalized] || icons.pending;
+};
+
+// Global functions for button onclick handlers
+window.viewSubmission = async (slug, submitterId, embedSrc) => {
+  const cleanStr = (v) => (v && v !== 'undefined' && v !== 'null' ? v : null);
+  // Open the tab synchronously so popup blockers don't kill it during the async fetch.
+  const newTab = window.open('', '_blank');
+  try {
+    let url = null;
+    // Prefer a live lookup via the DocuSeal API: the stored "slug" field has historically
+    // been the submission slug (not the submitter signing slug), which yields a 404.
+    if (cleanStr(submitterId)) {
+      try {
+        const details = await getSubmitterDetails(submitterId);
+        const resolvedSlug = details?.slug || details?.submitter?.slug;
+        const resolvedEmbed = details?.embed_src || details?.submitter?.embed_src;
+        url = cleanStr(resolvedEmbed) || (cleanStr(resolvedSlug) ? getEmbedUrl(resolvedSlug) : null);
+      } catch (apiErr) {
+        console.warn('Live submitter lookup failed, falling back to stored values:', apiErr);
+      }
+    }
+    // Fallbacks
+    if (!url) url = cleanStr(embedSrc);
+    if (!url && cleanStr(slug)) url = getEmbedUrl(slug);
+
+    if (!url) {
+      if (newTab) newTab.close();
+      alert('Unable to open this contract — the signing link is missing. Try resending the contract.');
+      return;
+    }
+    if (newTab) {
+      newTab.location.href = url;
+    } else {
+      window.open(url, '_blank');
+    }
+  } catch (err) {
+    console.error('viewSubmission error:', err);
+    if (newTab) newTab.close();
+    alert(`Could not open contract: ${err.message || err}`);
+  }
+};
+window.resendSubmission = async (submitterId, submissionId = null) => {
+  if (!confirm('Resend contract email to the applicant?')) return;
+  try {
+    let targetSubmitterId = submitterId;
+    if (!targetSubmitterId) {
+      if (!submissionId) {
+        throw new Error('Unable to determine DocuSeal submitter');
+      }
+      targetSubmitterId = await getSubmitterIdFromSubmission(submissionId);
+    }
+
+    await resendContract(targetSubmitterId);
+    alert('✅ Contract email resent successfully');
+    await loadContractStatus();
+  } catch (error) {
+    alert(`❌ Failed to resend: ${error.message}`);
+  }
+};
+window.voidSubmission = async (submissionId) => {
+  if (!confirm('Void this contract submission? This cannot be undone.')) return;
+  try {
+    await voidSubmission(submissionId);
+    alert('✅ Submission voided successfully');
+    await loadContractStatus();
+  } catch (error) {
+    alert(`❌ Failed to void: ${error.message}`);
+  }
 };
 
 const initTabs = () => {
@@ -854,20 +1235,46 @@ const initTabs = () => {
 window.updateStatus = async (newStatus) => {
     // ── Status transition gates ───────────────────────────────────
     if (newStatus === 'AFFORD_OK') {
-        const hasBureau = currentApplication.bureau_score_band ||
-            ['BUREAU_OK', 'BANK_LINKING'].includes(currentApplication.status);
-        if (!hasBureau) {
-            showFeedback('Cannot confirm affordability — no bureau result on record. Run the credit check first.', 'error');
-            return;
-        }
-        const { data: fp } = await supabase
-            .from('financial_profiles')
-            .select('monthly_income')
-            .eq('user_id', currentApplication.user_id)
-            .maybeSingle();
-        if (!fp?.monthly_income) {
-            showFeedback('Cannot confirm affordability — no income on record. Complete open banking first.', 'error');
-            return;
+        const isPartnerApp = currentApplication.source === 'PARTNER_API';
+        if (!isPartnerApp) {
+            const hasBureau = currentApplication.bureau_score_band ||
+                ['BUREAU_OK', 'BANK_LINKING'].includes(currentApplication.status);
+            if (!hasBureau) {
+                showFeedback('Cannot confirm affordability — no bureau result on record. Run the credit check first.', 'error');
+                return;
+            }
+            const { data: fp } = await supabase
+                .from('financial_profiles')
+                .select('monthly_income, monthly_debt_repayments')
+                .eq('user_id', currentApplication.user_id)
+                .maybeSingle();
+            if (!fp?.monthly_income) {
+                showFeedback('Cannot confirm affordability — no income on record. Complete open banking first.', 'error');
+                return;
+            }
+
+            // Persist DTI assessment for NCA s81 audit trail
+            const income     = Number(fp.monthly_income || 0);
+            const debt       = Number(fp.monthly_debt_repayments || 0);
+            const instalment = Number(currentApplication.offer_monthly_repayment || 0);
+            const totalDebt  = debt + instalment;
+            const dtiPct     = income > 0 ? (totalDebt / income) * 100 : 999;
+            const passed     = dtiPct <= 40; // NCA-aligned: total debt service ≤ 40% of gross income
+            const { data: { session } } = await supabase.auth.getSession();
+            await fetch(`/api/admin/applications/${currentApplication.id}/affordability`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${session?.access_token}`
+                },
+                body: JSON.stringify({
+                    monthly_income: income,
+                    monthly_debt:   totalDebt,
+                    dti_pct:        Math.round(dtiPct * 100) / 100,
+                    passed,
+                    under_debt_review: false,
+                })
+            });
         }
     }
 
@@ -1061,7 +1468,7 @@ window.manualStatusChange = async () => {
       if (newStatus === 'OFFER_ACCEPTED') {
         showFeedback('Status manually updated. Activating SureSystems mandate...', 'success');
         try {
-          const response = await fetch('/api/suresystems/activate-application', {
+          const response = await apiFetch('/api/suresystems/activate-application', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ applicationId: currentApplication.id })
@@ -1615,9 +2022,10 @@ const renderDocuments = (docs, truidInfo, kycInfo) => {
   if (!docList || !docCount) return;
 
   const docTypes = [
-      { key: 'idcard', label: 'ID Document' }, 
-      { key: 'till_slip', label: 'Latest Payslip' }, 
+      { key: 'idcard', label: 'ID Document' },
+      { key: 'till_slip', label: 'Latest Payslip' },
       { key: 'bank_statement', label: 'Bank Statement' },
+      { key: 'proof_of_residence', label: 'Proof of Residence', maxAgeDays: 90 },
       { key: 'credit_life_contract', label: 'Credit Life Contract' }
   ];
   
@@ -1638,10 +2046,22 @@ const renderDocuments = (docs, truidInfo, kycInfo) => {
       // NEW LOGIC: Check if this is an ID card AND if we have KYC session images
       const hasKycId = type.key === 'idcard' && (kycInfo?.id_front_image_url || kycInfo?.id_back_image_url);
       
-      const isVerified = manualDoc || hasKycId;
-      const statusColor = isVerified ? 'text-green-600 bg-green-100' : 'text-gray-400 bg-gray-100';
-      const icon = isVerified ? 'fa-check-circle' : 'fa-upload';
-      const subtext = hasKycId ? 'Verified via KYC Session' : (manualDoc ? 'File Verified' : 'Missing Document');
+      // Check max-age (e.g. proof of residence must be < 90 days old — FICA requirement)
+      let porExpired = false;
+      if (manualDoc && type.maxAgeDays && manualDoc.created_at) {
+          const ageMs  = Date.now() - new Date(manualDoc.created_at).getTime();
+          const ageDays = ageMs / (1000 * 60 * 60 * 24);
+          if (ageDays > type.maxAgeDays) porExpired = true;
+      }
+
+      const isVerified = (manualDoc || hasKycId) && !porExpired;
+      const statusColor = porExpired ? 'text-yellow-600 bg-yellow-100'
+          : isVerified ? 'text-green-600 bg-green-100' : 'text-gray-400 bg-gray-100';
+      const icon = porExpired ? 'fa-triangle-exclamation'
+          : isVerified ? 'fa-check-circle' : 'fa-upload';
+      const subtext = hasKycId ? 'Verified via KYC Session'
+          : porExpired ? `Expired — older than ${type.maxAgeDays} days (FICA). Please re-upload.`
+          : manualDoc ? 'File Verified' : 'Missing Document';
 
       const div = document.createElement('div');
       div.className = 'flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl hover:border-orange-300 transition-all group';
@@ -1949,7 +2369,6 @@ const renderCreditLifeContractPanel = (app) => {
   const gallery = document.getElementById('credit-life-signature-gallery');
   const viewBtn = document.getElementById('credit-life-view-contract-btn');
   const downloadBtn = document.getElementById('credit-life-download-contract-btn');
-  const scheduleBtn = document.getElementById('credit-life-schedule-btn');
   if (!badge || !summary || !gallery) return;
 
   const offerDetails = app?.offer_details || {};
@@ -2034,13 +2453,6 @@ const renderCreditLifeContractPanel = (app) => {
       } else {
         handleSmartDownload(contractFilePath);
       }
-    };
-  }
-
-  if (scheduleBtn) {
-    scheduleBtn.classList.toggle('hidden', !hasCreditLife);
-    scheduleBtn.onclick = () => {
-      window.open(`/api/contracts/${app.id}/credit-life-schedule`, '_blank');
     };
   }
 };
@@ -2324,8 +2736,12 @@ const renderSidePanel = (app) => {
       } 
       else if (status === 'AFFORD_OK') {
           actionsContainer.innerHTML = `
-            <div class="p-3 bg-blue-50 border border-blue-100 rounded-lg mb-3 text-xs text-blue-700">Client passed assessment. Issue an offer to allow them to sign the contract in-app.</div>
+            <div class="p-3 bg-blue-50 border border-blue-100 rounded-lg mb-3 text-xs text-blue-700">Client passed assessment. Ready for Contract.</div>
+            <button id="action-send-contract" class="w-full py-3 bg-brand-accent hover:bg-brand-accent-hover text-white text-sm font-bold rounded-xl shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-paper-plane"></i> Send Contract</button>
+            <button id="action-preview-contract" class="w-full py-3 bg-white border border-gray-200 text-gray-700 text-sm font-bold rounded-xl shadow-sm flex items-center justify-center gap-2"><i class="fa-solid fa-eye"></i> Preview Template</button>
           `;
+          document.getElementById('action-send-contract')?.addEventListener('click', (event) => handleSendContract(event.currentTarget));
+          document.getElementById('action-preview-contract')?.addEventListener('click', handlePreviewContract);
       }
       else if (status === 'OFFER_ACCEPTED') {
           actionsContainer.innerHTML = `
@@ -2426,10 +2842,9 @@ window.recalcAffordability = function() {
 window.routeToHeadOffice = async function(appId) {
     if (!confirm('Route this application to Head Office?')) return;
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch(`/api/applications/${appId}/route-to-head-office`, {
+        const res = await apiFetch(`/api/applications/${appId}/route-to-head-office`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' }
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed');
@@ -2554,7 +2969,7 @@ let auditEntries = [];
 
 async function loadAuditTrail(applicationId) {
     try {
-        const res  = await fetch(`/api/audit-log/loan_application/${applicationId}`);
+        const res  = await apiFetch(`/api/audit-log/loan_application/${applicationId}`);
         const json = await res.json();
         auditEntries = json.data || [];
         renderAuditTrail();
@@ -2636,6 +3051,313 @@ window.exportAuditTrail = function() {
 };
 // ─────────────────────────────────────────────────────────────────
 
+const MANDATE_ERROR_MAP = [
+  [/account.not.found|invalid.account/i, 'The client\'s bank account number was not found. Please ask them to check their account details and update.'],
+  [/insufficient.funds|no.funds/i, 'The account did not have enough funds when we tried. Please try again or contact the client.'],
+  [/account.closed|closed.account/i, 'This bank account is closed. Please ask the client to provide a new account.'],
+  [/wrong.branch|invalid.branch/i, 'The branch code does not match the selected bank. Please update the bank details.'],
+  [/not.authenticated|authentication.failed/i, 'The client\'s bank needs to approve this. This usually happens within 1–2 business days.'],
+  [/duplicate/i, 'A debit order for this client already exists.'],
+  [/config|credentials|503|unavailable/i, 'We could not reach the payment provider right now. Please try again in a few minutes.'],
+];
+
+function mandateFriendlyError(raw) {
+  if (!raw) return 'Something went wrong. Please try again or contact support.';
+  for (const [pattern, msg] of MANDATE_ERROR_MAP) {
+    if (pattern.test(raw)) return msg;
+  }
+  return 'Something went wrong. Please try again or contact support.';
+}
+
+const renderMandateCard = async (app) => {
+  const body = document.getElementById('mandate-card-body');
+  if (!body) return;
+
+  const isEligible = ['OFFER_ACCEPTED', 'READY_TO_DISBURSE', 'ACTIVE', 'DISBURSED'].includes(app?.status);
+
+  if (!isEligible) {
+    body.className = 'text-sm text-outline text-center py-4';
+    body.innerHTML = 'Debit order will be set up after the client signs the agreement.';
+    return;
+  }
+
+  try {
+    const { data: records, error } = await supabase
+      .from('suresystems_mandates')
+      .select('status, contract_reference, message, activated_at, updated_at')
+      .eq('application_id', app.id)
+      .order('updated_at', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    const mandate = records?.[0];
+
+    if (!mandate) {
+      body.className = '';
+      body.innerHTML = `
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <div class="flex items-center gap-3 mb-3">
+            <span class="material-symbols-outlined text-amber-500 text-[22px]">pending_actions</span>
+            <div>
+              <p class="text-sm font-bold text-amber-900">Debit order not set up yet</p>
+              <p class="text-xs text-amber-700 mt-0.5">Click the button below to set up the client's monthly debit order.</p>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="text-[10px] font-bold uppercase tracking-wider text-amber-800 block mb-1">Mandate type</label>
+            <select id="tt-type-select" class="w-full px-3 py-2 text-sm border border-amber-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+              <option value="realtime">TT1 Real-time (bank responds immediately)</option>
+              <option value="delay">TT1 Delay (bank responds next business day)</option>
+              <option value="tt3">TT3 Paper/POS (physical signed form)</option>
+            </select>
+          </div>
+          <button onclick="window.setupMandate(${app.id})" id="mandate-action-btn"
+            class="w-full py-2.5 text-sm font-bold rounded-xl text-white transition-all active:scale-95"
+            style="background:var(--color-primary)">
+            Set Up Debit Order
+          </button>
+        </div>`;
+      return;
+    }
+
+    const status = (mandate.status || 'unknown').toLowerCase();
+    const activatedAt = mandate.activated_at
+      ? new Date(mandate.activated_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })
+      : mandate.updated_at
+        ? new Date(mandate.updated_at).toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })
+        : null;
+
+    if (status === 'success') {
+      body.className = '';
+      body.innerHTML = `
+        <div class="rounded-2xl border border-green-200 bg-green-50 p-5 space-y-3">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-green-600 text-[22px]">check_circle</span>
+            <div>
+              <p class="text-sm font-bold text-green-900">Debit order is active</p>
+              <p class="text-xs text-green-700">Monthly collections are set up and ready.</p>
+            </div>
+          </div>
+          ${activatedAt ? `
+          <div class="flex items-center justify-between text-xs pt-1 border-t border-green-200">
+            <span class="text-green-800 font-medium">Activated on</span>
+            <span class="font-semibold text-green-900">${activatedAt}</span>
+          </div>` : ''}
+        </div>`;
+      return;
+    }
+
+    if (status === 'pending') {
+      body.className = '';
+      body.innerHTML = `
+        <div class="rounded-2xl border border-blue-200 bg-blue-50 p-5 space-y-3">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-blue-500 text-[22px]" style="animation:spin 2s linear infinite">progress_activity</span>
+            <div>
+              <p class="text-sm font-bold text-blue-900">Waiting for bank approval</p>
+              <p class="text-xs text-blue-700">The client's bank is reviewing the debit order. This usually takes 1–2 business days.</p>
+            </div>
+          </div>
+          ${activatedAt ? `
+          <div class="flex items-center justify-between text-xs pt-1 border-t border-blue-200">
+            <span class="text-blue-800 font-medium">Submitted on</span>
+            <span class="font-semibold text-blue-900">${activatedAt}</span>
+          </div>` : ''}
+        </div>`;
+      return;
+    }
+
+    // failed or unknown
+    const friendlyMsg = mandateFriendlyError(mandate.message);
+    body.className = '';
+    body.innerHTML = `
+      <div class="rounded-2xl border border-red-200 bg-red-50 p-5 space-y-3">
+        <div class="flex items-start gap-3">
+          <span class="material-symbols-outlined text-red-500 text-[22px] mt-0.5">error</span>
+          <div>
+            <p class="text-sm font-bold text-red-900">Debit order failed</p>
+            <p class="text-xs text-red-700 mt-1">${friendlyMsg}</p>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="text-[10px] font-bold uppercase tracking-wider text-red-800 block mb-1">Mandate type</label>
+          <select id="tt-type-select" class="w-full px-3 py-2 text-sm border border-red-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <option value="realtime">TT1 Real-time (bank responds immediately)</option>
+            <option value="delay">TT1 Delay (bank responds next business day)</option>
+          </select>
+        </div>
+        <button onclick="window.setupMandate(${app.id})" id="mandate-action-btn"
+          class="w-full py-2.5 text-sm font-bold rounded-xl bg-red-600 text-white hover:bg-red-700 transition-all active:scale-95">
+          Try Again
+        </button>
+      </div>`;
+
+  } catch (err) {
+    console.error('renderMandateCard error:', err);
+    body.className = 'text-sm text-outline text-center py-4';
+    body.innerHTML = 'Could not load debit order status.';
+  }
+};
+
+// ── FICA Compliance Card (PEP/Sanctions + CIPC) ───────────────────────────────
+
+const renderFicaCard = async (app) => {
+    const body = document.getElementById('fica-card-body');
+    if (!body) return;
+
+    // Fetch profile for CIPC fields
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_juristic_person, entity_name, cipc_reg_number, cipc_verified, cipc_verified_at')
+        .eq('id', app.user_id)
+        .maybeSingle();
+
+    const pepCleared   = app.pep_sanctions_cleared;
+    const pepChecked   = app.pep_sanctions_checked;
+    const pepDate      = app.pep_sanctions_checked_at ? new Date(app.pep_sanctions_checked_at).toLocaleDateString('en-ZA') : null;
+    const isJuristic   = profile?.is_juristic_person;
+    const cipcVerified = profile?.cipc_verified;
+
+    body.innerHTML = `
+    <!-- PEP / Sanctions -->
+    <div class="flex items-start justify-between gap-3 pb-3 border-b border-outline-variant/10">
+        <div>
+            <div class="text-xs font-semibold text-gray-700">PEP / Sanctions Screening</div>
+            <div class="text-xs text-gray-400 mt-0.5">${pepDate ? `Checked ${pepDate}` : 'Not yet checked'}</div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${
+                pepCleared ? 'bg-green-100 text-green-700'
+              : pepChecked ? 'bg-red-100 text-red-600'
+              : 'bg-gray-100 text-gray-500'}">
+                ${pepCleared ? 'Cleared' : pepChecked ? 'Not Cleared' : 'Pending'}
+            </span>
+            <button onclick="openPepModal()" class="text-xs text-blue-600 hover:underline font-medium">${pepChecked ? 'Update' : 'Screen'}</button>
+        </div>
+    </div>
+
+    <!-- CIPC (juristic) -->
+    <div class="flex items-start justify-between gap-3 pt-1">
+        <div>
+            <div class="text-xs font-semibold text-gray-700">Juristic Person / CIPC</div>
+            <div class="text-xs text-gray-400 mt-0.5">${isJuristic ? (profile?.entity_name || 'Business client') + (profile?.cipc_reg_number ? ' · ' + profile.cipc_reg_number : '') : 'Natural person'}</div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${
+                !isJuristic ? 'bg-gray-100 text-gray-400'
+              : cipcVerified ? 'bg-green-100 text-green-700'
+              : 'bg-yellow-100 text-yellow-700'}">
+                ${!isJuristic ? 'N/A' : cipcVerified ? 'Verified' : 'Unverified'}
+            </span>
+            <button onclick="openCipcModal()" class="text-xs text-blue-600 hover:underline font-medium">Edit</button>
+        </div>
+    </div>
+
+    <!-- PEP modal (inline, hidden) -->
+    <div id="pep-modal" class="hidden mt-3 pt-3 border-t border-outline-variant/10">
+        <div class="text-xs font-semibold text-gray-600 mb-2">PEP / Sanctions Screening Result</div>
+        <div class="flex gap-2 mb-2">
+            <button onclick="savePep(true)"  class="flex-1 py-2 text-xs font-bold rounded-lg bg-green-100 text-green-700 hover:bg-green-200">✓ Clear — No Match</button>
+            <button onclick="savePep(false)" class="flex-1 py-2 text-xs font-bold rounded-lg bg-red-100 text-red-600 hover:bg-red-200">✗ Match Found</button>
+        </div>
+        <input id="pep-ref"   type="text" placeholder="Screening reference (optional)" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs mb-2 outline-none focus:border-orange-400" />
+        <textarea id="pep-notes" rows="2" placeholder="Notes…" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-orange-400"></textarea>
+        <button onclick="document.getElementById('pep-modal').classList.add('hidden')" class="text-xs text-gray-400 hover:text-gray-600 mt-1">Cancel</button>
+    </div>
+
+    <!-- CIPC modal (inline, hidden) -->
+    <div id="cipc-modal" class="hidden mt-3 pt-3 border-t border-outline-variant/10">
+        <div class="text-xs font-semibold text-gray-600 mb-2">Juristic Person / CIPC Details</div>
+        <label class="flex items-center gap-2 mb-2 text-xs">
+            <input type="checkbox" id="cipc-is-juristic" ${isJuristic ? 'checked' : ''} class="w-4 h-4" style="accent-color:var(--color-secondary)" />
+            Business / Juristic Person
+        </label>
+        <input id="cipc-entity-name"   type="text" placeholder="Registered entity name" value="${profile?.entity_name || ''}" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs mb-2 outline-none focus:border-orange-400" />
+        <input id="cipc-reg-number"    type="text" placeholder="CIPC registration number" value="${profile?.cipc_reg_number || ''}" class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs mb-2 outline-none focus:border-orange-400" />
+        <label class="flex items-center gap-2 mb-2 text-xs">
+            <input type="checkbox" id="cipc-verified-check" ${cipcVerified ? 'checked' : ''} class="w-4 h-4" style="accent-color:var(--color-secondary)" />
+            CIPC registration verified
+        </label>
+        <div class="flex gap-2 mt-1">
+            <button onclick="saveCipc('${app.user_id}')" class="flex-1 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white hover:bg-blue-700">Save</button>
+            <button onclick="document.getElementById('cipc-modal').classList.add('hidden')" class="flex-1 py-2 text-xs font-bold rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200">Cancel</button>
+        </div>
+    </div>`;
+};
+
+window.openPepModal = () => document.getElementById('pep-modal')?.classList.remove('hidden');
+window.openCipcModal = () => document.getElementById('cipc-modal')?.classList.remove('hidden');
+
+window.savePep = async (cleared) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const ref   = document.getElementById('pep-ref')?.value  || null;
+    const notes = document.getElementById('pep-notes')?.value || null;
+    const res = await fetch(`/api/admin/applications/${currentApplication.id}/pep-sanctions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ cleared, provider: 'manual', ref, notes }),
+    });
+    if (res.ok) {
+        // Update local state and re-render card
+        currentApplication.pep_sanctions_cleared = cleared;
+        currentApplication.pep_sanctions_checked = true;
+        currentApplication.pep_sanctions_checked_at = new Date().toISOString();
+        await renderFicaCard(currentApplication);
+        showFeedback(cleared ? 'PEP/Sanctions cleared.' : 'PEP match recorded — do not proceed.', cleared ? 'success' : 'error');
+    } else {
+        showFeedback('Failed to save PEP result.', 'error');
+    }
+};
+
+window.saveCipc = async (userId) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`/api/admin/users/${userId}/cipc`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({
+            is_juristic_person: document.getElementById('cipc-is-juristic')?.checked,
+            entity_name:        document.getElementById('cipc-entity-name')?.value  || null,
+            cipc_reg_number:    document.getElementById('cipc-reg-number')?.value   || null,
+            cipc_verified:      document.getElementById('cipc-verified-check')?.checked,
+        }),
+    });
+    if (res.ok) {
+        await renderFicaCard(currentApplication);
+        showFeedback('CIPC details saved.', 'success');
+    } else {
+        showFeedback('Failed to save CIPC details.', 'error');
+    }
+};
+
+window.setupMandate = async (appId) => {
+  const btn = document.getElementById('mandate-action-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Setting up...';
+  }
+  try {
+    const transactionType = document.getElementById('tt-type-select')?.value || 'realtime';
+    const res = await apiFetch('/api/suresystems/activate-application', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ applicationId: appId, transactionType })
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload?.success === false) {
+      throw new Error(payload?.error || payload?.message || 'Setup failed');
+    }
+    showFeedback('Debit order has been set up successfully.', 'success');
+    await renderMandateCard(currentApplication);
+  } catch (err) {
+    showFeedback(mandateFriendlyError(err.message), 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Try Again';
+    }
+  }
+};
+
 const loadApplicationData = async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const appId = urlParams.get('id');
@@ -2669,6 +3391,8 @@ const loadApplicationData = async () => {
       // Part 1: Side Panel with Tiered Rates (Step 5)
       renderSidePanel(data); 
       renderContractRepaymentScheduler(data);
+      renderMandateCard(data); // non-blocking
+      renderFicaCard(data);   // non-blocking
 
       // 3. Initialize Signatures & Visibility
       await initDocuSealCard();
@@ -2712,7 +3436,7 @@ window.handleAdminLoanTermOverride = async (applicationId) => {
 // Global function for disbursement CSV export
 window.handleDisbursementExport = async (applicationId) => {
   try {
-    const response = await fetch('/api/disbursements/payout-csv', {
+    const response = await apiFetch('/api/disbursements/payout-csv', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

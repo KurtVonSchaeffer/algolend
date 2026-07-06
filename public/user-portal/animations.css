@@ -1,5 +1,5 @@
 /* ================================================================
-   AlgoLend — Global Animations & Effects Layer
+   AlgoLendPortal — Global Animations & Effects Layer
    Applies on top of all page CSS. No overrides to layout/color.
    ================================================================ */
 
@@ -114,7 +114,7 @@ button[class*="primary"],
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: var(--color-primary, #E7762E);
+  background: var(--color-primary, #7C3AED);
   opacity: 0;
   animation: glowPulse 2.4s ease-in-out infinite;
   pointer-events: none;
@@ -141,7 +141,7 @@ button[class*="primary"],
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  background: var(--color-primary, #E7762E);
+  background: var(--color-primary, #7C3AED);
   opacity: 0;
   animation: badgePing 2s ease-out infinite;
   pointer-events: none;
@@ -214,7 +214,7 @@ button[class*="primary"],
 
 .card-value.counting,
 .metric-value.counting {
-  color: var(--color-primary, #E7762E);
+  color: var(--color-primary, #7C3AED);
 }
 
 /* ================================================================
@@ -241,7 +241,7 @@ button[class*="primary"],
   top: 12%;
   height: 76%;
   width: 3px;
-  background: var(--color-primary, #E7762E);
+  background: var(--color-primary, #7C3AED);
   border-radius: 0 4px 4px 0;
   animation: indicatorSlide var(--dur-med) var(--ease-spring) both;
 }
@@ -307,7 +307,7 @@ button[class*="primary"],
 button:focus-visible,
 a:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2.5px solid var(--color-primary, #E7762E);
+  outline: 2.5px solid var(--color-primary, #7C3AED);
   outline-offset: 3px;
   border-radius: 6px;
 }
@@ -330,14 +330,14 @@ a:focus-visible,
 #main-content::-webkit-scrollbar-thumb,
 .content-wrapper::-webkit-scrollbar-thumb,
 .dashboard-container::-webkit-scrollbar-thumb {
-  background: rgba(231, 118, 46, 0.22);
+  background: rgba(124, 58, 237, 0.22);
   border-radius: 10px;
   transition: background 0.2s;
 }
 
 #main-content::-webkit-scrollbar-thumb:hover,
 .content-wrapper::-webkit-scrollbar-thumb:hover {
-  background: rgba(231, 118, 46, 0.50);
+  background: rgba(124, 58, 237, 0.50);
 }
 
 /* ================================================================
@@ -377,7 +377,7 @@ a:focus-visible,
     105deg,
     var(--color-text, #0F172A) 0%,
     var(--color-text, #0F172A) 40%,
-    rgba(231, 118, 46, 0.85) 55%,
+    rgba(124, 58, 237, 0.85) 55%,
     var(--color-text, #0F172A) 70%,
     var(--color-text, #0F172A) 100%
   );
@@ -423,7 +423,7 @@ a:focus-visible,
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  border: 2px solid var(--color-primary, #E7762E);
+  border: 2px solid var(--color-primary, #7C3AED);
   opacity: 0;
   animation: avatarRing 3.5s ease-in-out infinite 1.5s;
   pointer-events: none;
@@ -452,7 +452,7 @@ body::after {
 body::before {
   width: 480px;
   height: 480px;
-  background: radial-gradient(circle, #E7762E 0%, transparent 70%);
+  background: radial-gradient(circle, #7C3AED 0%, transparent 70%);
   top: -120px;
   right: -80px;
   animation: orbDrift 18s ease-in-out infinite;
@@ -461,7 +461,7 @@ body::before {
 body::after {
   width: 380px;
   height: 380px;
-  background: radial-gradient(circle, #E7762E 0%, transparent 70%);
+  background: radial-gradient(circle, #7C3AED 0%, transparent 70%);
   bottom: -100px;
   left: -60px;
   animation: orbDrift 22s ease-in-out infinite reverse;

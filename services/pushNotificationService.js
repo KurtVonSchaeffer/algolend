@@ -18,21 +18,12 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Strip Base64 padding (=) — web-push requires URL-safe Base64 without padding
-const stripPadding = (key) => key ? key.replace(/=+$/, '').trim() : key;
-
-const VAPID_PUBLIC  = stripPadding(process.env.VAPID_PUBLIC_KEY);
-const VAPID_PRIVATE = stripPadding(process.env.VAPID_PRIVATE_KEY);
+const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:info@algolend.co.za';
 
-let pushEnabled = false;
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
-  try {
-    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
-    pushEnabled = true;
-  } catch (err) {
-    console.warn('[push] VAPID key invalid — push notifications disabled:', err.message);
-  }
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 } else {
   console.warn('[push] VAPID keys not configured — push notifications disabled');
 }

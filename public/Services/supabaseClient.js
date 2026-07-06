@@ -1,4 +1,4 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabaseUrl = import.meta?.env?.VITE_SUPABASE_URL ||"https://yakhrwrfmdrnhfgzfiwm.supabase.co" ;
 //"
@@ -20,8 +20,6 @@ if (!supabaseUrl || !supabaseAnonKey || supabaseUrl.includes('YOUR_SUPABASE_URL'
     throw new Error("Supabase credentials are missing or are still placeholders!");
 }
 
-// Create and export the Supabase client with session-only storage
-// This ensures tokens are cleared when browser closes (production security)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: window.localStorage,
@@ -31,21 +29,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Global auth state listener - logs out user if session becomes invalid
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
-    if (!window.location.pathname.includes('/auth/login')) {
-      console.log('🔒 Session expired - redirecting to login');
-      localStorage.clear();
-      window.location.replace('/auth/login.html');
-    }
-  }
-});
-
-// Clear stale sessions from other Supabase projects (400 on token refresh)
-supabase.auth.getSession().then(({ error }) => {
-  if (error?.status === 400 || error?.message?.includes('Invalid Refresh Token')) {
-    localStorage.clear();
+  if (event === 'SIGNED_OUT') {
     if (!window.location.pathname.includes('/auth/login')) {
       window.location.replace('/auth/login.html');
     }

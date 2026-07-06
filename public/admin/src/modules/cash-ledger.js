@@ -31,18 +31,19 @@ async function loadBranches() {
 }
 
 async function loadEntries() {
-    // Use server endpoint to bypass RLS
-    try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        const params = new URLSearchParams({ from: dateFrom, to: dateTo });
-        if (activeBranch !== 'all') params.set('branch', activeBranch);
-        const res = await fetch(`/api/admin/ledger?${params}`, { headers: { Authorization: `Bearer ${token}` } });
-        entries = res.ok ? (await res.json()) : [];
-    } catch (e) {
-        console.error('[cash-ledger]', e);
-        entries = [];
-    }
+    let query = supabase
+        .from('cash_journal')
+        .select('*')
+        .gte('entry_date', dateFrom)
+        .lte('entry_date', dateTo)
+        .order('entry_date', { ascending: false })
+        .order('created_at',  { ascending: false });
+
+    if (activeBranch !== 'all') query = query.eq('branch_id', activeBranch);
+
+    const { data, error } = await query;
+    if (error) { console.error('[cash-ledger]', error); return; }
+    entries = data || [];
     renderTable();
     renderSummary();
 }
@@ -102,13 +103,14 @@ function renderPage() {
               ${p}
             </button>`).join('')}
           </div>
-          <button onclick="window.clSyncFromData()"
-            class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors shadow-sm">
-            <i class="fas fa-database text-xs"></i> Sync from Data
+          <button id="btn-sync-ledger" onclick="window.clSyncLedger()"
+            class="flex items-center gap-2 border border-teal-200 bg-teal-50 hover:bg-teal-100 text-teal-700 text-sm font-bold px-4 py-2.5 rounded-xl transition-colors"
+            title="Auto-populate from loan disbursements and confirmed repayments">
+            <i class="fas fa-sync-alt text-xs"></i> Sync from Data
           </button>
           <button onclick="window.clOpenJournal()"
             class="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors shadow-sm">
-            <i class="fas fa-plus text-xs"></i> Add Journal Entry
+            <i class="fas fa-plus text-xs"></i> Add Entry
           </button>
           <button onclick="window.clExport()"
             class="flex items-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
@@ -234,27 +236,26 @@ function renderPage() {
     window.clCloseJournal = () => document.getElementById('cl-modal').classList.add('hidden');
     window.clSaveEntry    = saveEntry;
     window.clExport       = exportLedger;
-    window.clSyncFromData = syncFromData;
+    window.clSyncLedger   = syncLedger;
 }
 
-async function syncFromData() {
-    if (!confirm('Backfill the cash ledger from historical disbursements and confirmed payments?\n\nThis will not duplicate existing entries.')) return;
-    const btn = document.querySelector('[onclick="window.clSyncFromData()"]');
+async function syncLedger() {
+    const btn = document.getElementById('btn-sync-ledger');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> Syncing…'; }
     try {
-        const { data: { session } } = await (await import('../services/supabaseClient.js')).supabase.auth.getSession();
-        const res = await fetch('/api/admin/ledger/sync', {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res  = await fetch('/api/admin/ledger/sync', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` }
+            headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' }
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Sync failed');
-        alert(`Sync complete. ${json.inserted} entries added.`);
+        alert(json.message || 'Sync complete.');
         await loadEntries();
     } catch (err) {
-        alert('Sync error: ' + err.message);
+        alert('Sync failed: ' + err.message);
     } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-database text-xs"></i> Sync from Data'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt text-xs"></i> Sync from Data'; }
     }
 }
 
@@ -275,7 +276,7 @@ function renderSummary() {
         { label: `Cash In (${rangeLabel})`,  value: formatCurrency(cashIn),     color: '#10b981', bg: '#d1fae5', icon: 'arrow_downward'  },
         { label: `Cash Out (${rangeLabel})`, value: formatCurrency(cashOut),    color: '#ef4444', bg: '#fee2e2', icon: 'arrow_upward'    },
         { label: 'Net Position',             value: formatCurrency(net),        color: net >= 0 ? '#10b981' : '#ef4444', bg: net >= 0 ? '#d1fae5' : '#fee2e2', icon: 'balance' },
-        { label: 'Loans Disbursed',          value: formatCurrency(disbursed),  color: '#E7762E', bg: '#fff3ea', icon: 'payments'        },
+        { label: 'Loans Disbursed',          value: formatCurrency(disbursed),  color: '#7C3AED', bg: '#fff3ea', icon: 'payments'        },
         { label: 'Repayments Collected',     value: formatCurrency(repaid),     color: '#6366f1', bg: '#eef2ff', icon: 'savings'         },
         { label: 'Entries',                  value: entries.length,             color: '#6b7280', bg: '#f3f4f6', icon: 'receipt_long'    }
     ].map(c => `
@@ -298,7 +299,7 @@ function renderTable() {
     const filtered = entries;
 
     if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="9" class="p-10 text-center text-sm text-gray-400">No entries for this date. <button onclick="window.clOpenJournal()" class="text-orange-500 font-semibold">Add the first entry.</button></td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="p-10 text-center text-sm text-gray-400">No entries for this period. <button onclick="window.clSyncLedger()" class="text-teal-600 font-semibold hover:underline">Sync from disbursements/repayments</button> or <button onclick="window.clOpenJournal()" class="text-orange-500 font-semibold hover:underline">add manually.</button></td></tr>`;
         return;
     }
 

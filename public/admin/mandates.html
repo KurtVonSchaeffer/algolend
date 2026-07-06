@@ -3,171 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SureSystems Mandates | Your Company</title>
+    <title>Debit Mandates | AlgoLend Financial</title>
     <link rel="stylesheet" href="../shared/theme.css" />
     <link rel="stylesheet" href="./src/styles.css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
-    <style>
-      body { font-family: 'Inter', sans-serif; }
-      .mandates-loader-bg {
-        background:
-          radial-gradient(circle at top left, rgba(251, 146, 60, 0.16), transparent 28%),
-          radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.12), transparent 24%),
-          linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-      }
-      .mandates-glass {
-        background: rgba(255, 255, 255, 0.84);
-        backdrop-filter: blur(12px);
-      }
-      .mandates-pulse {
-        animation: mandatesPulse 1.8s ease-in-out infinite;
-      }
-      @keyframes mandatesPulse {
-        0%, 100% { opacity: 0.55; transform: scale(1); }
-        50% { opacity: 1; transform: scale(1.02); }
-      }
-    </style>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
 </head>
-<body class="bg-gray-100 antialiased">
-    
-    <div id="app-shell" class="min-h-screen mandates-loader-bg">
-      <div class="min-h-screen flex items-center justify-center px-4 py-10">
-        <div class="w-full max-w-6xl">
-          <div class="grid grid-cols-1 xl:grid-cols-[1.15fr,0.85fr] gap-6 items-stretch">
-            <div class="mandates-glass rounded-[32px] border border-white/70 shadow-2xl shadow-slate-200/70 p-8 md:p-10">
-              <div class="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-orange-700 mb-5">
-                <span class="w-2 h-2 rounded-full bg-orange-500 mandates-pulse"></span>
-                Admin Mandates Portal
-              </div>
-              <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
-                Loading the
-                <span class="block text-orange-600">SureSystems Control Room</span>
-              </h1>
-              <p class="mt-5 max-w-2xl text-sm md:text-base text-slate-600 leading-7">
-                Preparing DebiCheck operations, live provider diagnostics, payload previews, and audit tooling for mandate management.
-              </p>
-              <div class="mt-8 flex flex-wrap gap-3">
-                <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                  <div class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Module</div>
-                  <div class="mt-1 text-sm font-bold text-slate-800">Mandates Console</div>
-                </div>
-                <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                  <div class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Mode</div>
-                  <div class="mt-1 text-sm font-bold text-slate-800">Admin Operations</div>
-                </div>
-                <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                  <div class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Status</div>
-                  <div class="mt-1 text-sm font-bold text-slate-800">Bootstrapping UI</div>
-                </div>
+<body class="bg-gray-50 antialiased">
+
+    <!-- Loading splash -->
+    <div id="app-shell" class="min-h-screen flex items-center justify-center">
+      <div class="text-center">
+        <i class="fa-solid fa-circle-notch fa-spin text-3xl text-orange-500 mb-4"></i>
+        <p class="text-gray-500 font-semibold">Loading mandates...</p>
+      </div>
+    </div>
+
+    <!-- Mandate detail modal -->
+    <div id="payload-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col transform transition-all duration-200 scale-95">
+
+        <!-- Fixed header -->
+        <div class="flex items-center justify-between p-6 border-b border-gray-100 flex-shrink-0">
+          <h2 class="text-xl font-bold text-gray-900">Mandate Details</h2>
+          <button id="close-modal-btn" class="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+            <i class="fa-solid fa-times text-gray-500"></i>
+          </button>
+        </div>
+
+        <!-- Scrollable body -->
+        <div class="overflow-y-auto flex-1">
+          <div class="p-6 space-y-4">
+            <!-- Status banner -->
+            <div id="modal-status-banner" class="p-4 rounded-2xl flex items-start gap-3 border">
+              <i id="modal-status-icon" class="fa-solid fa-info-circle text-xl mt-0.5"></i>
+              <div>
+                <div id="modal-status-text" class="font-bold text-base"></div>
+                <div id="modal-message-text" class="text-sm mt-0.5 opacity-80"></div>
               </div>
             </div>
 
-            <div class="mandates-glass rounded-[32px] border border-white/70 shadow-2xl shadow-slate-200/70 p-6 md:p-8">
-              <div class="flex items-center justify-between gap-3 mb-6">
+            <!-- Details grid -->
+            <div id="modal-details-grid" class="grid grid-cols-2 gap-3 text-sm"></div>
+          </div>
+
+          <!-- Primary actions -->
+          <div class="px-6 pb-4 flex flex-wrap gap-2">
+            <button id="btn-check-fate" class="flex-1 px-4 py-2.5 bg-indigo-50 text-indigo-700 font-bold rounded-xl border border-indigo-200 hover:bg-indigo-100 transition-colors hidden">
+              <i class="fa-solid fa-circle-check mr-2"></i>Check outcome
+            </button>
+            <button id="btn-run-enquiry" class="flex-1 px-4 py-2.5 bg-sky-50 text-sky-700 font-bold rounded-xl border border-sky-200 hover:bg-sky-100 transition-colors hidden">
+              <i class="fa-solid fa-magnifying-glass mr-2"></i>Check status
+            </button>
+            <button id="btn-retry-mandate" class="flex-1 px-4 py-2.5 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 transition-colors hidden">
+              <i class="fa-solid fa-rotate-right mr-2"></i>Try again
+            </button>
+            <button id="btn-run-cancel" class="flex-1 px-4 py-2.5 bg-red-50 text-red-700 font-bold rounded-xl border border-red-200 hover:bg-red-100 transition-colors hidden">
+              <i class="fa-solid fa-ban mr-2"></i>Cancel debit
+            </button>
+            <a id="btn-open-application" href="#" class="flex-1 px-4 py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors text-center pointer-events-none opacity-40">
+              <i class="fa-solid fa-arrow-up-right-from-square mr-2"></i>Open application
+            </a>
+          </div>
+
+          <!-- Payment schedule section (shown when mandate has a contract reference) -->
+          <div id="modal-installments-section" class="hidden border-t border-gray-100 px-6 py-5">
+            <h3 class="text-sm font-bold text-gray-700 mb-3">
+              <i class="fa-solid fa-calendar-days text-orange-500 mr-1.5"></i>Payment Schedule
+            </h3>
+            <div class="flex flex-wrap gap-2 mb-4">
+              <button id="btn-view-schedule" class="px-3 py-2 bg-orange-50 text-orange-700 text-xs font-bold rounded-xl border border-orange-200 hover:bg-orange-100 transition-colors">
+                <i class="fa-solid fa-list-ul mr-1.5"></i>View schedule
+              </button>
+              <button id="btn-show-change-date" class="px-3 py-2 bg-gray-50 text-gray-700 text-xs font-bold rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors">
+                <i class="fa-solid fa-calendar-pen mr-1.5"></i>Change payment date
+              </button>
+              <button id="btn-show-cancel-payment" class="px-3 py-2 bg-red-50 text-red-700 text-xs font-bold rounded-xl border border-red-200 hover:bg-red-100 transition-colors">
+                <i class="fa-solid fa-xmark mr-1.5"></i>Cancel a payment
+              </button>
+              <button id="btn-view-datelist" class="px-3 py-2 bg-gray-50 text-gray-700 text-xs font-bold rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors">
+                <i class="fa-solid fa-calendar-days mr-1.5"></i>Date list
+              </button>
+            </div>
+
+            <!-- Change date form -->
+            <div id="change-date-form" class="hidden bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-3 space-y-3">
+              <p class="text-xs font-bold text-blue-800">Change a scheduled payment date</p>
+              <div class="grid grid-cols-2 gap-3">
                 <div>
-                  <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Portal Preview</p>
-                  <h2 class="mt-2 text-xl font-extrabold text-slate-900">Mandate Workspace</h2>
+                  <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">Payment #</label>
+                  <input type="number" id="update-installment-no" min="1" placeholder="e.g. 2"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-orange-500 outline-none">
                 </div>
-                <div class="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg">
-                  <i class="fa-solid fa-circle-notch fa-spin text-lg"></i>
+                <div>
+                  <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">New date</label>
+                  <input type="date" id="update-installment-date"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-orange-500 outline-none">
                 </div>
               </div>
+              <button id="btn-confirm-date-change" class="w-full px-4 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-colors">
+                <i class="fa-solid fa-check mr-2"></i>Update date
+              </button>
+            </div>
 
-              <div class="space-y-4">
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Health</span>
-                    <span class="rounded-full bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 text-[10px] font-bold">Checking</span>
-                  </div>
-                  <div class="h-3 rounded-full bg-slate-100 overflow-hidden">
-                    <div class="h-full w-2/3 bg-gradient-to-r from-orange-400 to-orange-600 mandates-pulse rounded-full"></div>
-                  </div>
-                </div>
+            <!-- Cancel payment form -->
+            <div id="cancel-payment-form" class="hidden bg-red-50 border border-red-200 rounded-2xl p-4 mb-3 space-y-3">
+              <p class="text-xs font-bold text-red-800">Cancel one scheduled payment (not the whole mandate)</p>
+              <div>
+                <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-1">Payment # to cancel</label>
+                <input type="number" id="cancel-installment-no" min="1" placeholder="e.g. 3"
+                  class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-orange-500 outline-none">
+              </div>
+              <button id="btn-confirm-cancel-payment" class="w-full px-4 py-2.5 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-colors">
+                <i class="fa-solid fa-ban mr-2"></i>Cancel this payment
+              </button>
+            </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Payload Lab</div>
-                    <div class="mt-3 h-20 rounded-xl bg-slate-100"></div>
-                  </div>
-                  <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Live Logs</div>
-                    <div class="mt-3 h-20 rounded-xl bg-slate-100"></div>
-                  </div>
-                </div>
+            <!-- Schedule results -->
+            <div id="schedule-results" class="hidden"></div>
+          </div>
 
-                <div class="rounded-2xl border border-slate-200 bg-slate-950 p-4 shadow-sm">
-                  <div class="flex items-center justify-between mb-3">
-                    <span class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Boot Log</span>
-                    <span class="text-[10px] font-bold text-emerald-300">waiting</span>
-                  </div>
-                  <div class="space-y-2 text-xs font-mono text-emerald-300/90">
-                    <div>[init] preparing layout shell...</div>
-                    <div>[init] mounting mandates module...</div>
-                    <div>[init] awaiting provider diagnostics...</div>
-                  </div>
-                </div>
+          <!-- TT3 Paper Mandate signature section -->
+          <div id="modal-tt3-section" class="hidden border-t border-gray-100 px-6 py-5">
+            <h3 class="text-sm font-bold text-gray-700 mb-1">
+              <i class="fa-solid fa-pen-nib text-purple-500 mr-1.5"></i>TT3 Paper Mandate Signature
+            </h3>
+            <p class="text-xs text-gray-500 mb-4">Upload or draw the client's signed mandate form to authorise this paper debit order.</p>
+
+            <!-- Canvas signature pad -->
+            <div class="mb-3">
+              <label class="text-[10px] font-bold uppercase tracking-wider text-gray-500 block mb-2">Draw signature</label>
+              <canvas id="tt3-signature-canvas" width="440" height="160"
+                class="w-full border-2 border-dashed border-gray-300 rounded-xl bg-white cursor-crosshair touch-none block">
+              </canvas>
+              <div class="flex items-center gap-2 mt-2">
+                <button id="btn-clear-tt3-sig" class="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg font-semibold hover:bg-gray-200 transition-colors">
+                  <i class="fa-solid fa-eraser mr-1"></i>Clear
+                </button>
+                <span class="text-xs text-gray-400">or</span>
+                <label class="text-xs px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg font-semibold hover:bg-gray-200 transition-colors cursor-pointer">
+                  <i class="fa-solid fa-upload mr-1"></i>Upload image / PDF
+                  <input type="file" id="tt3-signature-file" accept="image/*,application/pdf" class="hidden">
+                </label>
+                <span id="tt3-file-name" class="text-xs text-gray-400 truncate max-w-[120px]"></span>
               </div>
             </div>
+
+            <button id="btn-submit-tt3-signature" class="w-full px-4 py-2.5 bg-purple-600 text-white text-sm font-bold rounded-xl hover:bg-purple-700 transition-colors">
+              <i class="fa-solid fa-paper-plane mr-2"></i>Submit TT3 signature
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Payload Modal -->
-    <div id="payload-modal" class="fixed inset-0 bg-black bg-opacity-60 hidden items-center justify-center z-50 p-4 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl p-8 m-4 max-h-[90vh] flex flex-col transform transition-transform duration-300 scale-95">
-            <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h2 class="text-2xl font-bold text-gray-800">Mandate Details</h2>
-                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">
-                    <i class="fa-solid fa-times fa-xl"></i>
-                </button>
-            </div>
-            
-            <div class="flex-1 overflow-y-auto pr-2 space-y-6">
-                <!-- Status Banner -->
-                <div id="modal-status-banner" class="p-4 rounded-xl font-semibold flex items-center gap-3">
-                    <i id="modal-status-icon" class="fa-solid fa-info-circle text-xl"></i>
-                    <div>
-                        <div id="modal-status-text" class="text-lg">Status: Unknown</div>
-                        <div id="modal-message-text" class="text-sm font-normal opacity-90 mt-1"></div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Request Payload -->
-                    <div>
-                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Request Payload</h3>
-                        <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto h-64">
-                            <pre id="modal-request-payload" class="text-xs text-green-400 font-mono"></pre>
-                        </div>
-                    </div>
-                    
-                    <!-- Response/Error Payload -->
-                    <div>
-                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">API Response</h3>
-                        <div class="bg-gray-900 rounded-xl p-4 overflow-x-auto h-64">
-                            <pre id="modal-response-payload" class="text-xs text-blue-400 font-mono"></pre>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-6 pt-4 border-t border-gray-100 flex justify-end gap-3">
-                <button id="btn-check-fate" class="px-5 py-2 bg-blue-50 text-blue-700 font-bold rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors hidden">
-                    <i class="fa-solid fa-rotate mr-2"></i> Check Final Fate
-                </button>
-                <button id="btn-retry-mandate" class="px-5 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-colors hidden">
-                    <i class="fa-solid fa-rotate-right mr-2"></i> Retry Mandate
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main JS file for this page -->
     <script type="module" src="./src/modules/mandates.js"></script>
 </body>
 </html>

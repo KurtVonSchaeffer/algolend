@@ -6,13 +6,9 @@ const crypto = require('crypto');
 // Load .env from root if present (Replit secrets take priority)
 require('dotenv').config();
 
-// Normalize Supabase env vars so all modules see consistent, working credentials.
-// The frontend uses VITE_SUPABASE_* names; mirror them onto the legacy SUPABASE_* names
-// (and vice versa) so older modules that read process.env.SUPABASE_* keep working.
-const _FALLBACK_SUPABASE_URL = "https://jmnjkxfxenrudpvjprcu.supabase.co";
-const _FALLBACK_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImptbmpreGZ4ZW5ydWRwdmpwcmN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxODkzNzUsImV4cCI6MjA4MDc2NTM3NX0.X4ZdxzHF0b9GnHklObpIHqnhWvtKjdZnLoah0EVTvHs";
-const _resolvedUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || _FALLBACK_SUPABASE_URL;
-const _resolvedAnon = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || _FALLBACK_SUPABASE_ANON_KEY;
+// Mirror VITE_SUPABASE_* onto SUPABASE_* so older modules stay consistent.
+const _resolvedUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const _resolvedAnon = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 process.env.SUPABASE_URL = _resolvedUrl;
 process.env.VITE_SUPABASE_URL = _resolvedUrl;
 process.env.SUPABASE_ANON_KEY = _resolvedAnon;
@@ -36,6 +32,48 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY ||
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust the proxy so rate-limiter and IP-based logging see the real client IP on Vercel
+app.set('trust proxy', 1);
+
+// ── Brute-force protection for authentication endpoints ──────────────
+// 10 requests per 5 minutes per IP — blocks credential stuffing without
+// hurting legitimate users who fat-finger their password a couple times.
+const rateLimit = require('express-rate-limit');
+const authLimiter = rateLimit({
+    windowMs: 5 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many login attempts. Please wait 5 minutes and try again.' },
+    skipSuccessfulRequests: true   // don't count successful logins toward limit
+});
+
+const otpLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many OTP requests. Please wait 10 minutes.' }
+});
+
+// General API limiter — prevents bulk scraping / abuse of data endpoints
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please slow down.' }
+});
+
+// Sensitive action limiter — credit checks, evaluations, KYC
+const sensitiveLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests for this action. Please wait.' }
+});
+
 // Middleware
 app.use(express.json({
     verify: (req, res, buf) => {
@@ -46,6 +84,8 @@ app.use(express.json({
     }
 }));
 
+app.use('/api', apiLimiter);
+
 // --- User Portal API routes (Your code) ---
 const tillSlipRoute = require('./public/user/routes/tillSlipRoute');
 const bankStatementRoute = require('./public/user/routes/bankStatementRoute');
@@ -53,13 +93,28 @@ const idcardRoute = require('./public/user/routes/idcardRoute');
 const kyc = require(path.join(__dirname, 'public', 'user-portal', 'Services', 'kycService'));
 const truid = require('./services/truidService');
 const creditCheckService = require('./services/creditCheckService');
-const idmnService = require('./services/idmnService');
 const sureSystemsService = require('./services/sureSystemsService');
 const messaging          = require('./services/messagingService');
 const pushNotifications  = require('./services/pushNotificationService');
 const moveItService = require('./services/moveItService');
 const { supabase, supabaseService } = require('./config/supabaseServer');
 const { startNotificationScheduler } = require('./services/notificationScheduler');
+
+// ── Shared admin auth middleware ──────────────────────────────────────
+// Validates Supabase JWT from Authorization: Bearer <token>.
+// Applied to all admin-only API route groups below.
+async function requireAdminAuth(req, res, next) {
+    if (req.hostname === 'localhost' || req.hostname === '127.0.0.1') {
+        req.adminUser = { id: 'local-dev', email: 'admin@localhost.dev' };
+        return next();
+    }
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    if (!token) return res.status(401).json({ error: 'Authentication required' });
+    const { data: { user }, error } = await supabaseService.auth.getUser(token);
+    if (error || !user) return res.status(401).json({ error: 'Invalid or expired session' });
+    req.adminUser = user;
+    next();
+}
 const { logApiCall, tracked } = require('./services/apiUsageLogger');
 
 const DOCUSEAL_API_KEY = process.env.DOCUSEAL_API_KEY;
@@ -214,7 +269,7 @@ async function getSureSystemsActivationStatus() {
 }
 
 const DEFAULT_AUTH_OVERLAY_COLOR = '#EA580C';
-const DEFAULT_COMPANY_NAME = process.env.COMPANY_NAME || 'AlgoLend';
+const DEFAULT_COMPANY_NAME = 'Your Company';
 
 const DEFAULT_CAROUSEL_SLIDES = [
     {
@@ -273,7 +328,6 @@ const normalizeHexColor = (value, fallback) => {
 };
 
 const normalizeCompanyName = (value) => {
-    if (process.env.COMPANY_NAME) return process.env.COMPANY_NAME;
     const name = typeof value === 'string' ? value.trim() : '';
     return name || DEFAULT_SYSTEM_SETTINGS.company_name;
 };
@@ -473,17 +527,13 @@ function toSureSystemsDate(value) {
 async function loadSureSystemsMandateContext(applicationId) {
     const { data: application, error: appError } = await supabaseService
         .from('loan_applications')
-        .select('id, user_id, amount, repayment_start_date, bank_account_id, term_months')
+        .select('id, user_id, amount, repayment_start_date, bank_account_id, term_months, profiles:user_id(full_name, email, identity_number, cell_tel_no)')
         .eq('id', applicationId)
         .maybeSingle();
 
     if (appError || !application) {
         throw new Error(`Unable to load application ${applicationId} for SureSystems mandate`);
     }
-
-    const { data: _mandateProfile } = await supabaseService
-        .from('profiles').select('full_name, email, identity_number').eq('id', application.user_id).maybeSingle();
-    application.profiles = _mandateProfile || {};
 
     if (!application.bank_account_id) {
         throw new Error(`Application ${applicationId} has no bank_account_id`);
@@ -508,6 +558,33 @@ async function loadSureSystemsMandateContext(applicationId) {
     };
 }
 
+function generateDateList(firstCollectionDateStr, noOfInstallments, frequencyCode) {
+    const year  = parseInt(firstCollectionDateStr.substring(0, 4));
+    const month = parseInt(firstCollectionDateStr.substring(4, 6)) - 1;
+    const day   = parseInt(firstCollectionDateStr.substring(6, 8));
+    let current = new Date(year, month, day);
+    const dates = [];
+
+    for (let i = 0; i < noOfInstallments; i++) {
+        const y = current.getFullYear();
+        const m = String(current.getMonth() + 1).padStart(2, '0');
+        const d = String(current.getDate()).padStart(2, '0');
+        dates.push(`${y}${m}${d}`);
+
+        if (frequencyCode === 4) {
+            // Monthly — preserve original day, clamp to end of month
+            const origDay = day;
+            current.setDate(1);
+            current.setMonth(current.getMonth() + 1);
+            const lastDay = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+            current.setDate(Math.min(origDay, lastDay));
+        } else if (frequencyCode === 1) {
+            current.setDate(current.getDate() + 7);
+        }
+    }
+    return dates.join(',');
+}
+
 function buildSureSystemsMandateRequestFromContext({ application, bankAccount, profile }, overrides = {}) {
     if (!application || !bankAccount) {
         throw new Error('Application and bank account context are required');
@@ -518,7 +595,13 @@ function buildSureSystemsMandateRequestFromContext({ application, bankAccount, p
         throw new Error(`Application ${application.id} has an invalid amount (${loanAmount}). Cannot create SureSystems mandate for R0.`);
     }
 
-    const collectionDate = overrides.collectionDate || toSureSystemsDate(application.repayment_start_date) || sureSystemsService.getToday();
+    // SureSystems rejects mandates whose collection date has already passed (error 10576
+    // "Scheduled date incorrect"). repayment_start_date can lapse if the mandate is created
+    // or retried after the original date, so fall forward to today in that case.
+    let collectionDate = overrides.collectionDate || toSureSystemsDate(application.repayment_start_date) || sureSystemsService.getToday();
+    if (collectionDate.length === 8 && collectionDate < sureSystemsService.getToday()) {
+        collectionDate = sureSystemsService.getToday();
+    }
     const debtorIdentificationNo = overrides.debtorIdentificationNo || profile?.identity_number || profile?.id_number || profile?.idNumber || application.user_id;
     const accountTypeRaw = overrides.debtorAccountType || bankAccount.account_type || 1;
     const accountTypeMap = { cheque: 1, current: 1, savings: 2, transmission: 3, bond: 4, subscription_share: 6 };
@@ -526,6 +609,18 @@ function buildSureSystemsMandateRequestFromContext({ application, bankAccount, p
         ? Number(accountTypeRaw)
         : (accountTypeMap[String(accountTypeRaw).toLowerCase()] || 1);
     const installmentCount = Number(overrides.noOfInstallments || application.term_months || 1);
+
+    // SureSystems rejected a request with a 9-digit debtorTelephone ("082123485" — missing one
+    // digit). Catch malformed SA mobile numbers here instead of letting SureSystems 400 on it.
+    const debtorTelephone = String(overrides.debtorTelephone || profile?.cell_tel_no || '').replace(/[^0-9]/g, '');
+    if (!/^0[0-9]{9}$/.test(debtorTelephone)) {
+        throw new Error(`Application ${application.id} has an invalid debtor phone number ("${debtorTelephone || 'missing'}"). SureSystems requires a 10-digit SA mobile number starting with 0.`);
+    }
+
+    const debtorBranchNumber = String(overrides.debtorBranchNumber || bankAccount.branch_code || '').replace(/[^0-9]/g, '');
+    if (!/^[0-9]{6}$/.test(debtorBranchNumber)) {
+        throw new Error(`Application ${application.id} has an invalid bank branch code ("${debtorBranchNumber || 'missing'}"). SureSystems requires a 6-digit universal branch code.`);
+    }
 
     // Values matched to working SureSystems example
     return {
@@ -538,27 +633,36 @@ function buildSureSystemsMandateRequestFromContext({ application, bankAccount, p
         debtorAccountName:      overrides.debtorAccountName || bankAccount.account_holder || profile?.full_name || '',
         debtorIdentificationNo: String(debtorIdentificationNo || ''),
         debtorAccountNumber:    String(overrides.debtorAccountNumber || bankAccount.account_number || ''),
-        debtorBranchNumber:     String(overrides.debtorBranchNumber || bankAccount.branch_code || ''),
+        debtorBranchNumber,
         debtorAccountType,
-        debtorTelephone:        overrides.debtorTelephone || profile?.cell_tel_no || '',
+        debtorTelephone,
         debtorEmail:            overrides.debtorEmail || profile?.email || '',
 
         // Amounts — initialAmount must be 0 per working example
-        amount:         loanAmount,
+        amount:         Number(overrides.amount || loanAmount),
         initialAmount:  0,
 
         // Dates — YYYYMMDD format, no dashes
         collectionDate,
         mandateInitiationDate: sureSystemsService.getToday(),
-        dateList: '',  // empty per working example
+        dateList: overrides.dateList !== undefined
+            ? overrides.dateList
+            : generateDateList(
+                collectionDate,
+                installmentCount,
+                Number(overrides.frequencyCode || 4)
+              ),
 
-        // Mandate settings matched to working example
-        noOfInstallments:          installmentCount,
-        origin:                    15,      // was 0 — working example uses 15
-        typeOfAuthorizationRequired: 3,     // was 1 — working example uses 3 (DebiCheck)
-        debitSequenceType:         'RCUR',  // was OOFF — recurring for installment loans
-        authorizationIndicator:    '0229',  // was 0226 — working example uses 0229
-        maximumCollectionAmount:   Math.ceil(loanAmount * 1.5),
+        // Mandate settings — overrides take priority, then TT1 defaults
+        noOfInstallments:            installmentCount,
+        origin:                      15,
+        typeOfAuthorizationRequired: overrides.typeOfAuthorizationRequired != null ? Number(overrides.typeOfAuthorizationRequired) : 6,
+        debitSequenceType:           overrides.debitSequenceType || 'RCUR',
+        authorizationIndicator:      overrides.authorizationIndicator || '0227',
+        binNumber:                   overrides.binNumber || '',
+        panTrailer:                  overrides.panTrailer || '',
+        debtorIdentificationType:    overrides.debtorIdentificationType != null ? Number(overrides.debtorIdentificationType) : 1,
+        maximumCollectionAmount:     overrides.maximumCollectionAmount != null ? Number(overrides.maximumCollectionAmount) : Math.ceil(loanAmount * 1.5),
         // Parse YYYYMMDD format correctly — new Date("20260620") is invalid, need "2026-06-20"
         collectionDay:             (() => {
             const d = collectionDate && collectionDate.length === 8
@@ -614,9 +718,287 @@ async function triggerSureSystemsMandateForApplication(applicationId, overrides 
     };
 }
 
+// Partner-API (marketplace) applicants are created via the service-role client and never
+// get a Supabase Auth account, so they have no way to log into the user portal. This helper
+// creates a matching Supabase Auth user (same id as their existing profiles row — no FK
+// migration needed) and emails them a recovery link to set their password.
+//
+// opts.signContext = true  → called when admin sends "notify to sign"; email says
+//                            "set your password then sign your contract" and the recovery
+//                            link redirects to set-password.html?next=sign-contract.
+// opts.signContext = false → called post-signing; email says "portal is ready, track
+//                            your repayments" and redirects to the dashboard.
+async function inviteBorrowerToPortal(applicationId, opts = {}) {
+    const { signContext = false } = opts;
+    if (!applicationId) return null;
+
+    const { data: application, error: appError } = await supabaseService
+        .from('loan_applications')
+        .select('id, user_id, source, profiles:user_id(id, full_name, email)')
+        .eq('id', applicationId)
+        .maybeSingle();
+    if (appError) throw appError;
+    if (!application || application.source !== 'PARTNER_API') return null;
+
+    const profile = application.profiles;
+    if (!profile?.email) {
+        console.warn('[inviteBorrowerToPortal] no email on profile, skipping invite', { applicationId, userId: application.user_id });
+        return null;
+    }
+
+    // Already has portal access (e.g. a repeat marketplace loan) — don't re-invite.
+    const { data: existingAuthUser } = await supabaseService.auth.admin.getUserById(profile.id);
+    if (existingAuthUser?.user) {
+        return { skipped: true, reason: 'already has portal access' };
+    }
+
+    const { error: createUserError } = await supabaseService.auth.admin.createUser({
+        id: profile.id,
+        email: profile.email,
+        email_confirm: true,
+        user_metadata: { full_name: profile.full_name },
+        app_metadata: { role: 'borrower' }
+    });
+    if (createUserError) throw createUserError;
+
+    const siteUrl = process.env.APP_URL || 'https://app.algolend.co.za';
+    // After setting password, redirect straight to the sign-contract page (signContext)
+    // or to the dashboard (post-signing portal access).
+    const nextPage = signContext
+        ? encodeURIComponent('/user-portal/?page=sign-contract')
+        : encodeURIComponent('/user-portal/?page=dashboard');
+    const { data: linkData, error: linkError } = await supabaseService.auth.admin.generateLink({
+        type: 'recovery',
+        email: profile.email,
+        options: { redirectTo: `${siteUrl}/auth/set-password.html?next=${nextPage}` }
+    });
+    if (linkError) throw linkError;
+    const actionLink = linkData?.properties?.action_link;
+
+    if (actionLink && process.env.RESEND_API_KEY) {
+        try {
+            const { Resend } = require('resend');
+            const resend = new Resend(process.env.RESEND_API_KEY);
+            const settings = await getSystemTheme();
+            const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
+            const subject = signContext
+                ? `Action required: sign your loan agreement — ${company}`
+                : `Set up your ${company} portal access`;
+            const heading = signContext
+                ? 'Your loan offer is ready to sign'
+                : 'Your loan is signed — portal access ready';
+            const body = signContext
+                ? `Dear <strong>${profile.full_name || 'Client'}</strong>, your loan offer has been approved. Set a password to access your AlgoLend portal, then sign your loan agreement online — takes less than 2 minutes.`
+                : `Dear <strong>${profile.full_name || 'Client'}</strong>, your contract has been signed. Set a password to access your portal where you can track your repayment schedule and balance at any time.`;
+            const btnText = signContext ? 'Set Password & Sign My Agreement' : 'Set Up My Portal Access';
+
+            await resend.emails.send({
+                from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+                to: profile.email,
+                subject,
+                html: `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px;color:#1a1a1a">
+  <div style="background:#E7762E;padding:20px 24px;border-radius:10px 10px 0 0">
+    <h1 style="color:#fff;font-size:20px;margin:0">${company}</h1>
+  </div>
+  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-top:none;padding:24px;border-radius:0 0 10px 10px">
+    <h2 style="font-size:16px;margin:0 0 12px">${heading}</h2>
+    <p style="margin:0 0 16px;color:#444">${body}</p>
+    <div style="text-align:center;margin:24px 0">
+      <a href="${actionLink}" style="background:#E7762E;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">${btnText}</a>
+    </div>
+    <p style="color:#888;font-size:12px;margin-top:20px">If the button doesn't work, copy this link: ${actionLink}</p>
+  </div>
+</div>`
+            });
+        } catch (emailErr) {
+            console.warn('[inviteBorrowerToPortal] email send failed', emailErr.message || emailErr);
+        }
+    }
+
+    return { invited: true, userId: profile.id, email: profile.email };
+}
+
 app.use('/api/tillslip', tillSlipRoute);
 app.use('/api/bankstatement', bankStatementRoute);
 app.use('/api/idcard', idcardRoute);
+
+// ─── NCR Statutory Reporting ─────────────────────────────────────────────────
+
+// GET /api/compliance/form39?from=YYYY-MM-DD&to=YYYY-MM-DD
+// Returns aggregated Form 39 (Statistical Return) data for the given period.
+app.get('/api/compliance/form39', async (req, res) => {
+    try {
+        const { from, to } = req.query;
+        if (!from || !to) return res.status(400).json({ error: 'from and to date params required (YYYY-MM-DD)' });
+
+        const fromIso = new Date(from).toISOString();
+        const toIso   = new Date(to + 'T23:59:59.999Z').toISOString();
+
+        // 1. New agreements concluded in period (contract signed within range)
+        const { data: newAgreements } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal, offer_total_repayment, offer_total_interest, offer_total_initiation_fees, offer_total_admin_fees, offer_credit_life_total, source')
+            .gte('contract_signed_at', fromIso)
+            .lte('contract_signed_at', toIso)
+            .not('contract_signed_at', 'is', null);
+
+        // 2. All active accounts (snapshot at query time — end of period)
+        const { data: activeAccounts } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal')
+            .in('status', ['DISBURSED', 'OFFER_ACCEPTED', 'DEBICHECK_AUTH', 'IN_ARREARS', 'IN_DEFAULT']);
+
+        // 3. Accounts in arrears
+        const { data: arrearsAccounts } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal')
+            .in('status', ['IN_ARREARS', 'IN_DEFAULT']);
+
+        // 4. Written off (IN_DEFAULT) — loans the system has flagged as defaulted
+        const { data: defaultedAccounts } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal')
+            .eq('status', 'IN_DEFAULT')
+            .gte('updated_at', fromIso)
+            .lte('updated_at', toIso);
+
+        // 5. Settled / cancelled in period
+        const { data: settledAccounts } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal')
+            .eq('status', 'SETTLED')
+            .gte('updated_at', fromIso)
+            .lte('updated_at', toIso);
+
+        const { data: cancelledAccounts } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal')
+            .eq('status', 'CANCELLED')
+            .gte('updated_at', fromIso)
+            .lte('updated_at', toIso);
+
+        const sum = (arr, field) => (arr || []).reduce((acc, r) => acc + Number(r[field] || 0), 0);
+
+        return res.json({
+            period: { from, to },
+            new_agreements: {
+                count:               (newAgreements || []).length,
+                total_principal:     sum(newAgreements, 'offer_principal'),
+                total_interest:      sum(newAgreements, 'offer_total_interest'),
+                total_initiation:    sum(newAgreements, 'offer_total_initiation_fees'),
+                total_service_fees:  sum(newAgreements, 'offer_total_admin_fees'),
+                total_credit_life:   sum(newAgreements, 'offer_credit_life_total'),
+                total_repayable:     sum(newAgreements, 'offer_total_repayment'),
+                by_source: {
+                    organic:     (newAgreements || []).filter(r => r.source !== 'PARTNER_API').length,
+                    marketplace: (newAgreements || []).filter(r => r.source === 'PARTNER_API').length,
+                }
+            },
+            active_book: {
+                count:           (activeAccounts || []).length,
+                total_principal: sum(activeAccounts, 'offer_principal'),
+            },
+            in_arrears: {
+                count:           (arrearsAccounts || []).length,
+                total_principal: sum(arrearsAccounts, 'offer_principal'),
+            },
+            written_off_period: {
+                count:           (defaultedAccounts || []).length,
+                total_principal: sum(defaultedAccounts, 'offer_principal'),
+            },
+            settled_period: {
+                count:           (settledAccounts || []).length,
+                total_principal: sum(settledAccounts, 'offer_principal'),
+            },
+            cancelled_period: {
+                count:           (cancelledAccounts || []).length,
+                total_principal: sum(cancelledAccounts, 'offer_principal'),
+            },
+        });
+    } catch (err) {
+        console.error('[form39]', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/compliance/form40?year=YYYY
+// Returns aggregated Form 40 (Annual Financial & Operational Return) data.
+app.get('/api/compliance/form40', async (req, res) => {
+    try {
+        const { year } = req.query;
+        if (!year) return res.status(400).json({ error: 'year param required (YYYY)' });
+
+        const fromIso = new Date(`${year}-01-01`).toISOString();
+        const toIso   = new Date(`${year}-12-31T23:59:59.999Z`).toISOString();
+
+        // All agreements concluded in the financial year
+        const { data: yearAgreements } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal, offer_total_interest, offer_total_initiation_fees, offer_total_admin_fees, offer_credit_life_total, offer_total_repayment')
+            .gte('contract_signed_at', fromIso)
+            .lte('contract_signed_at', toIso)
+            .not('contract_signed_at', 'is', null);
+
+        // Book at year-end snapshot
+        const { data: activeAtYearEnd } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal')
+            .in('status', ['DISBURSED', 'OFFER_ACCEPTED', 'DEBICHECK_AUTH', 'IN_ARREARS', 'IN_DEFAULT']);
+
+        const { data: nplAccounts } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal')
+            .in('status', ['IN_ARREARS', 'IN_DEFAULT']);
+
+        const { data: writtenOff } = await supabaseService
+            .from('loan_applications')
+            .select('id, offer_principal')
+            .eq('status', 'IN_DEFAULT')
+            .gte('updated_at', fromIso)
+            .lte('updated_at', toIso);
+
+        // Branches
+        const { data: branches } = await supabaseService.from('branches').select('id');
+
+        const sum = (arr, field) => (arr || []).reduce((acc, r) => acc + Number(r[field] || 0), 0);
+        const totalBook    = sum(activeAtYearEnd, 'offer_principal');
+        const totalNpl     = sum(nplAccounts, 'offer_principal');
+        const nplRatio     = totalBook > 0 ? ((totalNpl / totalBook) * 100).toFixed(2) : '0.00';
+
+        return res.json({
+            year,
+            credit_book: {
+                total_principal_outstanding: totalBook,
+                npl_amount:  totalNpl,
+                npl_ratio_pct: Number(nplRatio),
+                total_accounts: (activeAtYearEnd || []).length,
+            },
+            revenue_year: {
+                total_interest:     sum(yearAgreements, 'offer_total_interest'),
+                total_initiation:   sum(yearAgreements, 'offer_total_initiation_fees'),
+                total_service_fees: sum(yearAgreements, 'offer_total_admin_fees'),
+                total_credit_life:  sum(yearAgreements, 'offer_credit_life_total'),
+                total_revenue:      sum(yearAgreements, 'offer_total_interest') +
+                                    sum(yearAgreements, 'offer_total_initiation_fees') +
+                                    sum(yearAgreements, 'offer_total_admin_fees'),
+            },
+            impairments_year: {
+                count:           (writtenOff || []).length,
+                total_principal: sum(writtenOff, 'offer_principal'),
+            },
+            operational: {
+                branches: (branches || []).length,
+                // staff_count is entered manually on the reporting screen
+            },
+        });
+    } catch (err) {
+        console.error('[form40]', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 app.get('/api/system-settings', async (req, res) => {
     try {
@@ -637,7 +1019,7 @@ app.get('/api/system-settings', async (req, res) => {
 });
 
 // KYC API routes
-app.post('/api/kyc/create-session', async (req, res) => {
+app.post('/api/kyc/create-session', sensitiveLimiter, async (req, res) => {
     try {
         const result = await kyc.createSession(req.body);
         return res.json(result);
@@ -785,7 +1167,7 @@ app.post('/api/truid/webhook', async (req, res) => {
 });
 
 // Banking API endpoints
-app.post('/api/banking/initiate', async (req, res) => {
+app.post('/api/banking/initiate', sensitiveLimiter, async (req, res) => {
     try {
         const result = await truid.initiateCollection(req.body || {});
         return res.json(result);
@@ -836,108 +1218,8 @@ app.post('/api/banking/capture', async (req, res) => {
     }
 });
 
-// ── IDMN (Biometric Liveness + AML) Routes ───────────────────────────────────
-
-// POST /api/idmn/start — initiate biometric workflow, returns redirect URL for client
-app.post('/api/idmn/start', async (req, res) => {
-    try {
-        const { identityNumber, name, surname, applicationId, workflowKey } = req.body;
-        if (!identityNumber || !name || !surname) {
-            return res.status(400).json({ error: 'identityNumber, name and surname are required' });
-        }
-
-        const result = await idmnService.startWorkflow(
-            { identityNumber, name, surname, clientConsent: 'Y' },
-            workflowKey || 'FULL_IDMENOW',
-            applicationId || null
-        );
-
-        // Persist pending IDMN record so we can match on callback
-        if (applicationId) {
-            await supabaseService.from('loan_applications').update({
-                idmn_transaction_id: result.transactionId,
-                idmn_token:          result.token,
-                idmn_status:         'pending',
-                idmn_workflow_key:   result.workflowKey,
-                updated_at:          new Date().toISOString(),
-            }).eq('id', applicationId);
-        }
-
-        return res.json({
-            url:           result.url,
-            transactionId: result.transactionId,
-            token:         result.token,
-        });
-    } catch (error) {
-        console.error('[IDMN] start error:', error.message);
-        return res.status(500).json({ error: error.message || 'IDMN start failed' });
-    }
-});
-
-// POST /api/idmn/collect — poll for completed biometric results
-app.post('/api/idmn/collect', async (req, res) => {
-    try {
-        const { transactionId, token, applicationId } = req.body;
-        if (!transactionId || !token) {
-            return res.status(400).json({ error: 'transactionId and token are required' });
-        }
-
-        const result = await idmnService.collectResults(transactionId, token, applicationId);
-
-        if (result.status === 'pending') {
-            return res.json({ status: 'pending', message: result.message });
-        }
-
-        const parsed = idmnService.parseResult(result);
-
-        // Persist results to loan_applications
-        if (applicationId) {
-            await supabaseService.from('loan_applications').update({
-                idmn_status:           'completed',
-                idmn_liveness_passed:  parsed.liveness_passed,
-                idmn_facial_match:     parsed.facial_match,
-                idmn_identity_verified: parsed.identity_verified,
-                idmn_aml_clear:        parsed.aml_clear,
-                idmn_pep_clear:        parsed.pep_clear,
-                idmn_overall_result:   parsed.overall_result,
-                idmn_completed_at:     new Date().toISOString(),
-                updated_at:            new Date().toISOString(),
-            }).eq('id', applicationId);
-
-            // Audit log
-            await supabaseService.from('audit_log').insert({
-                application_id: applicationId,
-                action:         'idmn_completed',
-                details:        { overall_result: parsed.overall_result, liveness: parsed.liveness_passed, aml: parsed.aml_clear },
-                created_at:     new Date().toISOString(),
-            });
-        }
-
-        return res.json({ status: 'completed', result: parsed });
-    } catch (error) {
-        console.error('[IDMN] collect error:', error.message);
-        return res.status(500).json({ error: error.message || 'IDMN collect failed' });
-    }
-});
-
-// GET /api/idmn/status/:applicationId — check stored IDMN status for an application
-app.get('/api/idmn/status/:applicationId', async (req, res) => {
-    try {
-        const { data, error } = await supabaseService
-            .from('loan_applications')
-            .select('idmn_status, idmn_liveness_passed, idmn_facial_match, idmn_identity_verified, idmn_aml_clear, idmn_pep_clear, idmn_overall_result, idmn_completed_at, idmn_transaction_id, idmn_token')
-            .eq('id', req.params.applicationId)
-            .single();
-
-        if (error || !data) return res.status(404).json({ error: 'Application not found' });
-        return res.json(data);
-    } catch (error) {
-        return res.status(500).json({ error: error.message });
-    }
-});
-
 // Credit Check API endpoint
-app.post('/api/credit-check', async (req, res) => {
+app.post('/api/credit-check', sensitiveLimiter, async (req, res) => {
     try {
         const { applicationId, userData } = req.body;
 
@@ -1089,7 +1371,7 @@ app.post('/api/notifications/check-edit-window', async (req, res) => {
 });
 
 // Loan affordability calculation endpoint
-app.post('/api/calculate-affordability', (req, res) => {
+app.post('/api/calculate-affordability', sensitiveLimiter, (req, res) => {
     try {
         const {
             monthly_income,
@@ -1130,10 +1412,135 @@ app.post('/api/calculate-affordability', (req, res) => {
     }
 });
 
+// ── Admin-only API route guards ───────────────────────────────────────
+// All routes under these prefixes require a valid Supabase session.
+// Public config-check endpoint — shows only boolean presence, no secret values
+app.get('/api/debug/server-ip', async (req, res) => {
+    try {
+        const r = await fetch('https://api.ipify.org?format=json');
+        const j = await r.json();
+        res.json({ outbound_ip: j.ip });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Full request+response dump for SureSystems support investigation.
+// Returns: outbound IP, exact headers sent, body sent, and raw response.
+app.get('/api/debug/suresystems-raw', async (req, res) => {
+    try {
+        const CryptoJS = require('crypto-js');
+
+        const clientId     = process.env.SURESYSTEMS_CLIENT_ID     || '';
+        const clientSecret = process.env.SURESYSTEMS_CLIENT_SECRET  || '';
+        const baseUrl      = process.env.SURESYSTEMS_BASE_URL       || 'https://online.suredebit.co.za';
+        const username     = process.env.SURESYSTEMS_BASIC_AUTH_USERNAME || '';
+        const password     = process.env.SURESYSTEMS_BASIC_AUTH_PASSWORD || '';
+        const merchantGid  = process.env.SURESYSTEMS_MERCHANT_GID   || '';
+        const remoteGid    = process.env.SURESYSTEMS_REMOTE_GID     || '';
+
+        // Build SAST timestamp (UTC+2)
+        const now  = new Date(Date.now() + 2 * 60 * 60 * 1000);
+        const pad  = n => String(n).padStart(2, '0');
+        const dts  = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())} ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
+        const hmac = CryptoJS.enc.Base64.stringify(CryptoJS.HmacSHA512(clientId + dts, clientSecret));
+
+        const requestHeaders = {
+            'Content-Type':          'application/json',
+            'Accept':                'application/json',
+            'Authorization':         `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
+            'SS_SD_SWITCH_ClientId': clientId,
+            'SS_SD_SWITCH_DTS':      dts,
+            'SS_SD_SWITCH_HSH':      hmac,
+        };
+
+        const requestBody = {
+            mandate: {
+                merchantGid: Number(merchantGid),
+                remoteGid:   Number(remoteGid),
+            }
+        };
+
+        const endpoint = `${baseUrl}/api/sssdswitchuadsrest/v3/mandates/batch/mandateenquiry`;
+
+        // Get outbound IP
+        let outboundIp = 'unknown';
+        try {
+            const ipRes = await fetch('https://api.ipify.org?format=json');
+            outboundIp = (await ipRes.json()).ip;
+        } catch (_) {}
+
+        // Fire the actual request and capture everything
+        let responseStatus = null;
+        let responseHeaders = {};
+        let responseBody = null;
+        let networkError = null;
+
+        try {
+            const apiRes = await fetch(endpoint, {
+                method:  'POST',
+                headers: requestHeaders,
+                body:    JSON.stringify(requestBody),
+            });
+            responseStatus  = apiRes.status;
+            responseHeaders = Object.fromEntries(apiRes.headers.entries());
+            try { responseBody = await apiRes.json(); }
+            catch (_) { responseBody = await apiRes.text().catch(() => null); }
+        } catch (err) {
+            networkError = err.message;
+        }
+
+        return res.json({
+            outbound_ip:      outboundIp,
+            endpoint,
+            request_headers:  { ...requestHeaders, Authorization: 'Basic ***hidden***' },
+            request_body:     requestBody,
+            response_status:  responseStatus,
+            response_headers: responseHeaders,
+            response_body:    responseBody,
+            network_error:    networkError,
+            timestamp_sast:   dts,
+        });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/debug/suresystems-config', (req, res) => {
+    const e = process.env;
+    res.json({
+        BASE_URL:       e.SURESYSTEMS_BASE_URL || '(empty)',
+        USERNAME:       !!e.SURESYSTEMS_BASIC_AUTH_USERNAME,
+        PASSWORD:       !!e.SURESYSTEMS_BASIC_AUTH_PASSWORD,
+        CLIENT_ID:      !!e.SURESYSTEMS_CLIENT_ID,
+        CLIENT_SECRET:  !!e.SURESYSTEMS_CLIENT_SECRET,
+        MERCHANT_GID:   e.SURESYSTEMS_MERCHANT_GID || '(empty)',
+        REMOTE_GID:     e.SURESYSTEMS_REMOTE_GID || '(empty)',
+        missing:        sureSystemsService.getConfigStatus().missing || []
+    });
+});
+app.use('/api/suresystems', requireAdminAuth);
+app.use('/api/sacrra', requireAdminAuth);
+app.use('/api/moveit', requireAdminAuth);
+app.use('/api/payouts', requireAdminAuth);
+app.use('/api/notifications', requireAdminAuth);
+app.use('/api/admin', requireAdminAuth);
+
 // SureSystems API proxy endpoints
 app.get('/api/suresystems/config', (req, res) => {
     try {
-        return res.json(sureSystemsService.getConfigStatus());
+        const status = sureSystemsService.getConfigStatus();
+        // Include live env var presence for debugging (no values exposed)
+        status.envCheck = {
+            BASE_URL:       !!process.env.SURESYSTEMS_BASE_URL,
+            USERNAME:       !!process.env.SURESYSTEMS_BASIC_AUTH_USERNAME,
+            PASSWORD:       !!process.env.SURESYSTEMS_BASIC_AUTH_PASSWORD,
+            CLIENT_ID:      !!process.env.SURESYSTEMS_CLIENT_ID,
+            CLIENT_SECRET:  !!process.env.SURESYSTEMS_CLIENT_SECRET,
+            MERCHANT_GID:   process.env.SURESYSTEMS_MERCHANT_GID || '(empty)',
+            REMOTE_GID:     process.env.SURESYSTEMS_REMOTE_GID || '(empty)',
+        };
+        return res.json(status);
     } catch (error) {
         console.error('SureSystems config status error:', error);
         return res.status(500).json({ configured: false, error: 'Unable to read SureSystems configuration' });
@@ -1363,6 +1770,63 @@ app.post('/api/suresystems/payments/download', async (req, res) => {
     try {
         const payload = req.body || {};
         const result = await sureSystemsService.downloadPayments(payload);
+
+        // Auto-post successful collections to cash_journal (non-blocking)
+        const rawList = result?.response?.paymentList
+            || result?.response?.payments
+            || result?.response?.PaymentList
+            || [];
+
+        if (rawList.length > 0) {
+            // Look up application_ids via suresystems_mandates.contract_reference
+            const contractRefs = [...new Set(rawList.map(p =>
+                p.contractReference || p.ContractReference || p.contract_reference
+            ).filter(Boolean))];
+
+            const { data: mandates } = await supabaseService
+                .from(SURESYSTEMS_MANDATES_TABLE)
+                .select('contract_reference, application_id, user_id')
+                .in('contract_reference', contractRefs);
+
+            const mandateMap = {};
+            for (const m of mandates || []) mandateMap[m.contract_reference] = m;
+
+            const PAID_CODES = ['PAID', 'SUCCESSFUL', 'SUCCESS', 'PROCESSED', '00', '0'];
+
+            const journalRows = [];
+            for (const p of rawList) {
+                const ref    = p.contractReference || p.ContractReference || p.contract_reference || '';
+                const status = String(p.statusCode || p.StatusCode || p.status || p.responseCode || '').toUpperCase();
+                if (!PAID_CODES.some(c => status.includes(c))) continue;
+
+                const mandate  = mandateMap[ref] || {};
+                const amount   = Number(p.collectionAmount || p.amount || p.Amount || 0);
+                const dateRaw  = p.collectionDate || p.paymentDate || p.CollectionDate || '';
+                // SureSystems dates are YYYYMMDD — normalise to YYYY-MM-DD
+                const entry_date = dateRaw.length === 8
+                    ? `${dateRaw.slice(0,4)}-${dateRaw.slice(4,6)}-${dateRaw.slice(6,8)}`
+                    : (dateRaw || new Date().toISOString()).slice(0,10);
+
+                journalRows.push({
+                    entry_date,
+                    entry_type:      'cash_in',
+                    category:        'debit_order',
+                    description:     `DebiCheck collection — Ref: ${ref}`,
+                    reference:       ref.slice(-12),
+                    amount,
+                    application_id:  String(mandate.application_id || ''),
+                    is_automated:    true,
+                    created_by_name: 'System (SureSystems)'
+                });
+            }
+
+            if (journalRows.length > 0) {
+                supabaseService.from('cash_journal').insert(journalRows)
+                    .then(() => console.log(`[cash-ledger] auto-posted ${journalRows.length} SureSystems collection(s)`))
+                    .catch(e => console.warn('[cash-ledger] SureSystems auto-post failed:', e.message));
+            }
+        }
+
         return res.json({ success: true, ...result });
     } catch (error) {
         console.error('SureSystems payments download error:', error.message || error);
@@ -1370,6 +1834,88 @@ app.post('/api/suresystems/payments/download', async (req, res) => {
             success: false,
             error: error.message || 'SureSystems payment download failed',
             details: error.details || null
+        });
+    }
+});
+
+// POST /api/admin/mandates/sync — query SureSystems for each known contract_reference
+// SureSystems mandateenquiry only supports one contractReference per request.
+app.post('/api/admin/mandates/sync', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Auth required' });
+    const { data: { user } } = await supabaseService.auth.getUser(token);
+    if (!user) return res.status(401).json({ error: 'Auth required' });
+
+    try {
+        // Gather contract references from two sources:
+        // 1. Our existing suresystems_mandates table
+        // 2. loan_applications rows that have a debicheck_reference or contract_reference
+        const [{ data: existing }, { data: apps }] = await Promise.all([
+            supabaseService.from(SURESYSTEMS_MANDATES_TABLE).select('contract_reference'),
+            supabaseService.from('loan_applications')
+                .select('id, debicheck_reference, contract_reference')
+                .not('debicheck_reference', 'is', null)
+        ]);
+
+        const refs = new Set();
+        (existing || []).forEach(r => r.contract_reference && refs.add(r.contract_reference));
+        (apps || []).forEach(a => {
+            if (a.debicheck_reference) refs.add(a.debicheck_reference);
+            if (a.contract_reference)  refs.add(a.contract_reference);
+        });
+
+        if (!refs.size) {
+            return res.json({
+                synced: 0,
+                message: 'No mandate contract references found in the database to look up. Load individual mandates first via the application detail page, or import from the SureSystems sheet.'
+            });
+        }
+
+        const upsertRows = [];
+        const errors = [];
+
+        // SureSystems requires one request per contractReference
+        for (const contractReference of refs) {
+            try {
+                const result = await sureSystemsService.mandateEnquiry({ contractReference });
+                const raw = result?.response;
+                const m = raw?.mandate || raw?.Mandate || raw;
+
+                const rawStatus = String(m?.status || m?.Status || m?.mandateStatus || m?.MandateStatus || 'unknown').toLowerCase();
+                const status = rawStatus.includes('active') || rawStatus.includes('success') ? 'success'
+                    : rawStatus.includes('fail') || rawStatus.includes('reject') || rawStatus.includes('cancel') ? 'failed'
+                    : rawStatus.includes('pend') || rawStatus.includes('await') ? 'pending'
+                    : 'unknown';
+
+                upsertRows.push({
+                    contract_reference: contractReference,
+                    status,
+                    message: m?.statusDescription || m?.StatusDescription || m?.description || null,
+                    response_payload: raw,
+                    updated_at: new Date().toISOString()
+                });
+            } catch (err) {
+                errors.push({ contractReference, error: err.message });
+            }
+        }
+
+        if (upsertRows.length) {
+            const { error: dbErr } = await supabaseService
+                .from(SURESYSTEMS_MANDATES_TABLE)
+                .upsert(upsertRows, { onConflict: 'contract_reference', ignoreDuplicates: false });
+            if (dbErr) throw dbErr;
+        }
+
+        const msg = `Updated ${upsertRows.length} of ${refs.size} mandate(s) from SureSystems.`
+            + (errors.length ? ` ${errors.length} failed.` : '');
+
+        return res.json({ synced: upsertRows.length, total: refs.size, errors, message: msg });
+    } catch (err) {
+        console.error('[mandates/sync]', err.message, err.details);
+        return res.status(500).json({
+            error: err.message,
+            details: err.details || null,
+            sureSystemsResponse: err.details?.providerResponse || null
         });
     }
 });
@@ -1506,6 +2052,50 @@ app.post('/api/suresystems/installments/cancel', async (req, res) => {
     }
 });
 
+app.post('/api/suresystems/mandates/tt3-signature', async (req, res) => {
+    try {
+        const { contractReference, signatureImageBase64, signatureMimeType, frontEndUserName } = req.body || {};
+        if (!contractReference) {
+            return res.status(400).json({ success: false, error: 'contractReference is required' });
+        }
+        if (!signatureImageBase64) {
+            return res.status(400).json({ success: false, error: 'signatureImageBase64 is required' });
+        }
+        const result = await sureSystemsService.submitTT3Signature({
+            contractReference,
+            signatureImageBase64,
+            signatureMimeType: signatureMimeType || 'image/png',
+            frontEndUserName
+        });
+        return res.json({ success: true, ...result.response });
+    } catch (error) {
+        console.error('SureSystems TT3 signature error:', error.message || error);
+        return res.status(error.status || 500).json({
+            success: false,
+            error: error.message || 'TT3 signature submission failed',
+            details: error.details || null
+        });
+    }
+});
+
+app.post('/api/suresystems/mandates/datelist', async (req, res) => {
+    try {
+        const { contractReference, frontEndUserName } = req.body || {};
+        if (!contractReference) {
+            return res.status(400).json({ success: false, error: 'contractReference is required' });
+        }
+        const result = await sureSystemsService.getDateList({ contractReference, frontEndUserName });
+        return res.json({ success: true, ...result.response });
+    } catch (error) {
+        console.error('SureSystems datelist error:', error.message || error);
+        return res.status(error.status || 500).json({
+            success: false,
+            error: error.message || 'Datelist request failed',
+            details: error.details || null
+        });
+    }
+});
+
 app.get('/api/suresystems/activation-status', async (req, res) => {
     try {
         const status = await getSureSystemsActivationStatus();
@@ -1523,7 +2113,19 @@ app.post('/api/suresystems/activate-application', async (req, res) => {
             return res.status(400).json({ success: false, error: 'applicationId is required' });
         }
 
-        const activation = await triggerSureSystemsMandateForApplication(applicationId);
+        // TT1 Real-time (default) vs TT1 Delay vs TT3 paper/POS
+        const overrides = {};
+        const txType = (req.body?.transactionType || 'realtime').toLowerCase();
+        if (txType === 'delay') {
+            overrides.typeOfAuthorizationRequired = 5;
+            overrides.authorizationIndicator = '0226';
+        } else if (txType === 'tt3') {
+            // TT3: paper/POS mandate — no realtime bank auth; signature uploaded separately
+            overrides.typeOfAuthorizationRequired = 3;
+            overrides.authorizationIndicator = '0000';
+        }
+
+        const activation = await triggerSureSystemsMandateForApplication(applicationId, overrides);
         const now = new Date().toISOString();
 
         await recordSureSystemsActivation({
@@ -1569,178 +2171,36 @@ app.post('/api/suresystems/activate-application', async (req, res) => {
 
 app.get('/api/suresystems/mandates/history', async (req, res) => {
     try {
-        const { data: mandates, error: mandateError } = await supabaseService
+        const { data, error } = await supabaseService
             .from(SURESYSTEMS_MANDATES_TABLE)
-            .select('*')
+            .select(`
+                *,
+                loan_applications (
+                    user_id,
+                    amount,
+                    status
+                )
+            `)
             .order('updated_at', { ascending: false })
             .limit(100);
 
-        if (mandateError) throw mandateError;
-
-        const rows = mandates || [];
-
-        // Enrich with loan application + profile data via a second query
-        const appIds = [...new Set(rows.map((m) => m.application_id).filter(Boolean))];
-        let appsById = {};
-        if (appIds.length) {
-            const { data: apps } = await supabaseService
-                .from('loan_applications')
-                .select('id, amount, status, user_id')
-                .in('id', appIds);
-            const userIds = [...new Set((apps || []).map(a => a.user_id).filter(Boolean))];
-            const { data: profs } = userIds.length
-                ? await supabaseService.from('profiles').select('id, full_name, email').in('id', userIds)
-                : { data: [] };
-            const profMap = Object.fromEntries((profs || []).map(p => [p.id, p]));
-            (apps || []).forEach((a) => { appsById[a.id] = { ...a, profiles: profMap[a.user_id] || null }; });
+        if (error) {
+            throw error;
         }
 
-        const merged = rows.map((m) => {
-            const app = appsById[m.application_id] || null;
-            return {
-                ...m,
-                loan_applications: app ? { amount: app.amount, status: app.status } : null,
-                profiles: app?.profiles || null
-            };
-        });
-
-        return res.json({ success: true, data: merged });
+        return res.json({ success: true, data: data || [] });
     } catch (error) {
         console.error('SureSystems history fetch error:', error?.message || error);
         return res.status(500).json({ success: false, error: 'Unable to load mandate history', detail: error?.message || String(error) });
     }
 });
 
-// ================================================================
-// IN-APP CONTRACT SIGNING
-// ================================================================
-
-// POST /api/applications/:id/sign-contract
-// Called by user portal when client signs the loan agreement in-app.
-app.post('/api/applications/:id/sign-contract', async (req, res) => {
-    try {
-        const applicationId = req.params.id;
-        const { signatureDataUrl, clientName, agreedAt, contractSnapshot } = req.body;
-        if (!signatureDataUrl) return res.status(400).json({ error: 'Signature is required' });
-
-        const { data: app, error: appErr } = await supabaseService
-            .from('loan_applications')
-            .select('id, status, offer_details, user_id')
-            .eq('id', applicationId)
-            .single();
-        if (appErr || !app) return res.status(404).json({ error: 'Application not found' });
-
-        const SIGNABLE = ['OFFERED', 'CONTRACT_SIGN', 'BUREAU_OK', 'BUREAU_REFER'];
-        if (!SIGNABLE.includes(app.status)) {
-            return res.status(400).json({ error: `Cannot sign in current status: ${app.status}` });
-        }
-
-        const now = agreedAt || new Date().toISOString();
-        const updatedOfferDetails = {
-            ...(app.offer_details || {}),
-            signature_data_url:    signatureDataUrl,
-            contract_signed_name:  clientName || '',
-            contract_signed_at:    now,
-            contract_text_snapshot: contractSnapshot || '',
-        };
-
-        const { error: updateErr } = await supabaseService
-            .from('loan_applications')
-            .update({ status: 'OFFER_ACCEPTED', contract_signed_at: now, offer_details: updatedOfferDetails })
-            .eq('id', applicationId);
-        if (updateErr) throw updateErr;
-
-        // Audit log (non-blocking)
-        supabaseService.from('audit_log').insert([{
-            entity_type: 'loan_application',
-            entity_id: String(applicationId),
-            action: 'contract_signed',
-            description: `Contract signed in-app by ${clientName || 'client'} at ${now}`,
-            performed_by: app.user_id,
-            performed_by_name: clientName || 'Client',
-        }]).catch(() => {});
-
-        // Try to trigger SureSystems activation (non-blocking)
-        fetch(`http://localhost:${process.env.PORT || 3010}/api/suresystems/activate-application`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ applicationId })
-        }).catch(() => {});
-
-        res.json({ success: true, signed_at: now });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// GET /api/applications/:id/contract — returns the rendered loan agreement HTML
-app.get('/api/applications/:id/contract', async (req, res) => {
-    try {
-        const { id: applicationId } = req.params;
-        const { data: app, error: appErr } = await supabaseService
-            .from('loan_applications')
-            .select('*')
-            .eq('id', applicationId)
-            .single();
-        if (appErr || !app) return res.status(404).json({ error: 'Not found' });
-
-        const { data: _contractProfile } = await supabaseService
-            .from('profiles').select('*').eq('id', app.user_id).maybeSingle();
-        const profile  = _contractProfile || {};
-        const name     = profile.full_name  || 'Client';
-        const idNum    = profile.identity_number || profile.id_number || '—';
-        const phone    = profile.cell_tel_no || profile.phone || '—';
-        const email    = profile.email || '—';
-        const company  = process.env.COMPANY_NAME || 'AlgoLend';
-        const ncrNo    = process.env.NCR_NO  || 'NCRCP13510';
-        const fspNo    = process.env.FSP_NO  || 'FSP 53423';
-
-        const fmt = (v, decimals = 2) =>
-            `R ${Number(v || 0).toLocaleString('en-ZA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
-
-        const principal       = Number(app.offer_principal || app.amount || 0);
-        const monthlyPayment  = Number(app.offer_monthly_repayment || 0);
-        const totalRepayment  = Number(app.offer_total_repayment || 0);
-        const totalInterest   = Number(app.offer_total_interest || 0);
-        const initiationFee   = Number(app.offer_total_initiation_fees || 0);
-        const adminFee        = Number(app.offer_total_admin_fees || 0);
-        const annualRate      = Number(app.offer_interest_rate || 0);
-        const term            = Number(app.term_months || 0);
-        const creditLifeMonthly = Number(app.offer_credit_life_monthly || 0);
-        const totalCreditLife   = Number(app.offer_credit_life_total || 0);
-        const firstPayment    = app.repayment_start_date
-            ? new Date(app.repayment_start_date).toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' })
-            : '—';
-        const today = new Date().toLocaleDateString('en-ZA', { day:'numeric', month:'long', year:'numeric' });
-
-        res.setHeader('Content-Type', 'application/json');
-        res.json({
-            company, ncrNo, fspNo, name, idNum, phone, email, today, firstPayment,
-            principal:           fmt(principal),
-            monthlyPayment:      fmt(monthlyPayment),
-            totalRepayment:      fmt(totalRepayment),
-            totalInterest:       fmt(totalInterest),
-            initiationFee:       fmt(initiationFee),
-            adminFee:            fmt(adminFee),
-            annualRate:          `${(annualRate * 100).toFixed(1)}%`,
-            term,
-            creditLifeMonthly:   creditLifeMonthly > 0 ? fmt(creditLifeMonthly) : null,
-            totalCreditLife:     totalCreditLife > 0 ? fmt(totalCreditLife) : null,
-            hasCreditLife:       creditLifeMonthly > 0,
-            loanNumber:          app.loan_number || applicationId.slice(-8).toUpperCase(),
-            alreadySigned:       !!app.contract_signed_at,
-            signedAt:            app.contract_signed_at || null,
-            signatureName:       app.offer_details?.contract_signed_name || null,
-            signatureImg:        app.offer_details?.signature_data_url || null,
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// DocuSeal proxy endpoints (kept for backward compat, returns disabled)
+// DocuSeal proxy endpoints
 app.get('/api/docuseal/config', (req, res) => {
-    return res.json({ configured: false, templateId: null });
+    return res.json({
+        configured: isDocuSealReady(),
+        templateId: isDocuSealReady() ? DOCUSEAL_TEMPLATE_ID : null
+    });
 });
 
 app.post('/api/docuseal/send-contract', async (req, res) => {
@@ -1832,96 +2292,32 @@ app.delete('/api/docuseal/submissions/:submissionId', async (req, res) => {
 // DocuSeal Webhook Receiver – updates docuseal_submissions when DocuSeal sends events
 app.post('/api/docuseal/webhook', async (req, res) => {
     try {
-        // Verify webhook signature if secret is configured
         const secret = process.env.DOCUSEAL_WEBHOOK_SECRET;
-        const testHeaderName = (process.env.DOCUSEAL_TEST_HEADER_NAME || '').trim();
-        const testHeaderValue = (process.env.DOCUSEAL_TEST_HEADER_VALUE || '').trim();
-        const testHeaderIncoming = testHeaderName ? req.headers[testHeaderName.toLowerCase()] : undefined;
-        const testHeaderMatched = Boolean(
-            testHeaderName
-            && testHeaderValue
-            && typeof testHeaderIncoming !== 'undefined'
-            && String(testHeaderIncoming).trim() === testHeaderValue
-        );
-
-        // If no signature secret is configured, allow custom header auth as primary guard.
-        // If custom header env vars are configured but header does not match, reject request.
-        if (!secret && testHeaderName && testHeaderValue && !testHeaderMatched) {
-            console.warn('DocuSeal webhook rejected: custom test header did not match', {
-                expectedTestHeader: testHeaderName,
-                receivedTestHeader: typeof testHeaderIncoming === 'undefined' ? null : String(testHeaderIncoming),
-                headers: req.headers
-            });
-            return res.status(401).json({ error: 'Invalid webhook header' });
-        }
-
-        if (!secret && testHeaderName && testHeaderValue && testHeaderMatched) {
-            console.log('Accepted DocuSeal webhook via custom test header', testHeaderName);
-        }
-
         if (secret) {
             const sigHeader = (req.headers['x-docuseal-signature'] || req.headers['x-signature'] || req.headers['x-hub-signature'] || '').toString();
             if (!sigHeader) {
-                // Allow a simple test header fallback (not secure) during debugging if configured
-                if (testHeaderName && testHeaderValue) {
-                    if (testHeaderMatched) {
-                        console.log('Accepted DocuSeal webhook via custom test header', testHeaderName);
-                        // treat as valid and skip HMAC validation
-                    } else {
-                        console.warn('Missing DocuSeal signature header and test header did not match', {
-                            expectedTestHeader: testHeaderName,
-                            headers: req.headers,
-                            rawBodyLength: req.rawBody ? req.rawBody.length : 0,
-                            bodySample: (() => {
-                                try { return JSON.stringify(req.body).slice(0, 1000); } catch (e) { return '<non-serializable body>'; }
-                            })()
-                        });
-                        return res.status(401).json({ error: 'Missing signature header' });
-                    }
-                } else {
-                    // Log full headers + small body sample to help debug what DocuSeal is sending
-                    console.warn('Missing DocuSeal signature header', {
-                        headers: req.headers,
-                        rawBodyLength: req.rawBody ? req.rawBody.length : 0,
-                        bodySample: (() => {
-                            try { return JSON.stringify(req.body).slice(0, 1000); } catch (e) { return '<non-serializable body>'; }
-                        })()
-                    });
-                    return res.status(401).json({ error: 'Missing signature header' });
-                }
+                return res.status(401).json({ error: 'Missing signature header' });
             }
 
-            // Strip common prefix (e.g. 'sha256=') if present
             let received = sigHeader.startsWith('sha256=') ? sigHeader.slice(7) : sigHeader;
-
-            // Compute expected digests
             const computedHex = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('hex');
             const computedBase64 = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('base64');
 
             let valid = false;
             try {
-                // Try hex comparison (timing-safe)
                 const rec = Buffer.from(received, 'hex');
                 const comp = Buffer.from(computedHex, 'hex');
                 if (rec.length === comp.length && crypto.timingSafeEqual(rec, comp)) valid = true;
             } catch (e) {}
             try {
-                // Try base64 comparison (timing-safe)
                 const recB = Buffer.from(received, 'base64');
                 const compB = Buffer.from(computedBase64, 'base64');
                 if (recB.length === compB.length && crypto.timingSafeEqual(recB, compB)) valid = true;
             } catch (e) {}
-            // Fallback string compare for plain header formats
             if (received === computedHex || received === computedBase64) valid = true;
 
             if (!valid) {
-                // Debug fallback: if custom test header matches, allow request even when signature is invalid
-                if (testHeaderMatched) {
-                    console.warn('DocuSeal signature invalid, but accepted via custom test header', testHeaderName);
-                } else {
-                    console.warn('Invalid DocuSeal webhook signature');
-                    return res.status(401).json({ error: 'Invalid signature' });
-                }
+                return res.status(401).json({ error: 'Invalid signature' });
             }
         }
 
@@ -2172,6 +2568,15 @@ app.post('/api/docuseal/webhook', async (req, res) => {
                             });
                             console.warn('SureSystems mandate activation failed for application', applicationId, sureSystemsError?.message || sureSystemsError);
                         }
+
+                        try {
+                            const inviteResult = await inviteBorrowerToPortal(applicationId);
+                            if (inviteResult?.invited) {
+                                console.log('Portal invite sent for partner-API application', applicationId, inviteResult.email);
+                            }
+                        } catch (inviteError) {
+                            console.warn('Portal invite failed for application', applicationId, inviteError?.message || inviteError);
+                        }
                     } else {
                         console.warn('DocuSeal completed event received but no application_id could be resolved', {
                             eventType,
@@ -2343,10 +2748,6 @@ app.use(express.static(path.join(__dirname, 'public'), publicStaticOptions));
 
 // --- 6. Root Redirect & Auth Helpers ---
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'showcase.html'));
-});
-
-app.get('/login', (req, res) => {
     res.redirect('/auth/login.html');
 });
 
@@ -2358,15 +2759,26 @@ app.get('/auth.html', (req, res) => {
     res.redirect('/auth/login.html');
 });
 
+// Health check — used by uptime monitoring
+app.get('/api/health', (req, res) => {
+    res.json({ ok: true, ts: new Date().toISOString() });
+});
+
+// Public config endpoint — safe to expose. Used by the login page to enable
+// Cloudflare Turnstile when a site key is configured.
+app.get('/api/public/config', (req, res) => {
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({
+        turnstileSiteKey: process.env.CLOUDFLARE_TURNSTILE_SITE_KEY || ''
+    });
+});
+
 
 // --- 7. Admin Page Routes (FOR MPA) ---
 
 const sendAdminPage = (fileName, res) => {
     const filePath = resolveAdminFile(fileName);
     if (fs.existsSync(filePath)) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.setHeader('Pragma', 'no-cache');
-        res.setHeader('Expires', '0');
         return res.sendFile(filePath);
     }
     return res.status(404).send('Admin page not found. Build the admin app or check the path.');
@@ -2441,16 +2853,24 @@ app.get('/admin/sacrra-validator', (req, res) => {
     sendAdminPage('sacrra-validator.html', res);
 });
 
-app.get('/admin/mandates', (req, res) => {
-    sendAdminPage('mandates.html', res);
+app.get('/admin/ncr-reporting', (req, res) => {
+    sendAdminPage('ncr-reporting.html', res);
 });
 
-app.get('/admin/reminders', (req, res) => {
-    sendAdminPage('reminders.html', res);
+app.get('/admin/ncr-registers', (req, res) => {
+    sendAdminPage('ncr-registers.html', res);
 });
 
-app.get('/admin/products', (req, res) => {
-    sendAdminPage('products.html', res);
+app.get('/admin/compliance-tracker', (req, res) => {
+    sendAdminPage('compliance-tracker.html', res);
+});
+
+app.get('/admin/goaml', (req, res) => {
+    sendAdminPage('goaml.html', res);
+});
+
+app.get('/admin/portfolio', (req, res) => {
+    sendAdminPage('portfolio.html', res);
 });
 
 // ─── MOVEit / SACRRA transmission routes ─────────────────────────────────────
@@ -2850,6 +3270,102 @@ app.patch('/api/sacrra/submissions/:id', async (req, res) => {
     }
 });
 
+// GET /api/sacrra/validate — run Layout 700v2 compliance check against live sacrra_700_view
+app.get('/api/sacrra/validate', async (req, res) => {
+    try {
+        const { data: rows, error } = await supabaseService
+            .from('sacrra_700_view')
+            .select('*')
+            .limit(5000);
+
+        if (error) throw new Error(error.message);
+
+        const CUTOFF_36M = new Date(Date.now() - 36 * 30 * 24 * 60 * 60 * 1000);
+
+        function check(row) {
+            const issues = [];
+            const isActive = !['T','V'].includes(row.f50_status_code || '');
+
+            // ID number
+            if (!row.f10_id_number || row.f10_id_number.trim() === '')
+                issues.push({ field: 'SA ID (f10)', msg: 'Missing — record excluded from submission' });
+
+            // Surname company suffix
+            if (/\s*(PTY\.?\s*LTD\.?|LTD\.?|\bCC\b|INC\.?|CORP\.?|\(PTY\))\s*$/i.test(row.f06_surname || ''))
+                issues.push({ field: 'Surname (f06)', msg: 'Contains company suffix — bureaux will reject' });
+
+            // Current balance > 0 for active
+            const balance = parseInt(row.f44_current_balance || '0');
+            if (isActive && balance === 0)
+                issues.push({ field: 'Current Balance (f44)', msg: 'Active account has 0 balance — must be ≥ 1' });
+
+            // Installment > 0 for active
+            const instalment = parseInt(row.f45_installment || '0');
+            if (isActive && instalment === 0)
+                issues.push({ field: 'Installment (f45)', msg: 'Active account has 0 instalment — must be ≥ 1' });
+
+            // Amount overdue > 0 when in arrears
+            const arrears = parseInt(row.f53_months_in_arrears || '0');
+            const overdue = parseInt(row.f49_arrears_amount || '0');
+            if (arrears > 0 && overdue === 0)
+                issues.push({ field: 'Amount Overdue (f49)', msg: `${arrears} months in arrears but overdue amount = 0` });
+
+            // Terms: Account Type M must be 0000
+            if (row.f03_account_type === 'M' && row.f42_terms !== '0000')
+                issues.push({ field: 'Terms (f42)', msg: `Account Type M must be 0000, got ${row.f42_terms}` });
+
+            // Date last payment for accounts open > 60 days
+            if (isActive && arrears === 0) {
+                const opened = row.f43_date_opened ? new Date(`${row.f43_date_opened.slice(0,4)}-${row.f43_date_opened.slice(4,6)}-${row.f43_date_opened.slice(6,8)}`) : null;
+                const daysSince = opened ? (Date.now() - opened) / 86400000 : 0;
+                if (daysSince > 60 && (!row.f46_last_payment_date || row.f46_last_payment_date === '00000000'))
+                    issues.push({ field: 'Last Payment (f46)', msg: 'Open > 60 days with no arrears must have payment date' });
+            }
+
+            // 36-month stale rule
+            const lastPayStr = row.f46_last_payment_date;
+            const statusDateStr = row.f51_status_date;
+            const latestStr = statusDateStr || lastPayStr;
+            if (latestStr && latestStr !== '00000000') {
+                const latest = new Date(`${latestStr.slice(0,4)}-${latestStr.slice(4,6)}-${latestStr.slice(6,8)}`);
+                if (latest < CUTOFF_36M)
+                    issues.push({ field: '36-Month Rule', msg: `Last activity ${latestStr} is > 36 months ago — excluded from monthly submission` });
+            }
+
+            return issues;
+        }
+
+        const results = (rows || []).map(row => ({
+            id:           row.internal_id,
+            account:      row.f40_account_number,
+            name:         `${(row.f07_first_names || '').trim()} ${(row.f06_surname || '').trim()}`.trim(),
+            status:       row.f50_status_code || 'active',
+            balance:      parseInt(row.f44_current_balance || '0'),
+            issues:       check(row)
+        }));
+
+        const failed  = results.filter(r => r.issues.length > 0);
+        const passed  = results.filter(r => r.issues.length === 0);
+        const byField = {};
+        failed.forEach(r => r.issues.forEach(i => { byField[i.field] = (byField[i.field] || 0) + 1; }));
+
+        res.json({
+            success: true,
+            summary: {
+                total:      results.length,
+                passed:     passed.length,
+                failed:     failed.length,
+                compliance: results.length ? Math.round(passed.length / results.length * 100) : 100,
+                by_field:   byField
+            },
+            failed
+        });
+    } catch (err) {
+        console.error('[sacrra/validate]', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // ─── Capitec payout CSV export ────────────────────────────────────────────────
 // POST /api/payouts/capitec-csv
 // Body: { applicationIds: string[], markDisbursed?: boolean }
@@ -2866,7 +3382,14 @@ app.post('/api/payouts/capitec-csv', async (req, res) => {
         // Fetch applications + their bank accounts and profiles
         const { data: apps, error: fetchErr } = await supabaseService
             .from('loan_applications')
-            .select('id, user_id, bank_account_id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment, term_months, created_at, status')
+            .select(`
+                id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment,
+                term_months, created_at, status,
+                profiles:user_id ( full_name, identity_number ),
+                bank_accounts:bank_account_id (
+                    bank_name, account_holder, account_number, branch_code, account_type
+                )
+            `)
             .in('id', applicationIds)
             .in('status', ['READY_TO_DISBURSE', 'AFFORD_OK', 'OFFER_ACCEPTED']);
 
@@ -2874,22 +3397,6 @@ app.post('/api/payouts/capitec-csv', async (req, res) => {
         if (!apps || apps.length === 0) {
             return res.status(404).json({ error: 'No eligible applications found for the given IDs.' });
         }
-
-        // Fetch bank accounts separately
-        const _csvBankIds = [...new Set(apps.map(a => a.bank_account_id).filter(Boolean))];
-        const { data: _csvBanks } = _csvBankIds.length
-            ? await supabaseService.from('bank_accounts').select('id, bank_name, account_holder, account_number, branch_code, account_type').in('id', _csvBankIds)
-            : { data: [] };
-        const _csvBankMap = Object.fromEntries((_csvBanks || []).map(b => [b.id, b]));
-        apps.forEach(a => { a.bank_accounts = _csvBankMap[a.bank_account_id] || {}; });
-
-        // Fetch profiles separately
-        const _csvUserIds = [...new Set(apps.map(a => a.user_id).filter(Boolean))];
-        const { data: _csvProfiles } = _csvUserIds.length
-            ? await supabaseService.from('profiles').select('id, full_name, identity_number').in('id', _csvUserIds)
-            : { data: [] };
-        const _csvProfMap = Object.fromEntries((_csvProfiles || []).map(p => [p.id, p]));
-        apps.forEach(a => { a.profiles = _csvProfMap[a.user_id] || {}; });
 
         // PIN lock — require a download PIN in the request header or body
         const CSV_DOWNLOAD_PIN = process.env.CSV_DOWNLOAD_PIN || '1234';
@@ -2971,7 +3478,7 @@ app.post('/api/payouts/capitec-csv', async (req, res) => {
 
             // Fire disbursement notifications + auto-post to Cash Ledger (non-blocking)
             const settings = await getSystemTheme();
-            const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
+            const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend Financial';
 
             // Auto-post each disbursement as a cash_out entry in the Cash Ledger
             const journalRows = apps.map(app => ({
@@ -3020,28 +3527,15 @@ app.get('/api/payouts/ready', async (req, res) => {
     try {
         const { data, error } = await supabaseService
             .from('loan_applications')
-            .select('id, user_id, bank_account_id, amount, offer_principal, offer_total_repayment, term_months, created_at, status')
+            .select(`
+                id, amount, offer_principal, offer_total_repayment, term_months, created_at, status,
+                profiles:user_id ( full_name, identity_number ),
+                bank_accounts:bank_account_id ( bank_name, account_number, branch_code, account_type, account_holder )
+            `)
             .in('status', ['READY_TO_DISBURSE'])
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-
-        const _rdyBankIds = [...new Set((data || []).map(a => a.bank_account_id).filter(Boolean))];
-        const { data: _rdyBanks } = _rdyBankIds.length
-            ? await supabaseService.from('bank_accounts').select('id, bank_name, account_number, branch_code, account_type, account_holder').in('id', _rdyBankIds)
-            : { data: [] };
-        const _rdyBankMap = Object.fromEntries((_rdyBanks || []).map(b => [b.id, b]));
-
-        const _rdyUserIds = [...new Set((data || []).map(a => a.user_id).filter(Boolean))];
-        const { data: _rdyProfs } = _rdyUserIds.length
-            ? await supabaseService.from('profiles').select('id, full_name, identity_number').in('id', _rdyUserIds)
-            : { data: [] };
-        const _rdyProfMap = Object.fromEntries((_rdyProfs || []).map(p => [p.id, p]));
-        (data || []).forEach(a => {
-            a.profiles = _rdyProfMap[a.user_id] || {};
-            a.bank_accounts = _rdyBankMap[a.bank_account_id] || {};
-        });
-
         return res.json({ applications: data || [] });
     } catch (err) {
         return res.status(500).json({ error: err.message });
@@ -3150,14 +3644,6 @@ app.post('/api/loans/default-interest', async (req, res) => {
 // 7b. Credit Rules API — Per-Client Configuration
 // ================================================================
 
-// --- Helper: require admin role ---
-function requireAdmin(req, res, next) {
-    const role = req.user?.app_metadata?.role || req.user?.user_metadata?.role;
-    if (!['admin','super_admin','base_admin'].includes(role)) {
-        return res.status(403).json({ error: 'Admin access required' });
-    }
-    next();
-}
 
 // GET /api/organizations — list all lender organizations
 app.get('/api/organizations', async (req, res) => {
@@ -3428,7 +3914,7 @@ app.post('/api/payment/submit-proof', async (req, res) => {
         const toPhone = profile?.cell_tel_no || profile?.phone;
         const toEmail = profile?.email;
         const clientFirst = (profile?.full_name || 'Client').split(' ')[0];
-        const co = process.env.COMPANY_NAME || 'AlgoLend';
+        const co = process.env.COMPANY_NAME || 'AlgoLend Financial';
         const typeStr = paymentType === 'settlement' ? 'settlement' : 'payment';
         const ackSms = `Hi ${clientFirst}, we've received your ${typeStr} proof of R${Number(amount).toLocaleString('en-ZA')} (Ref: ${reference || 'N/A'}). We'll confirm within 1 business day. – ${co}`;
         const ackWa  = `📋 *Proof Received* — ${co}\n\nHi ${clientFirst}, we've received your ${typeStr} proof of *R${Number(amount).toLocaleString('en-ZA')}*.\n\nReference: ${reference || 'N/A'}\n\nWe'll review and confirm within *1 business day*. You'll receive another notification once confirmed.`;
@@ -3481,15 +3967,11 @@ app.post('/api/admin/payment/confirm/:id', async (req, res) => {
 
         const { data: payment } = await supabaseService
             .from('manual_payments')
-            .select('*')
+            .select('*, profiles:user_id(full_name, cell_tel_no, email)')
             .eq('id', id)
             .single();
 
         if (!payment) return res.status(404).json({ error: 'Payment not found' });
-
-        const { data: _pmtProfile } = await supabaseService
-            .from('profiles').select('full_name, cell_tel_no, email').eq('id', payment.user_id).maybeSingle();
-        payment.profiles = _pmtProfile || {};
 
         await supabaseService.from('manual_payments').update({
             status: 'confirmed', confirmed_by: user?.id, confirmed_at: new Date().toISOString()
@@ -3537,7 +4019,7 @@ app.post('/api/admin/payment/confirm/:id', async (req, res) => {
         const fullName = payment.profiles?.full_name || 'Client';
         const name     = fullName.split(' ')[0];
         const settings = await getSystemTheme();
-        const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
+        const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend Financial';
         const amtFmt   = `R ${Number(payment.amount).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
         const ref      = payment.reference || payment.id.slice(0,8).toUpperCase();
         const isSettle = payment.payment_type === 'settlement';
@@ -3674,23 +4156,32 @@ app.get('/api/my-eligibility', async (req, res) => {
 
 // POST /api/applications/:id/evaluate — run rules engine against a saved application
 // Fetches credit score + financial profile from DB, runs evaluate-credit, stores result
-app.post('/api/applications/:id/evaluate', async (req, res) => {
+app.post('/api/applications/:id/evaluate', sensitiveLimiter, async (req, res) => {
     try {
         const { id } = req.params;
 
         // 1. Load the application + profile + financial data
         const { data: app, error: appErr } = await supabaseService
             .from('loan_applications')
-            .select('id, user_id, amount, term_months, bureau_score_band')
+            .select(`
+                id, user_id, amount, term_months, bureau_score_band,
+                profiles:user_id (
+                    id, full_name, date_of_birth
+                )
+            `)
             .eq('id', id)
             .maybeSingle();
 
         if (appErr || !app) return res.status(404).json({ error: 'Application not found', detail: appErr?.message });
 
-        const [{ data: profile }, { data: financial }] = await Promise.all([
-            supabaseService.from('profiles').select('id, full_name, date_of_birth').eq('id', app.user_id).maybeSingle(),
-            supabaseService.from('financial_profiles').select('monthly_income, monthly_expenses, monthly_debt_repayments').eq('user_id', app.user_id).maybeSingle(),
-        ]);
+        // Load financial profile separately to avoid join issues
+        const { data: financial } = await supabaseService
+            .from('financial_profiles')
+            .select('monthly_income, monthly_expenses, monthly_debt_repayments')
+            .eq('user_id', app.user_id)
+            .maybeSingle();
+
+        const profile = Array.isArray(app.profiles) ? app.profiles[0] : app.profiles;
 
         // 2. Determine credit score (from application or latest credit check)
         let creditScore = app.bureau_score_band ? null : null; // bureau_score_band is a label, not a number
@@ -3938,15 +4429,22 @@ app.get('/api/letters-of-demand/:applicationId', async (req, res) => {
 
         const { data: app, error } = await supabaseService
             .from('loan_applications')
-            .select('id, user_id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment, term_months, created_at, status, repayment_start_date, loan_number, loan_purpose, purpose')
+            .select(`
+                id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment,
+                term_months, created_at, status, repayment_start_date, loan_number,
+                loan_purpose, purpose,
+                profiles:user_id (
+                    full_name, identity_number, contact_number, cell_tel_no,
+                    address, postal_code, suburb_area,
+                    nok_name, nok_phone, nok_relationship
+                )
+            `)
             .eq('id', applicationId)
             .maybeSingle();
 
         if (error || !app) return res.status(404).json({ error: 'Application not found' });
 
-        const { data: _lodProfile } = await supabaseService
-            .from('profiles').select('full_name, identity_number, contact_number, cell_tel_no, address, postal_code, suburb_area, nok_name, nok_phone, nok_relationship').eq('id', app.user_id).maybeSingle();
-        const profile     = _lodProfile || {};
+        const profile     = app.profiles || {};
         const settings    = await getSystemTheme();
         const companyName = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend Financial Services';
         const companyAddr = settings?.company_physical_address || '';
@@ -3961,132 +4459,237 @@ app.get('/api/letters-of-demand/:applicationId', async (req, res) => {
         const balance     = Number(app.offer_principal || app.amount || 0);
         const defaultInterest = balance * 0.03;
 
+        const logoUrl = settings?.company_logo_url || process.env.COMPANY_LOGO_URL || '';
+        const primaryColor = settings?.primary_color || '#E7762E';
+
         const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Letter of Demand — ${reference}</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Times New Roman', Times, serif; font-size: 12pt; color: #000; background: #fff; }
-  .page { max-width: 210mm; margin: 0 auto; padding: 25mm 20mm; }
+  body { font-family: 'Inter', Arial, sans-serif; font-size: 10.5pt; color: #1a1a1a; background: #e8e8e8; }
 
-  /* Header */
-  .letterhead { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24pt; border-bottom: 2px solid #000; padding-bottom: 12pt; }
-  .company-name { font-size: 18pt; font-weight: bold; letter-spacing: -0.5px; }
-  .company-details { font-size: 9pt; color: #333; margin-top: 4pt; line-height: 1.5; }
-  .letter-type { font-size: 10pt; font-weight: bold; color: #c00; text-transform: uppercase; letter-spacing: 1px; }
+  .page {
+    max-width: 210mm; margin: 0 auto; background: #fff;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.18);
+  }
 
-  /* Date & Reference */
-  .meta { margin: 20pt 0; font-size: 10pt; }
-  .meta strong { font-size: 11pt; }
+  /* Orange top bar */
+  .top-bar { height: 8px; background: ${primaryColor}; }
+
+  .inner { padding: 30mm 22mm 20mm; }
+
+  /* Letterhead */
+  .letterhead {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding-bottom: 18pt; margin-bottom: 20pt;
+    border-bottom: 2px solid ${primaryColor};
+  }
+  .logo-block img { max-height: 64px; max-width: 200px; object-fit: contain; }
+  .logo-fallback { font-size: 20pt; font-weight: 800; color: #1a1a1a; letter-spacing: -0.5px; }
+  .company-details { font-size: 8.5pt; color: #555; margin-top: 6pt; line-height: 1.7; }
+
+  .letter-badge {
+    text-align: right;
+  }
+  .letter-badge .badge {
+    display: inline-block;
+    background: ${primaryColor}; color: #fff;
+    font-size: 8pt; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 4pt 10pt; border-radius: 4pt;
+  }
+  .letter-badge .ncr { font-size: 7.5pt; color: #888; margin-top: 6pt; }
+
+  /* Meta */
+  .meta-row { display: flex; gap: 40pt; margin-bottom: 18pt; font-size: 9.5pt; }
+  .meta-item label { display: block; font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #999; margin-bottom: 2pt; }
+  .meta-item span { font-weight: 600; color: #1a1a1a; }
+
+  /* Divider */
+  .divider { height: 1px; background: #e8e8e8; margin: 14pt 0; }
 
   /* Addressee */
-  .addressee { margin: 16pt 0; font-size: 11pt; line-height: 1.8; }
+  .addressee { margin: 16pt 0 20pt; font-size: 10.5pt; line-height: 1.85; }
+  .addressee .name { font-weight: 700; font-size: 11.5pt; margin-bottom: 2pt; }
 
-  /* Subject */
-  .subject { font-size: 12pt; font-weight: bold; text-decoration: underline; margin: 20pt 0 12pt; }
+  /* Subject line */
+  .subject-block { background: #f7f7f7; border-left: 4px solid ${primaryColor}; padding: 8pt 14pt; margin: 18pt 0; }
+  .subject-block p { font-size: 10.5pt; font-weight: 700; color: #1a1a1a; letter-spacing: 0.2px; }
 
   /* Body */
-  p { margin-bottom: 10pt; line-height: 1.6; text-align: justify; }
+  p { margin-bottom: 9pt; line-height: 1.65; text-align: justify; }
 
   /* Amounts table */
-  .amounts { width: 100%; border-collapse: collapse; margin: 16pt 0; font-size: 11pt; }
-  .amounts th { background: #000; color: #fff; padding: 6pt 10pt; text-align: left; font-size: 10pt; }
-  .amounts td { padding: 5pt 10pt; border-bottom: 1px solid #ddd; }
-  .amounts .total { font-weight: bold; background: #f5f5f5; font-size: 12pt; }
-  .amounts .highlight { color: #c00; font-weight: bold; }
+  .amounts { width: 100%; border-collapse: collapse; margin: 16pt 0; font-size: 10pt; }
+  .amounts thead tr { background: #1a1a1a; }
+  .amounts th { color: #fff; padding: 7pt 12pt; text-align: left; font-size: 9pt; font-weight: 600; letter-spacing: 0.5px; }
+  .amounts th:last-child { text-align: right; }
+  .amounts td { padding: 6pt 12pt; border-bottom: 1px solid #f0f0f0; }
+  .amounts td:last-child { text-align: right; }
+  .amounts tr:nth-child(even) td { background: #fafafa; }
+  .amounts .highlight td { color: ${primaryColor}; font-weight: 600; }
+  .amounts .total td { font-weight: 700; background: #fff3ec; font-size: 11pt; color: ${primaryColor}; border-top: 2px solid ${primaryColor}; }
 
-  /* Signature */
-  .signature { margin-top: 36pt; }
-  .sig-line { border-top: 1px solid #000; width: 200pt; margin-top: 40pt; font-size: 9pt; }
+  /* List */
+  .consequence-list { margin: 0 0 9pt 20pt; }
+  .consequence-list li { margin-bottom: 4pt; line-height: 1.6; }
+
+  /* Signature block */
+  .signature-section { margin-top: 36pt; display: flex; align-items: flex-end; gap: 60pt; }
+  .sig-col {}
+  .sig-script {
+    font-family: 'Brush Script MT', 'Segoe Script', cursive;
+    font-size: 28pt;
+    color: #1a1a1a;
+    line-height: 1;
+    margin-bottom: 2pt;
+    display: block;
+  }
+  .sig-line-rule { border-top: 1.5px solid #1a1a1a; width: 180pt; margin-bottom: 5pt; }
+  .sig-name { font-size: 9.5pt; font-weight: 700; }
+  .sig-title { font-size: 8.5pt; color: #666; }
+  .sig-stamp {
+    width: 80pt; height: 80pt; border-radius: 50%;
+    border: 3px solid ${primaryColor};
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 8pt;
+    opacity: 0.75;
+  }
+  .sig-stamp .stamp-text { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: ${primaryColor}; }
+  .sig-stamp .stamp-date { font-size: 7pt; color: #888; margin-top: 2pt; }
 
   /* Footer */
-  .footer { margin-top: 40pt; padding-top: 8pt; border-top: 1px solid #999; font-size: 8pt; color: #555; text-align: center; }
+  .footer {
+    margin-top: 36pt; padding-top: 10pt;
+    border-top: 2px solid ${primaryColor};
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 7.5pt; color: #888;
+  }
+  .footer strong { color: #555; }
 
   @media print {
-    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-    .no-print { display: none; }
-    @page { size: A4; margin: 20mm; }
+    body { background: #fff; }
+    .page { box-shadow: none; max-width: 100%; }
+    .no-print { display: none !important; }
+    @page { size: A4; margin: 0; }
+    .top-bar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .letter-badge .badge { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .amounts thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .amounts .total td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .subject-block { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 </head>
 <body>
-<div class="no-print" style="background:#1a1a1a;color:#fff;padding:12px 20px;font-family:sans-serif;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
-  <span>📄 Letter of Demand — ${profile.full_name || 'Borrower'} | Ref: ${reference}</span>
-  <button onclick="window.print()" style="background:#E7762E;color:#fff;border:none;padding:8px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">🖨 Print / Save PDF</button>
+
+<div class="no-print" style="background:#1a1a1a;color:#fff;padding:11px 24px;font-family:sans-serif;font-size:13px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:99;">
+  <span style="font-weight:600;">📄 Letter of Demand &nbsp;·&nbsp; ${profile.full_name || 'Borrower'} &nbsp;·&nbsp; Ref: ${reference}</span>
+  <button onclick="window.print()" style="background:${primaryColor};color:#fff;border:none;padding:9px 22px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;letter-spacing:0.3px;">🖨&nbsp; Print / Save PDF</button>
 </div>
 
 <div class="page">
+  <div class="top-bar"></div>
+  <div class="inner">
 
-  <div class="letterhead">
-    <div>
-      <div class="company-name">${companyName}</div>
-      <div class="company-details">${companyAddr}${companyAddr ? '<br>' : ''}${companyPhone ? 'Tel: '+companyPhone : ''}${companyEmail ? ' | '+companyEmail : ''}</div>
+    <!-- LETTERHEAD -->
+    <div class="letterhead">
+      <div class="logo-block">
+        ${logoUrl
+          ? `<img src="${logoUrl}" alt="${companyName} logo">`
+          : `<div class="logo-fallback">${companyName}</div>`}
+        <div class="company-details">
+          ${companyAddr ? companyAddr + '<br>' : ''}
+          ${companyPhone ? 'Tel: ' + companyPhone : ''}${companyPhone && companyEmail ? ' &nbsp;|&nbsp; ' : ''}${companyEmail ? companyEmail : ''}
+        </div>
+      </div>
+      <div class="letter-badge">
+        <div class="badge">Letter of Demand</div>
+        <div class="ncr">NCR Registered Credit Provider</div>
+      </div>
     </div>
-    <div style="text-align:right;">
-      <div class="letter-type">Letter of Demand</div>
-      <div style="font-size:9pt;color:#555;margin-top:6pt;">NCR Registered Credit Provider</div>
+
+    <!-- META -->
+    <div class="meta-row">
+      <div class="meta-item"><label>Date</label><span>${today}</span></div>
+      <div class="meta-item"><label>Reference</label><span>${reference}</span></div>
+      <div class="meta-item"><label>Application ID</label><span>${app.id}</span></div>
     </div>
-  </div>
 
-  <div class="meta">
-    <strong>Date:</strong> ${today}<br>
-    <strong>Reference:</strong> ${reference}<br>
-    <strong>Application ID:</strong> ${app.id}
-  </div>
+    <div class="divider"></div>
 
-  <div class="addressee">
-    <strong>${profile.full_name || '[Client Name]'}</strong><br>
-    ID Number: ${profile.identity_number || '[ID Number]'}<br>
-    ${profile.address ? profile.address + '<br>' : ''}${profile.suburb_area ? profile.suburb_area + '<br>' : ''}${profile.postal_code || ''}
-    <br><br>
-    Contact: ${profile.contact_number || profile.cell_tel_no || '[Contact Number]'}
-  </div>
+    <!-- ADDRESSEE -->
+    <div class="addressee">
+      <div class="name">${profile.full_name || '[Client Name]'}</div>
+      ID Number: ${profile.identity_number || '[ID Number]'}<br>
+      ${profile.address ? profile.address + '<br>' : ''}${profile.suburb_area ? profile.suburb_area + '<br>' : ''}${profile.postal_code ? profile.postal_code + '<br>' : ''}
+      Contact: ${profile.contact_number || profile.cell_tel_no || '[Contact Number]'}
+    </div>
 
-  <div class="subject">NOTICE OF DEFAULT AND DEMAND FOR PAYMENT</div>
+    <!-- SUBJECT -->
+    <div class="subject-block">
+      <p>NOTICE OF DEFAULT AND DEMAND FOR PAYMENT</p>
+    </div>
 
-  <p>Dear <strong>${profile.full_name || 'Client'}</strong>,</p>
+    <p>Dear <strong>${profile.full_name || 'Client'}</strong>,</p>
 
-  <p>We refer to the loan agreement entered into between yourself and <strong>${companyName}</strong>. Despite previous requests for payment, your account is now in <strong>default</strong>.</p>
+    <p>We refer to the loan agreement entered into between yourself and <strong>${companyName}</strong>. Despite previous requests for payment, your account is now in <strong>default</strong> and requires your immediate attention.</p>
 
-  <p>In terms of Section 129 of the National Credit Act 34 of 2005, we hereby give you formal notice that you are in default of your obligations and we demand immediate payment of all outstanding amounts.</p>
+    <p>In terms of <strong>Section 129 of the National Credit Act 34 of 2005</strong>, we hereby give you formal notice that you are in default of your obligations and we demand immediate payment of all outstanding amounts as detailed below.</p>
 
-  <table class="amounts">
-    <thead><tr><th>Description</th><th style="text-align:right;">Amount (R)</th></tr></thead>
-    <tbody>
-      <tr><td>Original Loan Amount</td><td style="text-align:right;">${Number(app.amount || 0).toLocaleString('en-ZA', {minimumFractionDigits:2})}</td></tr>
-      <tr><td>Outstanding Principal Balance</td><td style="text-align:right;">${balance.toLocaleString('en-ZA', {minimumFractionDigits:2})}</td></tr>
-      <tr><td>Default Interest (3% of balance)</td><td style="text-align:right;" class="highlight">${defaultInterest.toLocaleString('en-ZA', {minimumFractionDigits:2})}</td></tr>
-      <tr class="total"><td>TOTAL AMOUNT DUE</td><td style="text-align:right;" class="highlight">${(balance + defaultInterest).toLocaleString('en-ZA', {minimumFractionDigits:2})}</td></tr>
-    </tbody>
-  </table>
+    <!-- AMOUNTS TABLE -->
+    <table class="amounts">
+      <thead>
+        <tr><th>Description</th><th>Amount (R)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Original Loan Amount</td><td>${Number(app.amount || 0).toLocaleString('en-ZA', {minimumFractionDigits:2})}</td></tr>
+        <tr><td>Outstanding Principal Balance</td><td>${balance.toLocaleString('en-ZA', {minimumFractionDigits:2})}</td></tr>
+        <tr class="highlight"><td>Default Interest (3% of balance)</td><td>${defaultInterest.toLocaleString('en-ZA', {minimumFractionDigits:2})}</td></tr>
+        <tr class="total"><td>TOTAL AMOUNT DUE</td><td>${(balance + defaultInterest).toLocaleString('en-ZA', {minimumFractionDigits:2})}</td></tr>
+      </tbody>
+    </table>
 
-  <p>You are hereby required to pay the above total amount within <strong>10 (ten) business days</strong> of receiving this notice. Failure to respond or make payment will result in:</p>
+    <p>You are hereby required to pay the above total amount within <strong>10 (ten) business days</strong> of receiving this notice. Failure to respond or make payment will result in:</p>
 
-  <p style="margin-left:20pt;">
-    1. Legal proceedings being instituted against you;<br>
-    2. A negative listing on your credit record with the relevant credit bureau;<br>
-    3. Recovery of all legal costs from you.
-  </p>
+    <ol class="consequence-list">
+      <li>Legal proceedings being instituted against you;</li>
+      <li>A negative listing on your credit record with the relevant credit bureau;</li>
+      <li>Recovery of all legal costs, including attorney and own client costs, from you.</li>
+    </ol>
 
-  <p>Should you wish to arrange a payment plan or dispute this notice, please contact us immediately at the details above. You also have the right to approach a debt counsellor, alternative dispute resolution agent, consumer court, or the National Credit Regulator.</p>
+    <p>Should you wish to arrange a payment plan or dispute this notice, please contact us immediately at the details above. You also have the right to approach a debt counsellor, alternative dispute resolution agent, consumer court, or the <strong>National Credit Regulator</strong> at 0860 627 627.</p>
 
-  ${profile.nok_name ? `<p><em>We note that your next of kin ${profile.nok_name} (${profile.nok_relationship || ''}) may be contacted at ${profile.nok_phone || ''} if we are unable to reach you directly.</em></p>` : ''}
+    ${profile.nok_name ? `<p><em>We note that your next of kin, ${profile.nok_name}${profile.nok_relationship ? ' (' + profile.nok_relationship + ')' : ''}, may be contacted at ${profile.nok_phone || 'the number on file'} if we are unable to reach you directly.</em></p>` : ''}
 
-  <p>This letter serves as formal notice in terms of Section 129(1)(a) of the National Credit Act.</p>
+    <p>This letter serves as formal notice in terms of <strong>Section 129(1)(a) of the National Credit Act</strong>.</p>
 
-  <div class="signature">
-    <p>Yours faithfully,</p>
-    <div class="sig-line">Authorised Signatory — ${companyName}</div>
-  </div>
+    <!-- SIGNATURE -->
+    <div class="signature-section">
+      <div class="sig-col">
+        <p style="margin-bottom:24pt;">Yours faithfully,</p>
+        <span class="sig-script">AlgoLend Financial</span>
+        <div class="sig-line-rule"></div>
+        <div class="sig-name">Authorised Signatory</div>
+        <div class="sig-title">${companyName}</div>
+      </div>
+      <div class="sig-stamp">
+        <div class="stamp-text">${companyName}</div>
+        <div class="stamp-date">${today}</div>
+        <div class="stamp-text" style="margin-top:4pt;">OFFICIAL</div>
+      </div>
+    </div>
 
-  <div class="footer">
-    ${companyName} is a registered credit provider in terms of the National Credit Act 34 of 2005.
-    This letter was generated on ${today} | Ref: ${reference}
-  </div>
+    <!-- FOOTER -->
+    <div class="footer">
+      <span><strong>${companyName}</strong> is a registered credit provider in terms of the National Credit Act 34 of 2005.</span>
+      <span>Ref: ${reference} &nbsp;·&nbsp; ${today}</span>
+    </div>
 
-</div>
+  </div><!-- /inner -->
+</div><!-- /page -->
 </body>
 </html>`;
 
@@ -4137,21 +4740,22 @@ app.get('/api/contracts/:applicationId/preview', async (req, res) => {
         const { data: app, error } = await supabaseService
             .from('loan_applications')
             .select(`
-                id, user_id, amount, offer_principal, offer_total_repayment, offer_monthly_repayment,
+                id, amount, offer_principal, offer_total_repayment, offer_monthly_repayment,
                 offer_total_interest, offer_total_initiation_fees, offer_total_admin_fees,
                 offer_credit_life_monthly, offer_vat_amount, offer_total_cost_of_credit,
                 term_months, repayment_start_date, loan_number, loan_purpose, purpose,
-                is_first_loan, agreement_number
+                is_first_loan, agreement_number,
+                profiles:user_id (
+                    full_name, identity_number, contact_number, cell_tel_no,
+                    address, postal_code, suburb_area, email,
+                    employer_name,
+                    nok_name, nok_phone, nok_relationship
+                )
             `)
             .eq('id', applicationId)
             .maybeSingle();
 
         if (error || !app) return res.status(404).json({ error: 'Application not found' });
-
-        const { data: _previewProfile } = await supabaseService
-            .from('profiles')
-            .select('full_name, identity_number, contact_number, cell_tel_no, address, postal_code, suburb_area, email, employer_name, nok_name, nok_phone, nok_relationship')
-            .eq('id', app.user_id).maybeSingle();
 
         const settings  = await getSystemTheme();
         const company   = settings?.company_name   || process.env.COMPANY_NAME   || 'AlgoLend';
@@ -4161,7 +4765,7 @@ app.get('/api/contracts/:applicationId/preview', async (req, res) => {
         const companyAddr= settings?.company_physical_address || '';
         const logoUrl   = settings?.company_logo_url || 'https://static.wixstatic.com/media/f82622_cde1fbd5680141c5b0fccca81fb92ad6~mv2.png';
 
-        const profile   = _previewProfile || {};
+        const profile   = app.profiles || {};
         const today     = new Date().toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' });
 
         const principal  = Number(app.offer_principal || app.amount || 0);
@@ -4449,255 +5053,6 @@ app.get('/api/contracts/:applicationId/preview', async (req, res) => {
     }
 });
 
-// GET /api/contracts/:applicationId/credit-life-schedule
-// Printable NCA-compliant CPI policy schedule — R9/R1000 of declining outstanding balance
-app.get('/api/contracts/:applicationId/credit-life-schedule', async (req, res) => {
-    try {
-        const { applicationId } = req.params;
-
-        const { data: app, error } = await supabaseService
-            .from('loan_applications')
-            .select('id, user_id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment, offer_interest_rate, offer_credit_life_monthly, term_months, repayment_start_date, loan_number, agreement_number')
-            .eq('id', applicationId)
-            .maybeSingle();
-
-        if (error || !app) return res.status(404).json({ error: 'Application not found' });
-
-        const { data: _clProfile } = await supabaseService
-            .from('profiles').select('full_name, identity_number, contact_number, cell_tel_no, email').eq('id', app.user_id).maybeSingle();
-
-        const settings   = await getSystemTheme();
-        const company    = settings?.company_name  || process.env.COMPANY_NAME || 'AlgoLend';
-        const ncrNumber  = settings?.ncr_number    || process.env.NCR_NO       || 'NCRCP13510';
-        const logoUrl    = settings?.company_logo_url || '';
-        const profile    = _clProfile || {};
-        const today      = new Date().toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' });
-
-        const principal  = Number(app.offer_principal || app.amount || 0);
-        const term       = Number(app.term_months || 1);
-        // offer_interest_rate stored as monthly decimal (0.05 = 5% p/m); fall back to NCA max
-        const r          = Number(app.offer_interest_rate || 0.05);
-        const CL_RATE    = 9 / 1000;  // R9 per R1 000
-
-        // Fixed monthly loan repayment (principal + interest only, annuity formula)
-        const loanPayment = r > 0
-            ? principal * r / (1 - Math.pow(1 + r, -term))
-            : principal / term;
-
-        // Build month-by-month amortisation + CL schedule
-        let balance      = principal;
-        let cumulativeCL = 0;
-        const rows       = [];
-
-        const startDate = app.repayment_start_date ? new Date(app.repayment_start_date) : null;
-
-        for (let m = 1; m <= term; m++) {
-            const openingBalance = balance;
-            const clPremium      = openingBalance * CL_RATE;          // R9 per R1 000 of opening balance
-            const interestCharge = openingBalance * r;
-            const principalPaid  = loanPayment - interestCharge;
-            balance              = Math.max(0, openingBalance - principalPaid);
-            cumulativeCL        += clPremium;
-
-            let monthLabel = `Month ${m}`;
-            if (startDate) {
-                const d = new Date(startDate);
-                d.setMonth(d.getMonth() + m - 1);
-                monthLabel = d.toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' });
-            }
-
-            rows.push({ m, monthLabel, openingBalance, clPremium, interestCharge, principalPaid, closingBalance: balance, cumulativeCL });
-        }
-
-        const totalCL    = rows.reduce((s, r) => s + r.clPremium, 0);
-        const fmtR       = v => `R ${Number(v).toLocaleString('en-ZA', { minimumFractionDigits:2, maximumFractionDigits:2 })}`;
-        const agreementNo= app.agreement_number || app.loan_number || applicationId.slice(0,8).toUpperCase();
-        const scheduleNo = `CL-${agreementNo}`;
-
-        const tableRows = rows.map(row => `
-            <tr>
-              <td class="center">${row.m}</td>
-              <td class="center">${row.monthLabel}</td>
-              <td class="right">${fmtR(row.openingBalance)}</td>
-              <td class="right bold">${fmtR(row.clPremium)}</td>
-              <td class="right muted">${fmtR(row.cumulativeCL)}</td>
-            </tr>`).join('');
-
-        const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Credit Life Policy Schedule — ${scheduleNo}</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a1a; background:#fff; }
-  .no-print { background:#1a1a1a; color:#fff; padding:10px 20px; display:flex; justify-content:space-between; align-items:center; font-family:sans-serif; font-size:13px; }
-  .no-print button { background:#7C3AED; color:#fff; border:none; padding:8px 20px; border-radius:8px; font-weight:700; cursor:pointer; font-size:13px; }
-  @media print { .no-print { display:none; } }
-  .page { max-width:210mm; margin:0 auto; padding:12mm 14mm; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1a1a1a; padding-bottom:8pt; margin-bottom:10pt; }
-  .header-left h1 { font-size:13pt; font-weight:900; text-transform:uppercase; letter-spacing:.5pt; }
-  .header-left h2 { font-size:9pt; font-weight:400; color:#555; margin-top:2pt; }
-  .header-right { text-align:right; font-size:8pt; color:#555; }
-  .header-right .ref { font-size:11pt; font-weight:900; color:#1a1a1a; }
-  img.logo { max-height:40pt; max-width:120pt; object-fit:contain; }
-  .badge { display:inline-block; background:#7C3AED; color:#fff; font-size:7pt; font-weight:900; letter-spacing:.5pt; text-transform:uppercase; padding:2pt 6pt; border-radius:3pt; margin-top:4pt; }
-  .section { margin:10pt 0; }
-  .section-title { font-size:7.5pt; font-weight:900; text-transform:uppercase; letter-spacing:.8pt; color:#7C3AED; border-bottom:1px solid #e0d6f7; padding-bottom:3pt; margin-bottom:6pt; }
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:4pt; }
-  .cell { background:#f7f7f7; border-radius:3pt; padding:4pt 6pt; }
-  .cell .label { font-size:6.5pt; font-weight:700; text-transform:uppercase; color:#888; }
-  .cell .val { font-size:8.5pt; font-weight:700; color:#1a1a1a; }
-  .benefits-table, .schedule-table { width:100%; border-collapse:collapse; margin-top:4pt; }
-  .benefits-table th, .schedule-table th { background:#1a1a1a; color:#fff; font-size:7pt; font-weight:700; text-transform:uppercase; padding:4pt 6pt; text-align:left; }
-  .benefits-table td, .schedule-table td { font-size:8pt; padding:4pt 6pt; border-bottom:1px solid #f0f0f0; }
-  .benefits-table tr:nth-child(even) td, .schedule-table tr:nth-child(even) td { background:#fafafa; }
-  .schedule-table th.right, .schedule-table td.right { text-align:right; }
-  .schedule-table th.center, .schedule-table td.center { text-align:center; }
-  .schedule-table td.bold { font-weight:700; }
-  .schedule-table td.muted { color:#888; }
-  .totals-row td { background:#1a1a1a !important; color:#fff; font-weight:700; font-size:8.5pt; padding:5pt 6pt; }
-  .totals-row td.right { text-align:right; }
-  .disclosure { background:#fffbe6; border:1pt solid #f0c040; border-radius:3pt; padding:6pt 8pt; margin-top:8pt; font-size:7.5pt; line-height:1.5; }
-  .sign-row { display:grid; grid-template-columns:1fr 1fr; gap:20pt; margin-top:16pt; }
-  .sign-block .sign-line { border-top:1pt solid #1a1a1a; padding-top:4pt; font-size:7.5pt; }
-  .sign-block .sub { font-size:7pt; color:#888; margin-top:2pt; }
-  .footer { margin-top:12pt; padding-top:6pt; border-top:1pt solid #ddd; font-size:7pt; color:#888; text-align:center; line-height:1.6; }
-</style>
-</head>
-<body>
-<div class="no-print">
-  <span>Credit Life Policy Schedule — ${scheduleNo}</span>
-  <button onclick="window.print()">🖨 Print / Save PDF</button>
-</div>
-
-<div class="page">
-
-  <!-- Header -->
-  <div class="header">
-    <div class="header-left">
-      ${logoUrl ? `<img class="logo" src="${logoUrl}" alt="${company}" />` : `<div style="font-size:14pt;font-weight:900;">${company}</div>`}
-      <h1 style="margin-top:6pt;">Credit Life Policy Schedule</h1>
-      <h2>Annexure to Credit Agreement — NCA Schedule 3 Disclosure</h2>
-      <span class="badge">FSCA Compliant Disclosure</span>
-    </div>
-    <div class="header-right">
-      <div class="ref">${scheduleNo}</div>
-      <div>Issue Date: ${today}</div>
-      <div>Agreement No: ${agreementNo}</div>
-      <div>NCR: ${ncrNumber}</div>
-    </div>
-  </div>
-
-  <!-- Parties -->
-  <div class="section">
-    <div class="section-title">A. Parties</div>
-    <div class="grid2">
-      <div class="cell"><div class="label">Credit Provider (Insurer Agent)</div><div class="val">${company}</div></div>
-      <div class="cell"><div class="label">Insured (Borrower)</div><div class="val">${profile.full_name || '—'}</div></div>
-      <div class="cell"><div class="label">Borrower ID Number</div><div class="val">${profile.identity_number || '—'}</div></div>
-      <div class="cell"><div class="label">Contact</div><div class="val">${profile.contact_number || profile.cell_tel_no || '—'}</div></div>
-    </div>
-  </div>
-
-  <!-- Policy Details -->
-  <div class="section">
-    <div class="section-title">B. Policy Details</div>
-    <div class="grid2">
-      <div class="cell"><div class="label">Policy Schedule No</div><div class="val">${scheduleNo}</div></div>
-      <div class="cell"><div class="label">Linked Credit Agreement</div><div class="val">${agreementNo}</div></div>
-      <div class="cell"><div class="label">Cover Type</div><div class="val">Credit Life Insurance (CPI)</div></div>
-      <div class="cell"><div class="label">Premium Basis</div><div class="val">R9.00 per R1 000 of outstanding balance</div></div>
-      <div class="cell"><div class="label">Loan Amount</div><div class="val">${fmtR(principal)}</div></div>
-      <div class="cell"><div class="label">Loan Term</div><div class="val">${term} months</div></div>
-      <div class="cell"><div class="label">First Premium Month</div><div class="val">${rows[0]?.monthLabel || '—'}</div></div>
-      <div class="cell"><div class="label">Total CPI Cost</div><div class="val">${fmtR(totalCL)}</div></div>
-    </div>
-  </div>
-
-  <!-- Benefits -->
-  <div class="section">
-    <div class="section-title">C. Benefits Covered</div>
-    <table class="benefits-table">
-      <thead>
-        <tr><th>Benefit</th><th>Cover</th><th>Waiting Period</th><th>Exclusions</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Death</td><td>Outstanding balance settled in full</td><td>None</td><td>Suicide within 12 months</td></tr>
-        <tr><td>Permanent Disability</td><td>Outstanding balance settled in full</td><td>None</td><td>Pre-existing conditions</td></tr>
-        <tr><td>Temporary Disability</td><td>Monthly instalment paid for duration of disability</td><td>3 months</td><td>Disability &lt; 14 consecutive days</td></tr>
-        <tr><td>Retrenchment</td><td>Monthly instalment paid for up to 12 months</td><td>3 months</td><td>Voluntary resignation; contract workers</td></tr>
-      </tbody>
-    </table>
-    <p style="font-size:7pt;color:#888;margin-top:4pt;">Full policy terms and conditions are available on request from ${company}.</p>
-  </div>
-
-  <!-- Premium Schedule -->
-  <div class="section">
-    <div class="section-title">D. Monthly Premium Schedule (Declining Balance)</div>
-    <p style="font-size:7.5pt;color:#555;margin-bottom:6pt;">Premium = R9.00 × (Outstanding Balance ÷ R1 000). Calculated on the opening balance each month. Premium reduces automatically as the loan is repaid.</p>
-    <table class="schedule-table">
-      <thead>
-        <tr>
-          <th class="center">#</th>
-          <th class="center">Month</th>
-          <th class="right">Outstanding Balance</th>
-          <th class="right">CPI Premium</th>
-          <th class="right">Cumulative CPI</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${tableRows}
-        <tr class="totals-row">
-          <td colspan="3">TOTAL CREDIT LIFE PREMIUM</td>
-          <td class="right">${fmtR(totalCL)}</td>
-          <td></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- NCA Disclosure -->
-  <div class="disclosure">
-    <strong>NCA Disclosure (Section 106 &amp; Regulation 3.5):</strong> In terms of the National Credit Act 34 of 2005, the credit provider is required to disclose the cost of credit life insurance as part of the total cost of credit. The premium above is calculated at <strong>R9.00 per R1 000</strong> of the outstanding loan balance at the beginning of each payment period. The premium reduces each month as the outstanding balance decreases. The borrower has the right to substitute equivalent cover from an independent insurer provided such cover meets the minimum NCA requirements. Total credit life cost over the loan term: <strong>${fmtR(totalCL)}</strong>.
-  </div>
-
-  <!-- Consent & Signature -->
-  <div class="section" style="margin-top:14pt;">
-    <div class="section-title">E. Consent &amp; Acknowledgement</div>
-    <p style="font-size:8pt;margin-bottom:10pt;">I, <strong>${profile.full_name || '___________________'}</strong> (ID: ${profile.identity_number || '___________________'}), confirm that I have read and understood this Credit Life Policy Schedule. I consent to the Credit Life Insurance premium being deducted monthly as set out above and acknowledge that this schedule forms part of my credit agreement with ${company}.</p>
-    <div class="sign-row">
-      <div class="sign-block">
-        <div class="sign-line">Borrower Signature</div>
-        <div class="sub">Name: ${profile.full_name || '___________________'}</div>
-        <div class="sub">Date: ___________________</div>
-      </div>
-      <div class="sign-block">
-        <div class="sign-line">Credit Provider: ${company}</div>
-        <div class="sub">Authorised Signatory</div>
-        <div class="sub">Date: ${today}</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="footer">
-    ${company} · NCR Registration: ${ncrNumber} · Credit Life Policy Schedule ${scheduleNo} · Generated ${today}<br>
-    This document must be read together with the credit agreement to which it is annexed. Retain for your records.
-  </div>
-
-</div>
-</body>
-</html>`;
-
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(html);
-
-    } catch (err) {
-        console.error('[credit-life-schedule]', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
 // POST /api/applications/:id/route-to-head-office
 // Flags online applications for head office review
 app.post('/api/applications/:id/route-to-head-office', async (req, res) => {
@@ -4722,204 +5077,6 @@ app.post('/api/applications/:id/route-to-head-office', async (req, res) => {
         });
 
         res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// ================================================================
-// ADMIN DASHBOARD DATA — service-role endpoints for charts
-// ================================================================
-
-// Middleware: require an authenticated Supabase session for admin routes
-async function requireAdminSession(req, res, next) {
-    const token = (req.headers.authorization || '').replace('Bearer ', '');
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
-    const { data: { user }, error } = await supabaseService.auth.getUser(token);
-    if (error || !user) return res.status(401).json({ error: 'Invalid session' });
-    req.adminUser = user;
-    next();
-}
-
-// GET /api/admin/loan-applications — all apps for dashboard charts
-app.get('/api/admin/loan-applications', requireAdminSession, async (req, res) => {
-    try {
-        const select = req.query.select || 'id,status,amount,offer_principal,offer_total_repayment,offer_monthly_repayment,offer_total_interest,offer_total_initiation_fees,offer_total_admin_fees,created_at,term_months,bureau_score_band,branch_id';
-        const { data, error } = await supabaseService
-            .from('loan_applications')
-            .select(select)
-            .order('created_at', { ascending: true });
-        if (error) return res.status(400).json({ error: error.message });
-        res.json(data || []);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// GET /api/admin/loan-applications/pipeline — non-disbursed apps for funnel
-app.get('/api/admin/loan-applications/pipeline', requireAdminSession, async (req, res) => {
-    try {
-        const { data, error } = await supabaseService
-            .from('loan_applications')
-            .select('id, amount, status, created_at')
-            .not('status', 'in', '(DISBURSED,DECLINED)')
-            .order('created_at', { ascending: false });
-        if (error) return res.status(400).json({ error: error.message });
-        res.json(data || []);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// GET /api/admin/stalled-applications — apps stuck in incomplete steps for >hoursStale hours
-app.get('/api/admin/stalled-applications', requireAdminSession, async (req, res) => {
-    try {
-        const hoursStale = Number(req.query.hours || 24);
-        const cutoff = new Date(Date.now() - hoursStale * 60 * 60 * 1000).toISOString();
-        const STALL_STATUSES = ['STARTED', 'BUREAU_CHECKING', 'BUREAU_OK', 'BUREAU_REFER', 'OFFERED', 'OFFER_ACCEPTED', 'CONTRACT_SIGN'];
-
-        const { data: apps, error } = await supabaseService
-            .from('loan_applications')
-            .select('id, status, amount, created_at, updated_at, loan_number, user_id')
-            .in('status', STALL_STATUSES)
-            .lt('updated_at', cutoff)
-            .order('updated_at', { ascending: true });
-
-        if (error) return res.status(400).json({ error: error.message });
-
-        // Fetch profiles separately (FK join not in PostgREST schema cache)
-        const userIds = [...new Set((apps || []).map(a => a.user_id).filter(Boolean))];
-        let profileMap = {};
-        if (userIds.length) {
-            const { data: profiles } = await supabaseService
-                .from('profiles')
-                .select('id, full_name, cell_tel_no, email')
-                .in('id', userIds);
-            (profiles || []).forEach(p => { profileMap[p.id] = p; });
-        }
-
-        const now = Date.now();
-        const rows = (apps || []).map(app => {
-            const profile = profileMap[app.user_id] || {};
-            const updatedMs = new Date(app.updated_at).getTime();
-            const hoursStalled = Math.floor((now - updatedMs) / 3600000);
-            return {
-                id: app.id,
-                status: app.status,
-                amount: app.amount,
-                loan_number: app.loan_number,
-                created_at: app.created_at,
-                updated_at: app.updated_at,
-                hours_stalled: hoursStalled,
-                client_name: profile.full_name || 'Unknown',
-                phone: profile.cell_tel_no || null,
-                email: profile.email || null,
-            };
-        });
-
-        res.json(rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// POST /api/admin/send-reminder — send an SMS/WhatsApp nudge to a stalled applicant
-app.post('/api/admin/send-reminder', requireAdminSession, async (req, res) => {
-    try {
-        const { applicationId } = req.body;
-        if (!applicationId) return res.status(400).json({ error: 'applicationId required' });
-
-        const { data: app, error: appErr } = await supabaseService
-            .from('loan_applications')
-            .select('id, status, amount, user_id')
-            .eq('id', applicationId)
-            .single();
-
-        if (appErr || !app) return res.status(404).json({ error: 'Application not found' });
-
-        const { data: profileRow } = await supabaseService
-            .from('profiles')
-            .select('full_name, cell_tel_no, email')
-            .eq('id', app.user_id)
-            .maybeSingle();
-        const profile = profileRow || {};
-        const phone    = profile.cell_tel_no;
-        const name     = (profile.full_name || '').split(' ')[0] || 'there';
-        const company  = process.env.COMPANY_NAME || 'AlgoLend';
-        const portalUrl = process.env.APP_URL || 'https://app.algolend.co.za';
-        const link     = `${portalUrl}/user-portal/`;
-
-        if (!phone) return res.status(422).json({ error: 'No phone number on record for this applicant' });
-
-        const STEP_LABELS = {
-            STARTED:         'your basic details',
-            BUREAU_CHECKING: 'your credit check',
-            BUREAU_OK:       'your loan offer',
-            BUREAU_REFER:    'your loan offer',
-            OFFERED:         'accepting your loan offer',
-            OFFER_ACCEPTED:  'signing your contract',
-            CONTRACT_SIGN:   'completing your application',
-        };
-        const stepLabel = STEP_LABELS[app.status] || 'your application';
-        const message = `Hi ${name}, you're almost there! You started a loan application with ${company} but haven't completed ${stepLabel} yet. Continue here: ${link} – ${company}`;
-
-        const result = await messaging.sendSMS(phone, message).catch(e => ({ sent: false, error: e.message }));
-
-        // Log to audit trail (non-blocking)
-        supabaseService.from('audit_log').insert([{
-            entity_type: 'loan_application',
-            entity_id: String(applicationId),
-            action: 'reminder_sent',
-            description: `Reminder sent to ${name} (${phone}) — status: ${app.status}`,
-            performed_by: req.adminUser?.id || null,
-            performed_by_name: req.adminUser?.email || 'Admin',
-        }]).catch(() => {});
-
-        res.json({ sent: result?.sent ?? true, phone, name, status: app.status });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// POST /api/cron/abandoned-reminders — automated batch reminder for all stalled apps >48h
-app.post('/api/cron/abandoned-reminders', async (req, res) => {
-    if (process.env.VERCEL && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET || ''}`) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-    try {
-        const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-        const STALL_STATUSES = ['STARTED', 'BUREAU_OK', 'BUREAU_REFER', 'OFFERED', 'OFFER_ACCEPTED', 'CONTRACT_SIGN'];
-        const company   = process.env.COMPANY_NAME || 'AlgoLend';
-        const portalUrl = process.env.APP_URL || 'https://app.algolend.co.za';
-
-        const { data: stalledApps, error } = await supabaseService
-            .from('loan_applications')
-            .select('id, status, user_id')
-            .in('status', STALL_STATUSES)
-            .lt('updated_at', cutoff);
-
-        if (error) throw error;
-
-        const uids = [...new Set((stalledApps || []).map(a => a.user_id).filter(Boolean))];
-        let pMap = {};
-        if (uids.length) {
-            const { data: ps } = await supabaseService.from('profiles').select('id, full_name, cell_tel_no').in('id', uids);
-            (ps || []).forEach(p => { pMap[p.id] = p; });
-        }
-
-        const results = { sent: 0, skipped: 0, errors: [] };
-        for (const app of (stalledApps || [])) {
-            const prof  = pMap[app.user_id] || {};
-            const phone = prof.cell_tel_no;
-            const name  = (prof.full_name || '').split(' ')[0] || 'there';
-            if (!phone) { results.skipped++; continue; }
-            const msg = `Hi ${name}, your loan application with ${company} is waiting for you. Continue here: ${portalUrl}/user-portal/ – ${company}`;
-            const r = await messaging.sendSMS(phone, msg).catch(e => ({ sent: false, error: e.message }));
-            if (r?.sent !== false) results.sent++;
-            else { results.skipped++; results.errors.push({ id: app.id, error: r.error }); }
-        }
-
-        res.json({ ok: true, ...results });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -5002,19 +5159,19 @@ app.get('/api/audit-log', async (req, res) => {
 // ================================================================
 
 // POST /api/messaging/otp — send OTP to a phone number
-app.post('/api/messaging/otp', async (req, res) => {
+app.post('/api/messaging/otp', otpLimiter, async (req, res) => {
     try {
         const { phone } = req.body;
         if (!phone) return res.status(400).json({ error: 'phone is required' });
         const settings  = await getSystemTheme();
-        const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
+        const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend Financial';
         await messaging.sendOTPMessage({ to: phone, company });
         res.json({ success: true, message: 'OTP sent' });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // POST /api/messaging/verify-otp
-app.post('/api/messaging/verify-otp', (req, res) => {
+app.post('/api/messaging/verify-otp', authLimiter, (req, res) => {
     const { phone, otp } = req.body;
     if (!phone || !otp) return res.status(400).json({ error: 'phone and otp required' });
     const result = messaging.verifyOTP(phone, otp);
@@ -5034,16 +5191,12 @@ app.get('/api/statement/:applicationId', async (req, res) => {
 
         const { data: app, error: appErr } = await supabaseService
             .from('loan_applications')
-            .select('*')
+            .select('*, profiles:user_id(full_name, identity_number, cell_tel_no, email)')
             .eq('id', applicationId)
-            .eq('user_id', user.id)
+            .eq('user_id', user.id) // ensure client can only get their own
             .single();
 
         if (appErr || !app) return res.status(404).json({ error: 'Loan not found' });
-
-        const { data: _stmtProfile } = await supabaseService
-            .from('profiles').select('full_name, identity_number, cell_tel_no, email').eq('id', user.id).maybeSingle();
-        app.profiles = _stmtProfile || {};
 
         const { data: payments } = await supabaseService
             .from('payments')
@@ -5117,6 +5270,133 @@ app.get('/api/statement/:applicationId', async (req, res) => {
     } catch (err) {
         console.error('[statement]', err.message);
         res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/cron/monthly-statements (NCA s108)
+// Runs on the 1st of each month — generates and emails a statement of account
+// to every borrower with an active loan. Skips accounts with no email on record.
+app.get('/api/cron/monthly-statements', async (req, res) => {
+    if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+        const { data: activeLoans } = await supabaseService
+            .from('loan_applications')
+            .select(`
+                id, loan_number, amount, offer_principal, offer_total_repayment,
+                offer_monthly_repayment, repayment_start_date, term_months, status,
+                profiles:user_id (full_name, identity_number, email, user_id:id)
+            `)
+            .in('status', ['DISBURSED', 'IN_ARREARS', 'IN_DEFAULT', 'DEBICHECK_AUTH'])
+            .not('contract_signed_at', 'is', null);
+
+        if (!activeLoans?.length) return res.json({ ok: true, sent: 0 });
+
+        const settings  = await getSystemTheme();
+        const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
+        const ncrNumber = settings?.ncr_number   || process.env.COMPANY_NCR  || 'NCRCP13510';
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        const fmtR      = v => `R ${Number(v || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
+        const period    = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long' });
+        const today     = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        let sent = 0;
+
+        for (const app of activeLoans) {
+            const profile = app.profiles || {};
+            if (!profile.email) continue;
+
+            const userId = profile['user_id'] || app.user_id;
+            const loanRef = app.loan_number ? `L${String(app.loan_number).padStart(4,'0')}` : String(app.id).slice(0,8).toUpperCase();
+
+            // Fetch payments for this account
+            const [{ data: payments }, { data: manualPayments }] = await Promise.all([
+                supabaseService.from('payments').select('payment_date, amount, id').eq('user_id', userId).order('payment_date'),
+                supabaseService.from('manual_payments').select('created_at, amount, reference, id').eq('user_id', userId).eq('status', 'confirmed').order('created_at'),
+            ]);
+
+            const allPayments = [
+                ...(payments || []).map(p => ({ date: p.payment_date, amount: p.amount, type: 'Debit Order', ref: p.id?.slice(0,8) })),
+                ...(manualPayments || []).map(p => ({ date: p.created_at?.slice(0,10), amount: p.amount, type: 'Manual EFT', ref: p.reference || p.id?.slice(0,8) })),
+            ].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            const totalPaid   = allPayments.reduce((s, p) => s + Number(p.amount), 0);
+            const outstanding = Math.max(0, Number(app.offer_total_repayment || app.amount || 0) - totalPaid);
+            const isArrears   = app.status === 'IN_ARREARS' || app.status === 'IN_DEFAULT';
+
+            const statementHtml = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; padding: 32px; color: #1a1a1a; font-size: 10pt; }
+  .header { display: flex; justify-content: space-between; border-bottom: 2px solid #E7762E; padding-bottom: 12px; margin-bottom: 20px; }
+  .logo { font-size: 16pt; font-weight: bold; color: #E7762E; }
+  .ncr  { font-size: 8pt; color: #888; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  th { background: #E7762E; color: #fff; padding: 6px 10px; text-align: left; font-size: 9pt; }
+  td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; font-size: 9.5pt; }
+  .summary { background: #fff8f3; border: 1px solid #fed7aa; border-radius: 8px; padding: 14px 18px; margin: 14px 0; }
+  .kv { display: flex; justify-content: space-between; margin: 3px 0; font-size: 9.5pt; }
+  .kv strong { font-weight: 700; }
+  .arrears-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 10px 14px; margin: 12px 0; font-size: 9.5pt; }
+  .footer { margin-top: 20px; font-size: 8pt; color: #666; border-top: 1px solid #eee; padding-top: 8px; }
+</style></head><body>
+<div class="header">
+  <div><div class="logo">${company}</div><div class="ncr">NCR: ${ncrNumber}</div></div>
+  <div style="text-align:right;font-size:9pt;color:#555">
+    <strong>Monthly Statement of Account</strong><br>
+    Period: ${period}<br>Ref: ${loanRef}<br>Date: ${today}
+  </div>
+</div>
+<p><strong>${profile.full_name || ''}</strong><br>ID: ${profile.identity_number || ''}</p>
+
+<div class="summary">
+  <div class="kv"><span>Loan Amount</span><strong>${fmtR(app.offer_principal || app.amount)}</strong></div>
+  <div class="kv"><span>Monthly Instalment</span><strong>${fmtR(app.offer_monthly_repayment)}</strong></div>
+  <div class="kv"><span>Total Repayable</span><strong>${fmtR(app.offer_total_repayment || app.amount)}</strong></div>
+  <div class="kv"><span>Total Paid to Date</span><strong style="color:#10b981">${fmtR(totalPaid)}</strong></div>
+  <div class="kv" style="border-top:2px solid #fed7aa;margin-top:8px;padding-top:8px">
+    <span><strong>Outstanding Balance</strong></span>
+    <strong style="color:${outstanding > 0 ? '#E7762E' : '#10b981'};font-size:12pt">${fmtR(outstanding)}</strong>
+  </div>
+</div>
+
+${isArrears ? `<div class="arrears-box">⚠ <strong>Your account is in arrears.</strong> Please contact us immediately to arrange payment and avoid further action. Section 129 notices may already have been issued.</div>` : ''}
+
+<h3 style="font-size:10pt;margin:14px 0 6px">Payment History</h3>
+${allPayments.length ? `
+<table>
+  <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Amount</th></tr></thead>
+  <tbody>${allPayments.map(p => `<tr><td>${p.date || '—'}</td><td>${p.type}</td><td>${p.ref || '—'}</td><td>${fmtR(p.amount)}</td></tr>`).join('')}</tbody>
+</table>` : '<p style="color:#9ca3af;font-size:9pt">No payments recorded yet.</p>'}
+
+<div class="footer">
+  ${company} — NCR Registration: ${ncrNumber}<br>
+  This is your official monthly statement of account in terms of Section 108 of the National Credit Act No. 34 of 2005.<br>
+  If you have any questions, please contact us. This statement was automatically generated on ${today}.
+</div>
+</body></html>`;
+
+            try {
+                const { Resend } = require('resend');
+                const resend = new Resend(process.env.RESEND_API_KEY);
+                await resend.emails.send({
+                    from:    fromEmail,
+                    to:      profile.email,
+                    subject: `Your ${company} Statement — ${period} — Ref: ${loanRef}`,
+                    html:    statementHtml,
+                });
+                sent++;
+            } catch (emailErr) {
+                console.warn(`[monthly-statements] failed for app ${app.id}:`, emailErr.message);
+            }
+        }
+
+        console.log(`[monthly-statements cron] sent ${sent} / ${activeLoans.length}`);
+        return res.json({ ok: true, sent, total: activeLoans.length });
+    } catch (err) {
+        console.error('[monthly-statements cron]', err.message);
+        return res.status(500).json({ error: err.message });
     }
 });
 
@@ -5288,8 +5568,8 @@ app.post('/api/messaging/registration-link', async (req, res) => {
         const { phone } = req.body;
         if (!phone) return res.status(400).json({ error: 'phone required' });
         const settings = await getSystemTheme();
-        const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
-        const link     = `${process.env.APP_URL || `http://localhost:${process.env.PORT || 3010}`}/auth/register.html?ref=${messaging.normaliseZANumber(phone)}`;
+        const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend Financial';
+        const link     = `${process.env.APP_URL || 'https://your-portal.vercel.app'}/auth/register.html?ref=${messaging.normaliseZANumber(phone)}`;
         await messaging.sendRegistrationLink({ to: phone, link, company });
         res.json({ success: true, link });
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -5332,7 +5612,6 @@ app.post('/api/messaging/webhook', (req, res) => {
 });
 
 // POST /api/admin/invite-staff — send email invite to a new staff member
-// Uses inviteUserByEmail so the invitee sets their own password via the set-password page
 app.post('/api/admin/invite-staff', async (req, res) => {
     try {
         const authHeader = req.headers.authorization || '';
@@ -5354,13 +5633,11 @@ app.post('/api/admin/invite-staff', async (req, res) => {
 
         const allowedRoles = callerRole === 'super_admin' ? ['admin', 'base_admin'] : ['base_admin'];
         if (!allowedRoles.includes(role)) {
-            return res.status(403).json({ error: `You can only invite: ${allowedRoles.join(', ')}` });
+            return res.status(403).json({ error: `You can only create: ${allowedRoles.join(', ')}` });
         }
 
-        // In local dev APP_URL is production — override so the invite link works locally
-        const siteUrl = process.env.NODE_ENV === 'production'
-            ? (process.env.APP_URL || 'https://app.algolend.co.za')
-            : `http://localhost:${process.env.PORT || 3010}`;
+        // Send invite email — user sets their own password via the link
+        const siteUrl = req.headers.origin || `https://${req.headers.host}`;
         const { data: invited, error: inviteErr } = await supabaseService.auth.admin.inviteUserByEmail(email, {
             data: { full_name, role },
             redirectTo: `${siteUrl}/auth/set-password.html`
@@ -5373,7 +5650,7 @@ app.post('/api/admin/invite-staff', async (req, res) => {
             throw inviteErr;
         }
 
-        // Set role in app_metadata (invite only sets user_metadata)
+        // Set app_metadata role (inviteUserByEmail only sets user_metadata)
         await supabaseService.auth.admin.updateUserById(invited.user.id, {
             app_metadata: { role }
         });
@@ -5384,7 +5661,7 @@ app.post('/api/admin/invite-staff', async (req, res) => {
             full_name,
             email,
             role,
-            branch_id:  branch_id || null,
+            branch_id:  branch_id ? parseInt(branch_id, 10) : null,
             updated_at: new Date().toISOString()
         }, { onConflict: 'id' });
 
@@ -5394,53 +5671,53 @@ app.post('/api/admin/invite-staff', async (req, res) => {
             description: `Staff member ${full_name} (${role}) invited by ${user.email}`
         });
 
-        res.status(201).json({ success: true, user: { id: invited.user.id, email, full_name, role } });
+        res.status(201).json({ success: true, full_name, user: { id: invited.user.id, email, full_name, role } });
     } catch (err) {
         console.error('[invite-staff]', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// DELETE /api/admin/remove-staff/:userId — permanently remove a staff account
+// DELETE /api/admin/remove-staff/:userId
 app.delete('/api/admin/remove-staff/:userId', async (req, res) => {
     try {
         const authHeader = req.headers.authorization || '';
         const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
         if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
-        const { data: { user: caller }, error: authErr } = await supabaseService.auth.getUser(token);
-        if (authErr || !caller) return res.status(401).json({ error: 'Unauthorized' });
+        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
+        if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
 
-        const callerRole = caller.app_metadata?.role || 'borrower';
+        const callerRole = user.app_metadata?.role || user.user_metadata?.role || 'borrower';
         if (!['super_admin', 'admin'].includes(callerRole)) {
             return res.status(403).json({ error: 'Only admins can remove staff' });
         }
 
         const { userId } = req.params;
 
-        if (userId === caller.id) {
-            return res.status(400).json({ error: 'You cannot remove yourself' });
+        // Prevent removing yourself
+        if (userId === user.id) {
+            return res.status(400).json({ error: 'You cannot remove your own account.' });
         }
 
-        // Fetch the target to check their role
-        const { data: { user: target }, error: targetErr } = await supabaseService.auth.admin.getUserById(userId);
-        if (targetErr || !target) return res.status(404).json({ error: 'User not found' });
-
-        const targetRole = target.app_metadata?.role || target.user_metadata?.role || 'borrower';
-
-        // admin cannot remove another admin or super_admin
-        const RANK = { borrower: 0, base_admin: 1, admin: 2, super_admin: 3 };
-        if ((RANK[callerRole] || 0) <= (RANK[targetRole] || 0) && callerRole !== 'super_admin') {
-            return res.status(403).json({ error: 'You cannot remove a user with an equal or higher role' });
+        // Check target role — admins cannot remove other admins or super_admins
+        const { data: target } = await supabaseService.auth.admin.getUserById(userId);
+        const targetRole = target?.user?.app_metadata?.role || target?.user?.user_metadata?.role || '';
+        if (callerRole === 'admin' && ['admin', 'super_admin'].includes(targetRole)) {
+            return res.status(403).json({ error: 'Branch managers cannot remove other managers or super admins.' });
         }
 
-        await supabaseService.auth.admin.deleteUser(userId);
+        // Delete auth user (cascades to profile via DB trigger if set, else delete manually)
+        const { error: deleteErr } = await supabaseService.auth.admin.deleteUser(userId);
+        if (deleteErr) throw deleteErr;
+
+        // Clean up profile row (in case no cascade trigger)
         await supabaseService.from('profiles').delete().eq('id', userId);
 
         await writeAudit({
             entityType: 'user', entityId: userId,
             action: 'staff_removed',
-            description: `Staff member ${target.email} (${targetRole}) removed by ${caller.email}`
+            description: `Staff member ${userId} removed by ${user.email}`
         });
 
         res.json({ success: true });
@@ -5450,305 +5727,633 @@ app.delete('/api/admin/remove-staff/:userId', async (req, res) => {
     }
 });
 
-// ── Loan Products CRUD ────────────────────────────────────────────────────────
-app.get('/api/admin/products', requireAdminSession, async (req, res) => {
+// ─── Collections ─────────────────────────────────────────────────────────────
+
+// GET /api/admin/collections/notes/:appId
+app.get('/api/admin/collections/notes/:appId', async (req, res) => {
+    const { data: { user }, error: ae } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (ae || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
     const { data, error } = await supabaseService
-        .from('loan_products')
-        .select('*')
-        .order('created_at', { ascending: true });
+        .from('collection_notes')
+        .select('*, profiles:created_by (full_name)')
+        .eq('application_id', req.params.appId)
+        .order('created_at', { ascending: false });
     if (error) return res.status(500).json({ error: error.message });
-    res.json({ data: data || [] });
+    return res.json(data);
 });
 
-app.post('/api/admin/products', requireAdminSession, async (req, res) => {
-    const { name, min_amount, max_amount, min_term_months, max_term_months,
-            interest_rate_monthly, initiation_fee_rate, monthly_admin_fee,
-            has_credit_life, description } = req.body || {};
-    if (!name) return res.status(400).json({ error: 'name is required' });
+// POST /api/admin/collections/notes/:appId
+app.post('/api/admin/collections/notes/:appId', async (req, res) => {
+    const { data: { user }, error: ae } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (ae || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const { note_type = 'note', body, promise_date, promise_amount, outcome } = req.body;
+    if (!body?.trim()) return res.status(400).json({ error: 'body is required' });
+
     const { data, error } = await supabaseService
-        .from('loan_products')
-        .insert([{ name, min_amount, max_amount, min_term_months, max_term_months,
-                   interest_rate_monthly, initiation_fee_rate, monthly_admin_fee,
-                   has_credit_life: !!has_credit_life, description, is_active: true }])
+        .from('collection_notes')
+        .insert({
+            application_id: req.params.appId,
+            note_type, body: body.trim(),
+            promise_date:   promise_date   || null,
+            promise_amount: promise_amount || null,
+            outcome:        outcome        || null,
+            created_by:     user.id,
+        })
+        .select('*, profiles:created_by (full_name)')
+        .single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(201).json(data);
+});
+
+// POST /api/admin/collections/bulk-sms
+// Sends a payment reminder SMS to a list of application IDs
+app.post('/api/admin/collections/bulk-sms', async (req, res) => {
+    const { data: { user }, error: ae } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (ae || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const { applicationIds = [], message } = req.body;
+    if (!applicationIds.length) return res.status(400).json({ error: 'applicationIds required' });
+
+    const { data: apps } = await supabaseService
+        .from('loan_applications')
+        .select('id, profiles:user_id (full_name, phone_number)')
+        .in('id', applicationIds);
+
+    let sent = 0, failed = 0;
+    for (const app of (apps || [])) {
+        const phone = app.profiles?.phone_number;
+        if (!phone) { failed++; continue; }
+        try {
+            const smsBody = message || `Hi ${app.profiles?.full_name?.split(' ')[0] || 'there'}, your loan repayment is overdue. Please make payment to avoid further action. Call us for assistance.`;
+            await messaging.sendSMS(phone, smsBody);
+            sent++;
+        } catch { failed++; }
+    }
+    return res.json({ ok: true, sent, failed, total: apps?.length || 0 });
+});
+
+// GET /api/admin/portfolio/metrics
+// Management dashboard — book value, NPL, yield, monthly disbursements, aging buckets
+app.get('/api/admin/portfolio/metrics', async (req, res) => {
+    const { data: { user }, error: ae } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (ae || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const [
+        { data: activeLoans },
+        { data: monthlyDisbursements },
+        { data: settledLoans },
+    ] = await Promise.all([
+        supabaseService
+            .from('loan_applications')
+            .select('id, amount, offer_total_repayment, offer_monthly_repayment, offer_total_interest, status, contract_signed_at, repayment_start_date, term_months')
+            .in('status', ['DISBURSED', 'IN_ARREARS', 'IN_DEFAULT', 'DEBICHECK_AUTH'])
+            .not('contract_signed_at', 'is', null),
+        supabaseService
+            .from('loan_applications')
+            .select('id, amount, offer_total_repayment, contract_signed_at')
+            .in('status', ['DISBURSED', 'IN_ARREARS', 'IN_DEFAULT', 'SETTLED', 'DEBICHECK_AUTH'])
+            .not('contract_signed_at', 'is', null)
+            .gte('contract_signed_at', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString()),
+        supabaseService
+            .from('loan_applications')
+            .select('id, amount, offer_total_repayment')
+            .eq('status', 'SETTLED')
+            .not('contract_signed_at', 'is', null),
+    ]);
+
+    const active   = activeLoans   || [];
+    const settled  = settledLoans  || [];
+    const monthly  = monthlyDisbursements || [];
+
+    // Book value = sum of outstanding (approximated as total repayable for active)
+    const bookValue   = active.reduce((s, l) => s + Number(l.offer_total_repayment || l.amount || 0), 0);
+    const principalBook = active.reduce((s, l) => s + Number(l.amount || 0), 0);
+    const nplLoans    = active.filter(l => l.status === 'IN_ARREARS' || l.status === 'IN_DEFAULT');
+    const nplValue    = nplLoans.reduce((s, l) => s + Number(l.offer_total_repayment || l.amount || 0), 0);
+    const nplRatio    = bookValue > 0 ? (nplValue / bookValue) * 100 : 0;
+    const totalInterest = active.reduce((s, l) => s + Number(l.offer_total_interest || 0), 0);
+    const yieldPct    = principalBook > 0 ? (totalInterest / principalBook) * 100 : 0;
+
+    // Aging buckets by days overdue
+    const now = Date.now();
+    const aging = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90plus: 0 };
+    for (const l of nplLoans) {
+        const start = l.repayment_start_date ? new Date(l.repayment_start_date).getTime() : new Date(l.contract_signed_at).getTime();
+        const daysOverdue = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+        if (daysOverdue <= 0)        aging.current++;
+        else if (daysOverdue <= 30)  aging.d1_30++;
+        else if (daysOverdue <= 60)  aging.d31_60++;
+        else if (daysOverdue <= 90)  aging.d61_90++;
+        else                         aging.d90plus++;
+    }
+
+    // Monthly disbursements — last 12 months
+    const monthBuckets = {};
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - i);
+        const key = d.toISOString().slice(0, 7); // YYYY-MM
+        monthBuckets[key] = { month: key, count: 0, amount: 0 };
+    }
+    for (const l of monthly) {
+        const key = (l.contract_signed_at || '').slice(0, 7);
+        if (monthBuckets[key]) {
+            monthBuckets[key].count++;
+            monthBuckets[key].amount += Number(l.amount || 0);
+        }
+    }
+
+    return res.json({
+        summary: {
+            active_count:     active.length,
+            book_value:       bookValue,
+            principal_book:   principalBook,
+            npl_count:        nplLoans.length,
+            npl_value:        nplValue,
+            npl_ratio_pct:    Math.round(nplRatio * 100) / 100,
+            yield_pct:        Math.round(yieldPct * 100) / 100,
+            settled_count:    settled.length,
+        },
+        aging,
+        monthly_disbursements: Object.values(monthBuckets),
+    });
+});
+
+// ─── NCR Registers (Phase 3) ─────────────────────────────────────────────────
+
+// GET /api/admin/ncr/agents
+app.get('/api/admin/ncr/agents', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const { data, error } = await supabaseService
+        .from('ncr_agent_register')
+        .select('*')
+        .order('appointment_date', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+});
+
+// POST /api/admin/ncr/agents
+app.post('/api/admin/ncr/agents', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const { full_name, id_number, ncr_number, role: agentRole, branch, appointment_date, notes } = req.body;
+    if (!full_name || !id_number || !agentRole || !appointment_date) {
+        return res.status(400).json({ error: 'full_name, id_number, role, appointment_date are required' });
+    }
+    const { data, error } = await supabaseService
+        .from('ncr_agent_register')
+        .insert({ full_name, id_number, ncr_number, role: agentRole, branch, appointment_date, notes, created_by: user.id })
         .select().single();
     if (error) return res.status(500).json({ error: error.message });
-    res.json({ data });
+    return res.status(201).json(data);
 });
 
-app.put('/api/admin/products/:id', requireAdminSession, async (req, res) => {
-    const allowed = ['name','min_amount','max_amount','min_term_months','max_term_months',
-                     'interest_rate_monthly','initiation_fee_rate','monthly_admin_fee',
-                     'has_credit_life','description','is_active'];
-    const patch = Object.fromEntries(Object.entries(req.body || {}).filter(([k]) => allowed.includes(k)));
-    if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nothing to update' });
+// PATCH /api/admin/ncr/agents/:id
+app.patch('/api/admin/ncr/agents/:id', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const allowed = ['full_name','id_number','ncr_number','role','branch','appointment_date','termination_date','status','notes'];
+    const updates = {};
+    for (const k of allowed) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
+    updates.updated_at = new Date().toISOString();
+
     const { data, error } = await supabaseService
-        .from('loan_products')
-        .update({ ...patch, updated_at: new Date().toISOString() })
+        .from('ncr_agent_register')
+        .update(updates)
         .eq('id', req.params.id)
         .select().single();
     if (error) return res.status(500).json({ error: error.message });
-    res.json({ data });
+    return res.json(data);
 });
 
-app.delete('/api/admin/products/:id', requireAdminSession, async (req, res) => {
+// GET /api/admin/ncr/statutory-registers
+app.get('/api/admin/ncr/statutory-registers', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const { data, error } = await supabaseService
+        .from('ncr_statutory_registers')
+        .select('*')
+        .order('financial_year', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+});
+
+// PUT /api/admin/ncr/statutory-registers/:year  (upsert by financial year)
+app.put('/api/admin/ncr/statutory-registers/:year', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const year = parseInt(req.params.year, 10);
+    if (!year || year < 2000 || year > 2100) return res.status(400).json({ error: 'Invalid financial year' });
+
+    const fields = ['total_agreements','total_book_value','npl_count','npl_value','write_offs',
+        'recoveries','total_revenue','impairment_provision','complaints_received','complaints_resolved',
+        'debt_review_referrals','submitted_to_ncr','submitted_at','submission_reference','notes'];
+    const payload = { financial_year: year, updated_at: new Date().toISOString(), created_by: user.id };
+    for (const k of fields) { if (req.body[k] !== undefined) payload[k] = req.body[k]; }
+
+    const { data, error } = await supabaseService
+        .from('ncr_statutory_registers')
+        .upsert(payload, { onConflict: 'financial_year' })
+        .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+});
+
+// ─── Phase 5: PEP/Sanctions, CIPC, FIC goAML ────────────────────────────────
+
+// PATCH /api/admin/applications/:id/pep-sanctions
+// Records the PEP/sanctions screening result (manual or API-sourced).
+// Blocks contract signing downstream if pep_sanctions_cleared = false.
+app.patch('/api/admin/applications/:id/pep-sanctions', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const { cleared, provider = 'manual', ref, notes } = req.body;
+    const now = new Date().toISOString();
     const { error } = await supabaseService
-        .from('loan_products')
-        .delete()
+        .from('loan_applications')
+        .update({
+            pep_sanctions_checked:    true,
+            pep_sanctions_cleared:    !!cleared,
+            pep_sanctions_checked_at: now,
+            pep_sanctions_checked_by: user.id,
+            pep_sanctions_provider:   provider,
+            pep_sanctions_ref:        ref   || null,
+            pep_sanctions_notes:      notes || null,
+            updated_at:               now,
+        })
         .eq('id', req.params.id);
     if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true });
+    return res.json({ ok: true });
 });
 
-// GET /api/admin/manual-payments — fetch manual_payments (bypasses RLS)
-app.get('/api/admin/manual-payments', requireAdminSession, async (req, res) => {
-    try {
-        const { data, error } = await supabaseService
-            .from('manual_payments')
-            .select('*')
-            .order('payment_date', { ascending: false });
-        if (error) return res.status(400).json({ error: error.message });
-        res.json(data || []);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+// PATCH /api/admin/users/:id/cipc
+// Records CIPC company verification for juristic person clients.
+app.patch('/api/admin/users/:id/cipc', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const { is_juristic_person, entity_name, cipc_reg_number, cipc_verified, cipc_notes } = req.body;
+    const now = new Date().toISOString();
+    const updates = { updated_at: now };
+    if (is_juristic_person !== undefined) updates.is_juristic_person = !!is_juristic_person;
+    if (entity_name       !== undefined) updates.entity_name         = entity_name || null;
+    if (cipc_reg_number   !== undefined) updates.cipc_reg_number     = cipc_reg_number || null;
+    if (cipc_notes        !== undefined) updates.cipc_notes          = cipc_notes || null;
+    if (cipc_verified     !== undefined) {
+        updates.cipc_verified    = !!cipc_verified;
+        updates.cipc_verified_at = cipc_verified ? now : null;
+        updates.cipc_verified_by = cipc_verified ? user.id : null;
     }
+    const { error } = await supabaseService.from('profiles').update(updates).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ ok: true });
 });
 
-// GET /api/admin/application-detail/:id — full application + related data (bypasses RLS)
-app.get('/api/admin/application-detail/:id', requireAdminSession, async (req, res) => {
-    try {
-        const appId = Number(req.params.id);
-        const { data: appData, error: appErr } = await supabaseService.from('loan_applications').select('*').eq('id', appId).single();
-        if (appErr || !appData) return res.status(404).json({ error: appErr?.message || 'Not found' });
-        const userId = appData.user_id;
-        const [profileRes, finRes, docsRes, payoutRes, bankRes, creditRes, loansRes, appHistRes] = await Promise.all([
-            supabaseService.from('profiles').select('*').eq('id', userId).maybeSingle(),
-            supabaseService.from('financial_profiles').select('*').eq('user_id', userId).maybeSingle(),
-            supabaseService.from('document_uploads').select('*').eq('user_id', userId).order('uploaded_at', { ascending: false }),
-            supabaseService.from('payouts').select('status').eq('application_id', appId).maybeSingle(),
-            supabaseService.from('bank_accounts').select('*').eq('user_id', userId),
-            supabaseService.from('credit_checks').select('*').eq('user_id', userId).order('checked_at', { ascending: false }),
-            supabaseService.from('loans').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-            supabaseService.from('loan_applications').select('id, status, amount, created_at, purpose').eq('user_id', userId).neq('id', appId).order('created_at', { ascending: false }),
-        ]);
-        res.json({
-            ...appData, profiles: profileRes.data || null,
-            financial_profiles: finRes.data ? [finRes.data] : [],
-            documents: docsRes.data || [], payout: payoutRes.data || null,
-            bank_accounts: bankRes.data || [], credit_checks: creditRes.data || [],
-            loan_history: loansRes.data || [], application_history: appHistRes.data || [],
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+// GET /api/admin/goaml
+app.get('/api/admin/goaml', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const { data, error } = await supabaseService
+        .from('fic_goaml_reports')
+        .select('*, profiles:user_id (full_name, identity_number), reporter:submitted_by (full_name)')
+        .order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+});
+
+// POST /api/admin/goaml
+app.post('/api/admin/goaml', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const { report_type, application_id, user_id, amount, description, goaml_ref, status, notes } = req.body;
+    if (!report_type || !description) return res.status(400).json({ error: 'report_type and description are required' });
+
+    const now = new Date().toISOString();
+    const payload = {
+        report_type, application_id: application_id || null, user_id: user_id || null,
+        amount: amount || null, description, goaml_ref: goaml_ref || null,
+        status: status || 'draft', notes: notes || null, created_by: user.id,
+        submitted_at:    ['submitted','acknowledged'].includes(status) ? now : null,
+        submitted_by:    ['submitted','acknowledged'].includes(status) ? user.id : null,
+        acknowledged_at: status === 'acknowledged' ? now : null,
+    };
+    const { data, error } = await supabaseService
+        .from('fic_goaml_reports').insert(payload).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(201).json(data);
+});
+
+// PATCH /api/admin/goaml/:id
+app.patch('/api/admin/goaml/:id', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const now = new Date().toISOString();
+    const { status, goaml_ref, notes } = req.body;
+    const updates = { updated_at: now };
+    if (goaml_ref !== undefined) updates.goaml_ref = goaml_ref || null;
+    if (notes     !== undefined) updates.notes     = notes || null;
+    if (status    !== undefined) {
+        updates.status = status;
+        if (['submitted','acknowledged'].includes(status) && !req.body.submitted_at) {
+            updates.submitted_at = now;
+            updates.submitted_by = user.id;
+        }
+        if (status === 'acknowledged') updates.acknowledged_at = now;
     }
+    const { data, error } = await supabaseService
+        .from('fic_goaml_reports').update(updates).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
 });
 
-// GET /api/admin/payouts — fetch payouts (bypasses RLS)
-app.get('/api/admin/payouts', requireAdminSession, async (req, res) => {
-    try {
-        const { data, error } = await supabaseService
-            .from('payouts')
-            .select('*, profile:user_id(full_name, email), application:loan_applications(status, branch_id, bank_account:bank_account_id(*))')
-            .order('created_at', { ascending: false });
-        if (error) return res.status(400).json({ error: error.message });
-        res.json(data || []);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// ─── Compliance Checkpoint Tracker (Phase 4) ─────────────────────────────────
+
+const COMPLIANCE_CHECKPOINTS = [
+    { key: 'form39',           label: 'NCR Form 39 — Statistical Return',             category: 'NCR Submissions',  due: 'Per submission schedule' },
+    { key: 'form40',           label: 'NCR Form 40 — Annual Financial & Ops Return',  category: 'NCR Submissions',  due: '30 June annually' },
+    { key: 'agent_register',   label: 'Agent / Representative Register (Reg 39)',      category: 'NCR Submissions',  due: 'Keep current at all times' },
+    { key: 'sacrra_reporting', label: 'SACRRA Credit Bureau Reporting',                category: 'NCR Submissions',  due: 'Monthly' },
+    { key: 'section129_proc',  label: 'Section 129 Default Notice Procedures',         category: 'NCA Procedures',   due: 'Reviewed annually' },
+    { key: 'affordability_pol',label: 'Affordability Assessment Policy (NCA s81)',     category: 'NCA Procedures',   due: 'Reviewed annually' },
+    { key: 'reckless_lending', label: 'Reckless Lending Controls (NCA s80–83)',        category: 'NCA Procedures',   due: 'Reviewed annually' },
+    { key: 'fica_cdd',         label: 'FICA Customer Due Diligence (CDD) Procedures', category: 'FICA',             due: 'Reviewed annually' },
+    { key: 'fica_risk_rating', label: 'FICA Client Risk Rating Review',               category: 'FICA',             due: 'Annually per client' },
+    { key: 'fica_goaml',       label: 'FIC goAML Reporting (STR / CTR / TPR)',        category: 'FICA',             due: 'As required' },
+    { key: 'pep_sanctions',    label: 'PEP & Sanctions Screening',                    category: 'FICA',             due: 'Ongoing / at onboarding' },
+    { key: 'ncr_registration', label: 'NCR Certificate of Registration Current',      category: 'Licensing',        due: 'Annual renewal' },
+    { key: 'pi_insurance',     label: 'Professional Indemnity Insurance Current',     category: 'Licensing',        due: 'Annual renewal' },
+    { key: 'board_minutes',    label: 'Board / Directors Compliance Minutes',         category: 'Governance',       due: 'Quarterly' },
+    { key: 'staff_training',   label: 'FICA / NCA Staff Training Records',            category: 'Governance',       due: 'Annually' },
+];
+
+// GET /api/admin/compliance/checkpoints?year=2025
+app.get('/api/admin/compliance/checkpoints', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const year = parseInt(req.query.year || new Date().getFullYear(), 10);
+    const { data: saved } = await supabaseService
+        .from('ncr_compliance_checkpoints')
+        .select('*')
+        .eq('financial_year', year);
+
+    // Merge static checkpoint definitions with saved DB state
+    const merged = COMPLIANCE_CHECKPOINTS.map(def => {
+        const saved_row = (saved || []).find(r => r.checkpoint_key === def.key) || {};
+        return { ...def, ...saved_row, checkpoint_key: def.key, financial_year: year };
+    });
+    return res.json({ year, checkpoints: merged });
 });
 
-// GET /api/admin/profiles — fetch all profiles (bypasses RLS)
-app.get('/api/admin/profiles', requireAdminSession, async (req, res) => {
-    try {
-        const { data, error } = await supabaseService
-            .from('profiles')
-            .select('*')
-            .order('created_at', { ascending: false });
-        if (error) return res.status(400).json({ error: error.message });
-        res.json(data || []);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// PATCH /api/admin/compliance/checkpoints/:year/:key
+app.patch('/api/admin/compliance/checkpoints/:year/:key', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const year = parseInt(req.params.year, 10);
+    const key  = req.params.key;
+    const def  = COMPLIANCE_CHECKPOINTS.find(c => c.key === key);
+    if (!def) return res.status(404).json({ error: 'Unknown checkpoint key' });
+
+    const { status, evidence_ref, notes } = req.body;
+    const now = new Date().toISOString();
+    const payload = {
+        financial_year:  year,
+        checkpoint_key:  key,
+        status:          status || 'pending',
+        evidence_ref:    evidence_ref ?? null,
+        notes:           notes ?? null,
+        updated_at:      now,
+        completed_at:    status === 'complete' ? now : null,
+        completed_by:    status === 'complete' ? user.id : null,
+    };
+
+    const { data, error } = await supabaseService
+        .from('ncr_compliance_checkpoints')
+        .upsert(payload, { onConflict: 'financial_year,checkpoint_key' })
+        .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
 });
 
-// GET /api/user/loans — fetch loans for the authenticated user (bypasses loans RLS)
-app.get('/api/user/loans', async (req, res) => {
+// GET /api/admin/compliance/report/:year  — summary for audit / NCR submission pack
+app.get('/api/admin/compliance/report/:year', async (req, res) => {
+    const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+        (req.headers.authorization || '').replace('Bearer ', '')
+    );
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    const year = parseInt(req.params.year, 10);
+    const { data: saved } = await supabaseService
+        .from('ncr_compliance_checkpoints')
+        .select('*, profiles:completed_by (full_name)')
+        .eq('financial_year', year);
+
+    const settings  = await getSystemTheme();
+    const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
+    const ncrNumber = settings?.ncr_number   || process.env.COMPANY_NCR  || 'NCRCP13510';
+    const today     = new Date().toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' });
+
+    const merged = COMPLIANCE_CHECKPOINTS.map(def => {
+        const row = (saved || []).find(r => r.checkpoint_key === def.key) || {};
+        return { ...def, ...row };
+    });
+
+    const total    = merged.length;
+    const complete = merged.filter(c => c.status === 'complete').length;
+    const naCount  = merged.filter(c => c.status === 'na').length;
+    const pct      = Math.round((complete / (total - naCount)) * 100) || 0;
+
+    const categories = [...new Set(COMPLIANCE_CHECKPOINTS.map(c => c.category))];
+
+    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>Compliance Report ${year} — ${company}</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 780px; margin: 0 auto; padding: 32px; color: #1a1a1a; font-size: 10pt; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #E7762E; padding-bottom: 14px; margin-bottom: 20px; }
+  .logo  { font-size: 16pt; font-weight: bold; color: #E7762E; }
+  .meta  { text-align: right; font-size: 9pt; color: #666; }
+  .score { background: ${pct >= 80 ? '#dcfce7' : pct >= 50 ? '#fef9c3' : '#fee2e2'}; border-radius: 12px; padding: 14px 20px; margin: 0 0 20px; display: flex; justify-content: space-between; align-items: center; }
+  .score-pct { font-size: 32pt; font-weight: 800; color: ${pct >= 80 ? '#16a34a' : pct >= 50 ? '#ca8a04' : '#dc2626'}; }
+  h2 { font-size: 11pt; color: #555; border-bottom: 1px solid #eee; padding-bottom: 5px; margin: 18px 0 8px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  th { background: #f3f4f6; font-size: 8.5pt; color: #555; padding: 6px 10px; text-align: left; font-weight: 600; }
+  td { padding: 7px 10px; font-size: 9.5pt; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 8pt; font-weight: 700; }
+  .complete   { background: #dcfce7; color: #15803d; }
+  .pending    { background: #fee2e2; color: #b91c1c; }
+  .in_progress{ background: #fef9c3; color: #854d0e; }
+  .na         { background: #f3f4f6; color: #6b7280; }
+  .footer { margin-top: 24px; font-size: 8pt; color: #888; border-top: 1px solid #eee; padding-top: 8px; }
+  @media print { body { padding: 16px; } }
+</style></head><body>
+<div class="header">
+  <div><div class="logo">${company}</div><div style="font-size:9pt;color:#888">NCR: ${ncrNumber}</div></div>
+  <div class="meta"><strong>Annual Compliance Report</strong><br>Financial Year: ${year}<br>Generated: ${today}</div>
+</div>
+
+<div class="score">
+  <div>
+    <div style="font-size:11pt;font-weight:700">Overall Compliance Score</div>
+    <div style="font-size:9pt;color:#666">${complete} of ${total - naCount} applicable items complete${naCount ? ` (${naCount} marked N/A)` : ''}</div>
+  </div>
+  <div class="score-pct">${pct}%</div>
+</div>
+
+${categories.map(cat => {
+    const items = merged.filter(c => c.category === cat);
+    return `<h2>${cat}</h2>
+<table>
+  <thead><tr><th>Requirement</th><th>Due</th><th>Status</th><th>Evidence / Reference</th><th>Completed By</th><th>Date</th></tr></thead>
+  <tbody>${items.map(c => `
+    <tr>
+      <td>${c.label}</td>
+      <td style="white-space:nowrap;color:#666">${c.due}</td>
+      <td><span class="badge ${c.status || 'pending'}">${(c.status || 'pending').replace('_',' ')}</span></td>
+      <td>${c.evidence_ref || '—'}</td>
+      <td>${c.profiles?.full_name || '—'}</td>
+      <td style="white-space:nowrap">${c.completed_at ? new Date(c.completed_at).toLocaleDateString('en-ZA') : '—'}</td>
+    </tr>`).join('')}
+  </tbody>
+</table>`;
+}).join('')}
+
+${merged.filter(c => c.notes).length ? `<h2>Notes</h2><table><tbody>${merged.filter(c => c.notes).map(c => `<tr><td style="width:40%"><strong>${c.label}</strong></td><td>${c.notes}</td></tr>`).join('')}</tbody></table>` : ''}
+
+<div class="footer">${company} — NCR: ${ncrNumber} — This report was generated on ${today} for Financial Year ${year}.<br>
+Retain this document as part of your NCR compliance record-keeping obligations.</div>
+</body></html>`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Content-Disposition', `inline; filename="compliance-report-${year}.html"`);
+    return res.send(html);
+});
+
+// ─── NCA Compliance Endpoints ────────────────────────────────────────────────
+
+// PATCH /api/admin/applications/:id/affordability
+// Persists the DTI affordability assessment result (NCA s81 audit trail).
+// Called by the admin portal when confirming AFFORD_OK status.
+app.patch('/api/admin/applications/:id/affordability', async (req, res) => {
     try {
         const token = (req.headers.authorization || '').replace('Bearer ', '');
-        if (!token) return res.status(401).json({ error: 'Unauthorized' });
-        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
-        if (authErr || !user) return res.status(401).json({ error: 'Invalid session' });
-        const { data, error } = await supabaseService
-            .from('loans')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-        if (error) return res.status(400).json({ error: error.message });
-        res.json(data || []);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+        const { data: { user } } = await supabaseService.auth.getUser(token);
+        if (!user) return res.status(401).json({ error: 'Auth required' });
+        const role = user.app_metadata?.role || user.user_metadata?.role;
+        if (!['admin', 'super_admin', 'base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
-// GET /api/admin/ledger — fetch cash_journal entries (bypasses RLS)
-app.get('/api/admin/ledger', requireAdminSession, async (req, res) => {
-    try {
-        const { from, to, branch } = req.query;
-        let query = supabaseService
-            .from('cash_journal')
-            .select('*')
-            .order('entry_date', { ascending: false })
-            .order('created_at',  { ascending: false });
-        if (from)                      query = query.gte('entry_date', from);
-        if (to)                        query = query.lte('entry_date', to);
-        if (branch && branch !== 'all') query = query.eq('branch_id', branch);
-        const { data, error } = await query;
-        if (error) return res.status(400).json({ error: error.message });
-        res.json(data || []);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+        const { id } = req.params;
+        const {
+            monthly_income,
+            monthly_debt,
+            dti_pct,
+            passed,
+            under_debt_review = false,
+        } = req.body;
 
-// POST /api/admin/ledger/sync — backfill cash_journal from historical disbursements + confirmed payments
-app.post('/api/admin/ledger/sync', requireAdminSession, async (req, res) => {
-    try {
-        let inserted = 0;
-
-        // Fetch all disbursed loans
-        const { data: disbursed } = await supabaseService
+        const now = new Date().toISOString();
+        const { error } = await supabaseService
             .from('loan_applications')
-            .select('id, offer_principal, amount, created_at, branch_id, user_id')
-            .eq('status', 'DISBURSED');
+            .update({
+                affordability_monthly_income: monthly_income ?? null,
+                affordability_dti_pct:        dti_pct        ?? null,
+                affordability_passed:          passed         ?? null,
+                affordability_assessed_at:     now,
+                affordability_assessor_id:     user.id,
+                under_debt_review:             under_debt_review,
+                updated_at:                    now,
+            })
+            .eq('id', id);
 
-        for (const loan of (disbursed || [])) {
-            const amount = Number(loan.offer_principal || loan.amount || 0);
-            if (!amount) continue;
-            const { data: exists } = await supabaseService
-                .from('cash_journal')
-                .select('id')
-                .eq('reference_id', loan.id)
-                .eq('category', 'loan_disbursement')
-                .maybeSingle();
-            if (exists) continue;
-            const { error } = await supabaseService.from('cash_journal').insert([{
-                entry_date:      (loan.created_at || new Date().toISOString()).slice(0, 10),
-                entry_type:      'cash_out',
-                category:        'loan_disbursement',
-                description:     `Loan disbursement — application ${String(loan.id).slice(0, 8).toUpperCase()}`,
-                reference:       String(loan.id).slice(0, 8).toUpperCase(),
-                amount:          amount,
-                created_by_name: 'Ledger Sync',
-            }]);
-            if (!error) inserted++;
-        }
-
-        // Fetch confirmed SureSystems collections
-        const { data: collections } = await supabaseService
-            .from('suresystems_mandates')
-            .select('application_id, message, activated_at, branch_id')
-            .eq('status', 'confirmed');
-
-        for (const col of (collections || [])) {
-            if (!col.application_id) continue;
-            const { data: exists } = await supabaseService
-                .from('cash_journal')
-                .select('id')
-                .eq('reference_id', col.application_id)
-                .eq('category', 'collection')
-                .maybeSingle();
-            if (exists) continue;
-            const { data: loanData } = await supabaseService
-                .from('loan_applications')
-                .select('offer_monthly_repayment, branch_id')
-                .eq('id', col.application_id)
-                .maybeSingle();
-            const amount = Number(loanData?.offer_monthly_repayment || 0);
-            if (!amount) continue;
-            const { error } = await supabaseService.from('cash_journal').insert([{
-                entry_date:      (col.activated_at || new Date().toISOString()).slice(0, 10),
-                entry_type:      'cash_in',
-                category:        'collection',
-                description:     `DebiCheck collection — ${col.message || String(col.application_id).slice(0, 8).toUpperCase()}`,
-                reference:       String(col.application_id).slice(0, 8).toUpperCase(),
-                amount:          amount,
-                created_by_name: 'Ledger Sync',
-            }]);
-            if (!error) inserted++;
-        }
-
-        res.json({ success: true, inserted });
+        if (error) throw error;
+        return res.json({ ok: true });
     } catch (err) {
-        console.error('[ledger/sync]', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// POST /api/admin/mandates/sync — pull mandate status for all active references from SureSystems
-app.post('/api/admin/mandates/sync', requireAdminSession, async (req, res) => {
-    try {
-        const sureSystemsService = require('./services/sureSystemsService');
-
-        const { data: mandates } = await supabaseService
-            .from('suresystems_mandates')
-            .select('application_id, contract_reference')
-            .not('contract_reference', 'is', null)
-            .not('status', 'in', '("confirmed","cancelled","rejected")');
-
-        let synced = 0;
-        for (const m of (mandates || [])) {
-            try {
-                const result = await sureSystemsService.getMandateEnquiry({ contractReference: m.contract_reference });
-                if (result?.status) {
-                    await supabaseService
-                        .from('suresystems_mandates')
-                        .update({ status: result.status, message: result.message || null, updated_at: new Date().toISOString() })
-                        .eq('contract_reference', m.contract_reference);
-                    synced++;
-                }
-            } catch (innerErr) {
-                console.warn('[mandates/sync] reference', m.contract_reference, innerErr.message);
-            }
-        }
-
-        res.json({ success: true, synced });
-    } catch (err) {
-        console.error('[mandates/sync]', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// GET /api/debug/server-ip — returns the server's outbound IP (for SureSystems IP whitelisting)
-app.get('/api/debug/server-ip', requireAdminSession, async (req, res) => {
-    try {
-        const http = require('https');
-        const ip = await new Promise((resolve, reject) => {
-            http.get('https://api.ipify.org?format=json', (r) => {
-                let body = '';
-                r.on('data', d => { body += d; });
-                r.on('end', () => resolve(JSON.parse(body).ip));
-            }).on('error', reject);
-        });
-        res.json({ ip, timestamp: new Date().toISOString() });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// POST /api/debug/suresystems-raw — raw SureSystems probe with full request/response dump
-app.post('/api/debug/suresystems-raw', requireAdminSession, async (req, res) => {
-    try {
-        const sureSystemsService = require('./services/sureSystemsService');
-        const result = await sureSystemsService.testConnectivity();
-        res.json({ success: true, result });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message, stack: err.stack });
+        console.error('[affordability patch]', err.message);
+        return res.status(500).json({ error: err.message });
     }
 });
 
 // ── Vercel Cron endpoints (replaces setInterval for serverless) ───
 // Called by Vercel Cron every 6 hours instead of setInterval
 app.get('/api/cron/notifications', async (req, res) => {
-    if (process.env.VERCEL && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET || ''}`) {
+    if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
     try {
@@ -5763,7 +6368,7 @@ app.get('/api/cron/notifications', async (req, res) => {
 });
 
 app.get('/api/cron/flag-defaults', async (req, res) => {
-    if (process.env.VERCEL && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET || ''}`) {
+    if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
     try {
@@ -5771,6 +6376,261 @@ app.get('/api/cron/flag-defaults', async (req, res) => {
         await sched.flagDefaultedLoans?.();
         res.json({ ok: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/cron/section129
+// Auto-triggers Section 129 notices (NCA s129) for accounts in arrears where
+// notice has not yet been sent. Runs daily. Sends via Resend email + SMS.
+app.get('/api/cron/section129', async (req, res) => {
+    if (!process.env.CRON_SECRET || req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+        const { data: arrears } = await supabaseService
+            .from('loan_applications')
+            .select(`
+                id, loan_number, offer_principal, offer_monthly_repayment,
+                offer_total_repayment, repayment_start_date, section129_sent_at,
+                profiles:user_id (full_name, identity_number, email, cell_tel_no, contact_number, address, postal_code, suburb_area)
+            `)
+            .in('status', ['IN_ARREARS', 'IN_DEFAULT'])
+            .is('section129_sent_at', null);
+
+        if (!arrears?.length) return res.json({ ok: true, sent: 0 });
+
+        const settings     = await getSystemTheme();
+        const company      = settings?.company_name      || process.env.COMPANY_NAME || 'AlgoLend';
+        const companyAddr  = settings?.company_physical_address || '';
+        const companyPhone = settings?.company_phone     || '';
+        const companyEmail = process.env.CREDIT_PROVIDER_EMAIL || '';
+        const ncrNumber    = settings?.ncr_number        || process.env.COMPANY_NCR  || 'NCRCP13510';
+        const fromEmail    = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+
+        let sent = 0;
+        const now = new Date().toISOString();
+
+        for (const app of arrears) {
+            const profile   = app.profiles || {};
+            const email     = profile.email;
+            const phone     = profile.cell_tel_no || profile.contact_number;
+            const today     = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
+            const clientNum = 'C' + String(app.id).slice(-4).toUpperCase();
+            const loanRef   = app.loan_number ? `L${String(app.loan_number).padStart(4,'0')}` : app.id.slice(0,8).toUpperCase();
+            const reference = `${clientNum}-${loanRef}`;
+            const balance   = Number(app.offer_principal || 0);
+            const fmtR      = v => `R ${Number(v || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
+
+            const noticeHtml = `
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 10pt; color: #1a1a1a; max-width: 680px; margin: 0 auto; padding: 32px; }
+  .header { border-bottom: 2px solid #E7762E; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; }
+  .logo { font-size: 18pt; font-weight: bold; color: #E7762E; }
+  .ncr  { font-size: 8pt; color: #888; }
+  h2    { font-size: 11pt; font-weight: bold; margin: 16px 0 6px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  td,th { padding: 5px 8px; border: 1px solid #ddd; font-size: 9.5pt; }
+  th    { background: #f5f5f5; font-weight: bold; width: 45%; }
+  .notice-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin: 16px 0; }
+  .footer { margin-top: 24px; font-size: 8pt; color: #666; border-top: 1px solid #eee; padding-top: 8px; }
+</style></head><body>
+<div class="header">
+  <div><div class="logo">${company}</div><div class="ncr">NCR Registration: ${ncrNumber}</div></div>
+  <div style="text-align:right;font-size:9pt"><strong>SECTION 129 NOTICE</strong><br>${today}<br>Ref: ${reference}</div>
+</div>
+<p><strong>${profile.full_name || 'Consumer'}</strong><br>
+${[profile.address, profile.suburb_area, profile.postal_code].filter(Boolean).join(', ')}</p>
+
+<div class="notice-box">
+  <strong>⚠ NOTICE IN TERMS OF SECTION 129 OF THE NATIONAL CREDIT ACT 34 OF 2005</strong><br>
+  <p style="margin:8px 0 0">Dear ${(profile.full_name || 'Consumer').split(' ')[0]}, you are in default of your credit agreement (reference <strong>${reference}</strong>). This notice is issued in terms of Section 129(1)(a) of the National Credit Act.</p>
+</div>
+
+<h2>Account Details</h2>
+<table>
+  <tr><th>Agreement Reference</th><td>${reference}</td></tr>
+  <tr><th>ID Number</th><td>${profile.identity_number || ''}</td></tr>
+  <tr><th>Outstanding Balance</th><td>${fmtR(balance)}</td></tr>
+  <tr><th>Monthly Instalment</th><td>${fmtR(app.offer_monthly_repayment)}</td></tr>
+  <tr><th>Notice Date</th><td>${today}</td></tr>
+</table>
+
+<h2>Your Rights Under the NCA</h2>
+<p>You have the right to:</p>
+<ul>
+  <li>Contact us to <strong>resolve the default</strong> by paying all amounts outstanding;</li>
+  <li>Refer the matter to a <strong>debt counsellor</strong> to apply for debt review under Section 86;</li>
+  <li>Contact a <strong>consumer court</strong> or the <strong>National Credit Regulator</strong>;</li>
+  <li>Lodge a dispute with an <strong>alternative dispute resolution agent</strong>.</li>
+</ul>
+
+<p>If you do not respond to this notice or bring your account up to date within <strong>10 business days</strong>, we may proceed with enforcement action including legal proceedings.</p>
+
+<h2>Contact Us to Resolve</h2>
+<table>
+  <tr><th>Phone</th><td>${companyPhone}</td></tr>
+  <tr><th>Email</th><td>${companyEmail}</td></tr>
+  <tr><th>Address</th><td>${companyAddr}</td></tr>
+</table>
+
+<div class="footer">
+  ${company} — NCR Registration: ${ncrNumber}<br>
+  This notice is issued in compliance with Section 129(1)(a) of the National Credit Act No. 34 of 2005.
+</div>
+</body></html>`;
+
+            let notified = false;
+
+            // Email
+            if (email && process.env.RESEND_API_KEY) {
+                try {
+                    const { Resend } = require('resend');
+                    const resend = new Resend(process.env.RESEND_API_KEY);
+                    await resend.emails.send({
+                        from: fromEmail,
+                        to: email,
+                        subject: `Section 129 Notice — ${reference} — ${company}`,
+                        html: noticeHtml,
+                    });
+                    notified = true;
+                } catch (emailErr) {
+                    console.warn(`[section129] email failed for app ${app.id}:`, emailErr.message);
+                }
+            }
+
+            // SMS fallback / supplement
+            if (phone) {
+                try {
+                    const smsText = `${company}: SECTION 129 NOTICE — Your loan account (${reference}) is in arrears. Contact us immediately on ${companyPhone} to avoid legal action. This is a formal NCA s129 notice.`;
+                    await messaging.sendSMS(phone, smsText);
+                    notified = true;
+                } catch (smsErr) {
+                    console.warn(`[section129] SMS failed for app ${app.id}:`, smsErr.message);
+                }
+            }
+
+            if (notified) {
+                await supabaseService.from('loan_applications').update({
+                    section129_sent_at:    now,
+                    section129_reference:  reference,
+                    updated_at:            now,
+                }).eq('id', app.id);
+                sent++;
+            }
+        }
+
+        console.log(`[section129 cron] sent ${sent} / ${arrears.length} notices`);
+        return res.json({ ok: true, sent, total_in_arrears: arrears.length });
+    } catch (err) {
+        console.error('[section129 cron]', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/admin/ledger/sync — backfill cash_journal from existing disbursements + confirmed payments
+app.post('/api/admin/ledger/sync', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Auth required' });
+    const { data: { user } } = await supabaseService.auth.getUser(token);
+    if (!user) return res.status(401).json({ error: 'Auth required' });
+    const role = user.app_metadata?.role;
+    if (!['super_admin', 'admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+
+    try {
+        // 1. Fetch existing journal entries so we can skip duplicates (by application_id)
+        const { data: existing } = await supabaseService
+            .from('cash_journal')
+            .select('application_id, entry_type')
+            .not('application_id', 'is', null);
+
+        const alreadyDisbursed = new Set(
+            (existing || []).filter(e => e.entry_type === 'cash_out').map(e => e.application_id)
+        );
+        const alreadyRepaid = new Set(
+            (existing || []).filter(e => e.entry_type === 'cash_in').map(e => e.application_id)
+        );
+
+        const inserts = [];
+
+        // 2. Backfill disbursements
+        const { data: disbursed } = await supabaseService
+            .from('loan_applications')
+            .select('id, loan_number, offer_principal, amount, branch_id, updated_at, profiles:user_id(full_name)')
+            .in('status', ['DISBURSED', 'REPAID', 'SETTLED']);
+
+        for (const app of disbursed || []) {
+            if (alreadyDisbursed.has(String(app.id))) continue;
+            inserts.push({
+                entry_date:      (app.updated_at || new Date().toISOString()).slice(0,10),
+                entry_type:      'cash_out',
+                category:        'loan_disbursement',
+                description:     `Loan disbursed to ${app.profiles?.full_name || 'Client'} — Ref: ${app.loan_number || String(app.id)}`,
+                reference:       String(app.loan_number || app.id),
+                amount:          Number(app.offer_principal || app.amount || 0),
+                branch_id:       app.branch_id || null,
+                application_id:  String(app.id),
+                is_automated:    true,
+                created_by_name: 'System (backfill)'
+            });
+        }
+
+        // 3. Backfill confirmed manual repayments/EFTs
+        const { data: manualPayments } = await supabaseService
+            .from('manual_payments')
+            .select('id, amount, payment_type, application_id, confirmed_at, profiles:user_id(full_name)')
+            .eq('status', 'confirmed');
+
+        for (const p of manualPayments || []) {
+            if (alreadyRepaid.has(String(p.application_id))) continue;
+            inserts.push({
+                entry_date:      (p.confirmed_at || new Date().toISOString()).slice(0,10),
+                entry_type:      'cash_in',
+                category:        p.payment_type === 'settlement' ? 'settlement' : 'repayment',
+                description:     `${p.payment_type === 'settlement' ? 'Settlement' : 'Repayment'} (EFT) from ${p.profiles?.full_name || 'Client'}`,
+                reference:       p.id.slice(0,8).toUpperCase(),
+                amount:          Number(p.amount || 0),
+                application_id:  String(p.application_id || ''),
+                is_automated:    true,
+                created_by_name: 'System (backfill)'
+            });
+        }
+
+        // 4. Backfill SureSystems debit order payments (payments table)
+        const alreadySure = new Set(
+            (existing || [])
+                .filter(e => e.entry_type === 'cash_in' && e.application_id)
+                .map(e => e.application_id + '_sure')
+        );
+        const { data: surePayments } = await supabaseService
+            .from('payments')
+            .select('id, amount, payment_date, user_id, application_id, profiles:user_id(full_name)');
+
+        for (const p of surePayments || []) {
+            const key = String(p.application_id || p.id) + '_sure';
+            if (alreadySure.has(key)) continue;
+            inserts.push({
+                entry_date:      (p.payment_date || new Date().toISOString()).slice(0,10),
+                entry_type:      'cash_in',
+                category:        'debit_order',
+                description:     `DebiCheck collection from ${p.profiles?.full_name || 'Client'}`,
+                reference:       (p.id || '').toString().slice(0,8).toUpperCase(),
+                amount:          Number(p.amount || 0),
+                application_id:  String(p.application_id || ''),
+                is_automated:    true,
+                created_by_name: 'System (SureSystems backfill)'
+            });
+        }
+
+        if (!inserts.length) return res.json({ inserted: 0, message: 'Already up to date.' });
+
+        const { error } = await supabaseService.from('cash_journal').insert(inserts);
+        if (error) throw error;
+
+        res.json({ inserted: inserts.length, message: `Synced ${inserts.length} entr${inserts.length === 1 ? 'y' : 'ies'}.` });
+    } catch (err) {
+        console.error('[ledger/sync]', err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // POST /api/disbursements/payout-csv — single-application disbursement CSV (admin panel, no PIN required)
@@ -5783,30 +6643,20 @@ app.post('/api/disbursements/payout-csv', async (req, res) => {
 
         const { data: apps, error: fetchErr } = await supabaseService
             .from('loan_applications')
-            .select('id, user_id, bank_account_id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment, term_months, loan_number, created_at, status, branch_id')
+            .select(`
+                id, amount, offer_principal, offer_monthly_repayment, offer_total_repayment,
+                term_months, loan_number, created_at, status, branch_id,
+                profiles:user_id ( full_name, identity_number ),
+                bank_accounts:bank_account_id (
+                    bank_name, account_holder, account_number, branch_code, account_type
+                )
+            `)
             .in('id', applicationIds);
 
         if (fetchErr) throw fetchErr;
         if (!apps || apps.length === 0) {
             return res.status(404).json({ error: 'No applications found for the given IDs.' });
         }
-
-        const _disbUids = [...new Set(apps.map(a => a.user_id).filter(Boolean))];
-        const { data: _disbProfs } = _disbUids.length
-            ? await supabaseService.from('profiles').select('id, full_name, identity_number').in('id', _disbUids)
-            : { data: [] };
-        const _disbProfMap = Object.fromEntries((_disbProfs || []).map(p => [p.id, p]));
-
-        const _disbBankIds = [...new Set(apps.map(a => a.bank_account_id).filter(Boolean))];
-        const { data: _disbBanks } = _disbBankIds.length
-            ? await supabaseService.from('bank_accounts').select('id, bank_name, account_holder, account_number, branch_code, account_type').in('id', _disbBankIds)
-            : { data: [] };
-        const _disbBankMap = Object.fromEntries((_disbBanks || []).map(b => [b.id, b]));
-
-        apps.forEach(a => {
-            a.profiles = _disbProfMap[a.user_id] || {};
-            a.bank_accounts = _disbBankMap[a.bank_account_id] || {};
-        });
 
         const csvHeaders = [
             'Reference', 'Client Name', 'ID Number',
@@ -5867,20 +6717,15 @@ app.post('/api/export/:type', async (req, res) => {
 
         if (type === 'dashboard' || type === 'applications') {
             let q = supabaseService.from('loan_applications')
-                .select('id, user_id, loan_number, amount, offer_principal, offer_total_repayment, status, term_months, created_at')
+                .select('id, loan_number, amount, offer_principal, offer_total_repayment, status, term_months, created_at, profiles:user_id(full_name, identity_number)')
                 .order('created_at', { ascending: false });
             q = dateFilter(q);
             const { data, error } = await q;
             if (error) throw error;
-            const _expAppUids = [...new Set((data || []).map(a => a.user_id).filter(Boolean))];
-            const { data: _expAppProfs } = _expAppUids.length
-                ? await supabaseService.from('profiles').select('id, full_name, identity_number').in('id', _expAppUids)
-                : { data: [] };
-            const _expAppProfMap = Object.fromEntries((_expAppProfs || []).map(p => [p.id, p]));
             rows = (data || []).map(a => ({
                 loan_number:   a.loan_number || '',
-                client:        _expAppProfMap[a.user_id]?.full_name || '',
-                id_number:     _expAppProfMap[a.user_id]?.identity_number || '',
+                client:        a.profiles?.full_name || '',
+                id_number:     a.profiles?.identity_number || '',
                 amount:        a.offer_principal || a.amount || 0,
                 total_repay:   a.offer_total_repayment || 0,
                 term_months:   a.term_months || '',
@@ -5890,19 +6735,14 @@ app.post('/api/export/:type', async (req, res) => {
             filename = `applications-${new Date().toISOString().slice(0,10)}`;
         } else if (type === 'payments' || type === 'incoming-payments') {
             let q = supabaseService.from('manual_payments')
-                .select('id, user_id, amount, payment_type, reference, status, created_at')
+                .select('id, amount, payment_type, reference, status, created_at, profiles:user_id(full_name)')
                 .order('created_at', { ascending: false });
             q = dateFilter(q);
             const { data, error } = await q;
             if (error) throw error;
-            const _expPmtUids = [...new Set((data || []).map(p => p.user_id).filter(Boolean))];
-            const { data: _expPmtProfs } = _expPmtUids.length
-                ? await supabaseService.from('profiles').select('id, full_name').in('id', _expPmtUids)
-                : { data: [] };
-            const _expPmtProfMap = Object.fromEntries((_expPmtProfs || []).map(p => [p.id, p]));
             rows = (data || []).map(p => ({
                 reference:    p.reference || '',
-                client:       _expPmtProfMap[p.user_id]?.full_name || '',
+                client:       p.profiles?.full_name || '',
                 amount:       p.amount || 0,
                 type:         p.payment_type || '',
                 status:       p.status || '',
@@ -5911,20 +6751,15 @@ app.post('/api/export/:type', async (req, res) => {
             filename = `payments-${new Date().toISOString().slice(0,10)}`;
         } else if (type === 'loan-book' || type === 'loans') {
             let q = supabaseService.from('loans')
-                .select('id, principal_amount, outstanding_balance, monthly_payment, status, start_date, next_payment_date, loan_applications(loan_number, user_id)')
+                .select('id, principal_amount, outstanding_balance, monthly_payment, status, start_date, next_payment_date, loan_applications(loan_number, profiles:user_id(full_name, identity_number))')
                 .order('start_date', { ascending: false });
             q = dateFilter(q, 'start_date');
             const { data, error } = await q;
             if (error) throw error;
-            const _lbUids = [...new Set((data || []).map(l => l.loan_applications?.user_id).filter(Boolean))];
-            const { data: _lbProfs } = _lbUids.length
-                ? await supabaseService.from('profiles').select('id, full_name, identity_number').in('id', _lbUids)
-                : { data: [] };
-            const _lbProfMap = Object.fromEntries((_lbProfs || []).map(p => [p.id, p]));
             rows = (data || []).map(l => ({
                 loan_number:       l.loan_applications?.loan_number || '',
-                client:            _lbProfMap[l.loan_applications?.user_id]?.full_name || '',
-                id_number:         _lbProfMap[l.loan_applications?.user_id]?.identity_number || '',
+                client:            l.loan_applications?.profiles?.full_name || '',
+                id_number:         l.loan_applications?.profiles?.identity_number || '',
                 principal:         l.principal_amount || 0,
                 outstanding:       l.outstanding_balance || 0,
                 monthly_payment:   l.monthly_payment || 0,
@@ -5970,7 +6805,672 @@ app.post('/api/export/:type', async (req, res) => {
     }
 });
 
+// ================================================================
+// Partner integration API — scoped credential, NOT the Supabase
+// service role key. External apps that push loans to AlgoLend authenticate
+// with INTEGRATION_API_KEY only, which can read/write loan_applications,
+// profiles, and bank_accounts via this endpoint — nothing else.
+// ================================================================
+
+const INTEGRATION_BRANCH_CODES = {
+    'fnb':             '250655',
+    'standard bank':   '051001',
+    'absa':            '632005',
+    'nedbank':         '198765',
+    'capitec':         '470010',
+    'investec':        '580105',
+    'tymebank':        '678910',
+    'discovery bank':  '679000',
+    'african bank':    '430000',
+};
+
+function requireIntegrationAuth(req, res, next) {
+    const configuredKey = process.env.INTEGRATION_API_KEY;
+    if (!configuredKey) {
+        return res.status(503).json({ error: 'Partner integration is not configured (INTEGRATION_API_KEY missing).' });
+    }
+    const provided = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+    if (!provided || provided !== configuredKey) {
+        return res.status(401).json({ error: 'Invalid or missing integration API key' });
+    }
+    next();
+}
+
+// POST /api/integrations/loans — partner apps push a loan application into AlgoLend.
+// Finds-or-creates the borrower profile by identity_number, optionally links a bank
+// account (validated against known universal branch codes), then creates the
+// loan_applications row in STARTED status for an admin to pick up and process.
+// NCA-compliant offer calculation — mirrors public/admin/src/modules/applications.js calculateLoanDetails()
+// so partner-sourced applications arrive with a ready-to-review offer instead of a blank one.
+function calculateLoanOffer(amount, period, waiveInitiation) {
+    const INTEREST_RATE_MONTHLY = 0.05;
+    const INITIATION_FEE_RATE   = 0.15;
+    const CREDIT_LIFE_RATE      = 0.0045;
+    const SERVICE_FEE_MONTHLY   = 69;
+    const VAT_RATE               = 0.15;
+
+    const totalServiceFees    = SERVICE_FEE_MONTHLY * period;
+    const totalInterest       = amount * INTEREST_RATE_MONTHLY * period;
+    const totalInitiationFees = waiveInitiation ? 0 : amount * INITIATION_FEE_RATE;
+    const totalCreditLife     = amount * CREDIT_LIFE_RATE * period;
+    const monthlyCreditLife   = amount * CREDIT_LIFE_RATE;
+    const vatAmount           = (totalInitiationFees + totalServiceFees) * VAT_RATE;
+    const totalCostOfCredit   = totalInterest + totalInitiationFees + totalServiceFees + totalCreditLife + vatAmount;
+    const totalRepayment      = amount + totalCostOfCredit;
+    const monthlyPayment      = totalRepayment / period;
+
+    return {
+        offer_principal: amount,
+        offer_interest_rate: INTEREST_RATE_MONTHLY,
+        offer_total_interest: totalInterest,
+        offer_total_initiation_fees: totalInitiationFees,
+        offer_monthly_repayment: monthlyPayment,
+        offer_total_repayment: totalRepayment,
+        offer_total_admin_fees: totalServiceFees,
+        offer_credit_life_monthly: monthlyCreditLife,
+        offer_credit_life_total: totalCreditLife,
+        offer_details: {
+            interest_rate_monthly: INTEREST_RATE_MONTHLY,
+            initiation_rate: waiveInitiation ? 0 : INITIATION_FEE_RATE,
+            credit_life_rate: CREDIT_LIFE_RATE,
+            vat_amount: vatAmount,
+            total_cost_of_credit: totalCostOfCredit,
+            waive_initiation: waiveInitiation,
+            source: 'Partner API — auto-calculated, review before sending contract'
+        }
+    };
+}
+
+app.post('/api/integrations/loans', sensitiveLimiter, requireIntegrationAuth, async (req, res) => {
+    try {
+        const {
+            idNumber, fullName, phone, email, amount, termMonths, purpose,
+            bankName, accountHolder, accountNumber, branchCode, accountType,
+            source
+        } = req.body || {};
+
+        if (!idNumber || !fullName) {
+            return res.status(400).json({ error: 'idNumber and fullName are required' });
+        }
+        const loanAmount = Number(amount);
+        if (!Number.isFinite(loanAmount) || loanAmount <= 0) {
+            return res.status(400).json({ error: 'amount must be a positive number' });
+        }
+        const loanTermMonths = Number(termMonths);
+        if (!Number.isInteger(loanTermMonths) || loanTermMonths <= 0) {
+            return res.status(400).json({ error: 'termMonths must be a positive integer' });
+        }
+
+        // Find or create the borrower profile by ID number.
+        let { data: profile, error: profileError } = await supabaseService
+            .from('profiles')
+            .select('id')
+            .eq('identity_number', idNumber)
+            .maybeSingle();
+        if (profileError) throw profileError;
+
+        if (!profile) {
+            const { data: newProfile, error: createProfileError } = await supabaseService
+                .from('profiles')
+                .insert([{
+                    id: crypto.randomUUID(),
+                    full_name: fullName,
+                    identity_number: idNumber,
+                    cell_tel_no: phone || null,
+                    email: email || null,
+                    role: 'borrower'
+                }])
+                .select('id')
+                .single();
+            if (createProfileError) throw createProfileError;
+            profile = newProfile;
+        }
+
+        // Optionally link a bank account, validated the same way mandate creation requires.
+        let bankAccountId = null;
+        if (accountNumber && branchCode) {
+            const normalizedBranchCode = String(branchCode).replace(/[^0-9]/g, '');
+            const expectedBranchCode = INTEGRATION_BRANCH_CODES[String(bankName || '').trim().toLowerCase()];
+            if (expectedBranchCode && normalizedBranchCode !== expectedBranchCode) {
+                return res.status(400).json({
+                    error: `Branch code "${branchCode}" does not match ${bankName}'s universal branch code (${expectedBranchCode}).`
+                });
+            }
+            if (!/^[0-9]{6}$/.test(normalizedBranchCode)) {
+                return res.status(400).json({ error: `branchCode must be a 6-digit universal branch code, got "${branchCode}".` });
+            }
+            const normalizedAccountNumber = String(accountNumber).replace(/[^0-9]/g, '');
+
+            const { data: existingBankAccount, error: existingBankError } = await supabaseService
+                .from('bank_accounts')
+                .select('id')
+                .eq('user_id', profile.id)
+                .eq('account_number', normalizedAccountNumber)
+                .eq('bank_name', bankName || null)
+                .maybeSingle();
+            if (existingBankError) throw existingBankError;
+
+            if (existingBankAccount) {
+                bankAccountId = existingBankAccount.id;
+            } else {
+                const { data: bankAccount, error: bankError } = await supabaseService
+                    .from('bank_accounts')
+                    .insert([{
+                        user_id: profile.id,
+                        bank_name: bankName || null,
+                        account_holder: accountHolder || fullName,
+                        account_number: normalizedAccountNumber,
+                        branch_code: normalizedBranchCode,
+                        account_type: accountType || 'cheque',
+                        is_verified: false
+                    }])
+                    .select('id')
+                    .single();
+                if (bankError) throw bankError;
+                bankAccountId = bankAccount.id;
+            }
+        }
+
+        // Determine initiation-fee waiver the same way the in-branch terminal does:
+        // first loan ever, or first loan of the calendar year, waives the fee.
+        const { data: priorLoans, error: priorLoansError } = await supabaseService
+            .from('loan_applications')
+            .select('id, created_at')
+            .eq('user_id', profile.id)
+            .in('status', ['DISBURSED', 'OFFER_ACCEPTED', 'READY_TO_DISBURSE', 'CONTRACT_SIGN', 'DEBICHECK_AUTH']);
+        if (priorLoansError) throw priorLoansError;
+        const currentYear = new Date().getFullYear();
+        const hasLoanThisYear = (priorLoans || []).some(l => new Date(l.created_at).getFullYear() === currentYear);
+        const waiveInitiation = (priorLoans || []).length === 0 || !hasLoanThisYear;
+
+        const offer = calculateLoanOffer(loanAmount, loanTermMonths, waiveInitiation);
+
+        const { data: application, error: appError } = await supabaseService
+            .from('loan_applications')
+            .insert([{
+                user_id: profile.id,
+                amount: loanAmount,
+                term_months: loanTermMonths,
+                purpose: purpose || null,
+                status: 'STARTED',
+                source: source || 'PARTNER_API',
+                bank_account_id: bankAccountId,
+                ...offer
+            }])
+            .select('id')
+            .single();
+        if (appError) throw appError;
+
+        return res.status(201).json({ success: true, applicationId: application.id, userId: profile.id });
+    } catch (err) {
+        console.error('[integrations/loans] error:', err.message || err);
+        return res.status(500).json({ error: err.message || 'Failed to create loan application' });
+    }
+});
+
+// PATCH /api/integrations/loans/:id — partner marketplace relays its own approve/decline
+// decision for an application it referred. This does NOT drive AlgoLend's underwriting
+// pipeline (bureau check, affordability, contract) — that still happens in the admin
+// panel regardless. "approve" just leaves a note for staff; "decline" marks the
+// application CANCELLED since there's nothing further for AlgoLend to action.
+app.patch('/api/integrations/loans/:id', sensitiveLimiter, requireIntegrationAuth, async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({ error: 'id must be a positive integer' });
+        }
+        const { action, reason } = req.body || {};
+        if (!['approve', 'decline'].includes(action)) {
+            return res.status(400).json({ error: 'action must be "approve" or "decline"' });
+        }
+
+        const { data: application, error: fetchError } = await supabaseService
+            .from('loan_applications')
+            .select('id, notes, status')
+            .eq('id', id)
+            .maybeSingle();
+        if (fetchError) throw fetchError;
+        if (!application) return res.status(404).json({ error: `Application ${id} not found` });
+
+        const stamp = new Date().toISOString();
+        const noteLine = action === 'approve'
+            ? `[${stamp}] Approved via partner marketplace.`
+            : `[${stamp}] Declined via partner marketplace.${reason ? ` Reason: ${reason}` : ''}`;
+        const updatedNotes = [application.notes, noteLine].filter(Boolean).join('\n');
+
+        const update = { notes: updatedNotes };
+        if (action === 'decline') update.status = 'CANCELLED';
+
+        const { error: updateError } = await supabaseService
+            .from('loan_applications')
+            .update(update)
+            .eq('id', id);
+        if (updateError) throw updateError;
+
+        return res.json({ success: true, applicationId: id, status: update.status || application.status });
+    } catch (err) {
+        console.error('[integrations/loans PATCH] error:', err.message || err);
+        return res.status(500).json({ error: err.message || 'Failed to update loan application' });
+    }
+});
+
 // --- 8. Start Server ---
+process.on('unhandledRejection', (reason) => {
+    console.error('[unhandledRejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('[uncaughtException]', err);
+});
+
+// POST /api/contracts/notify-to-sign — admin sends client a signing invitation via SMS and/or email
+app.post('/api/contracts/notify-to-sign', async (req, res) => {
+    try {
+        const token = (req.headers.authorization || '').replace('Bearer ', '');
+        if (!token) return res.status(401).json({ error: 'Auth required' });
+        const { data: { user } } = await supabaseService.auth.getUser(token);
+        if (!user) return res.status(401).json({ error: 'Auth required' });
+        const role = user.app_metadata?.role || user.user_metadata?.role;
+        if (!['admin', 'super_admin', 'base_admin'].includes(role)) {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        const { applicationId } = req.body || {};
+        if (!applicationId) return res.status(400).json({ error: 'applicationId required' });
+
+        const { data: app, error: appErr } = await supabaseService
+            .from('loan_applications')
+            .select('id, status, source, profiles:user_id(full_name, email, cell_tel_no, contact_number)')
+            .eq('id', applicationId)
+            .maybeSingle();
+
+        if (appErr || !app) return res.status(404).json({ error: 'Application not found' });
+
+        const profile  = app.profiles || {};
+        const phone    = profile.cell_tel_no || profile.contact_number;
+        const email    = profile.email;
+        const firstName = (profile.full_name || 'there').split(' ')[0];
+        const portalUrl = `${process.env.APP_URL || 'https://app.algolend.co.za'}/user-portal/?page=sign-contract`;
+        const smsMessage = `Hi ${firstName}, your loan agreement is ready to sign. Please log in to your portal to proceed: ${portalUrl}`;
+
+        const results = { sms: null, email: null };
+
+        // Try SMS (all applicants)
+        if (phone) {
+            try {
+                await messaging.sendSMS(phone, smsMessage);
+                results.sms = 'sent';
+            } catch (smsErr) {
+                results.sms = 'failed: ' + smsErr.message;
+            }
+        }
+
+        // For PARTNER_API applicants: create their portal account and send a combined
+        // "set password + sign your contract" email instead of the standard reminder.
+        // This replaces the regular email so they only receive one message.
+        if (app.source === 'PARTNER_API' && email) {
+            try {
+                const inviteResult = await inviteBorrowerToPortal(applicationId, { signContext: true });
+                if (inviteResult?.invited) {
+                    results.email = 'sent (portal invite)';
+                } else if (inviteResult?.skipped) {
+                    // Already has portal access — fall through to standard email below
+                }
+            } catch (inviteErr) {
+                console.warn('[notify-to-sign] partner invite failed, falling back to standard email', inviteErr.message);
+            }
+        }
+
+        // Try email via Resend (non-PARTNER_API, or partner invite skipped/failed)
+        if (email && process.env.RESEND_API_KEY && !results.email) {
+            try {
+                const { Resend } = require('resend');
+                const resend = new Resend(process.env.RESEND_API_KEY);
+                const settings = await getSystemTheme();
+                const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
+                await resend.emails.send({
+                    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+                    to: email,
+                    subject: `Your Loan Agreement is Ready to Sign — ${company}`,
+                    html: `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px;color:#1a1a1a">
+  <div style="background:#E7762E;padding:20px 24px;border-radius:10px 10px 0 0">
+    <h1 style="color:#fff;font-size:20px;margin:0">${company}</h1>
+  </div>
+  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-top:none;padding:24px;border-radius:0 0 10px 10px">
+    <h2 style="font-size:16px;margin:0 0 12px">Your loan agreement is ready to sign</h2>
+    <p style="margin:0 0 16px;color:#444">Dear <strong>${profile.full_name || 'Client'}</strong>, please click the button below to review and sign your loan agreement.</p>
+    <div style="text-align:center;margin:24px 0">
+      <a href="${portalUrl}" style="background:#E7762E;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px">Sign My Agreement</a>
+    </div>
+    <p style="color:#888;font-size:12px;margin-top:20px">If the button doesn't work, copy this link: ${portalUrl}</p>
+  </div>
+</div>`
+                });
+                results.email = 'sent';
+            } catch (emailErr) {
+                results.email = 'failed: ' + emailErr.message;
+            }
+        }
+
+        if (!phone && !email) return res.status(400).json({ error: 'No phone number or email address on this client profile.' });
+        if (results.sms === null && results.email === null) return res.status(400).json({ error: 'No contact channels configured (SMS or Resend not set up).' });
+
+        const channels = [phone && results.sms === 'sent' ? 'SMS' : null, email && results.email === 'sent' ? 'email' : null].filter(Boolean);
+        return res.json({ success: true, sent: channels, results });
+    } catch (err) {
+        console.error('[notify-to-sign]', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── In-house contract signing ───────────────────────────────────────────────
+// POST /api/contracts/sign  (user-portal, no admin auth required — OTP-gated at the portal level)
+app.post('/api/contracts/sign', async (req, res) => {
+    try {
+        const { applicationId, signatureDataUrl } = req.body || {};
+        if (!applicationId || !signatureDataUrl) {
+            return res.status(400).json({ error: 'applicationId and signatureDataUrl are required' });
+        }
+        if (!signatureDataUrl.startsWith('data:image/png;base64,')) {
+            return res.status(400).json({ error: 'signatureDataUrl must be a PNG data URL' });
+        }
+
+        // Fetch full application + profile for contract generation
+        const { data: app, error: appErr } = await supabaseService
+            .from('loan_applications')
+            .select(`
+                id, status, user_id, source, contract_signed_at, loan_number, agreement_number,
+                amount, offer_principal, offer_total_repayment, offer_monthly_repayment,
+                offer_total_interest, offer_total_initiation_fees, offer_total_admin_fees,
+                offer_credit_life_monthly, offer_vat_amount, offer_total_cost_of_credit,
+                term_months, repayment_start_date, is_first_loan,
+                affordability_passed, under_debt_review,
+                pep_sanctions_cleared,
+                profiles:user_id (
+                    full_name, identity_number, email, cell_tel_no, contact_number,
+                    address, postal_code, suburb_area, employer_name,
+                    nok_name, nok_phone, nok_relationship, client_number
+                )
+            `)
+            .eq('id', applicationId)
+            .maybeSingle();
+
+        if (appErr || !app) return res.status(404).json({ error: 'Application not found' });
+        if (app.contract_signed_at) return res.status(409).json({ error: 'Contract already signed' });
+
+        const signable = ['OFFERED', 'CONTRACT_SIGN', 'OFFER_ACCEPTED'];
+        if (!signable.includes(app.status)) {
+            return res.status(400).json({ error: `Application status "${app.status}" is not signable` });
+        }
+
+        // ── NCA compliance gates ─────────────────────────────────────────────
+
+        // Debt review block (NCA s86) — no new credit for consumers under debt review
+        if (app.under_debt_review) {
+            return res.status(422).json({
+                error: 'Cannot conclude agreement — consumer is under debt review (NCA s86). Credit agreement blocked.',
+                code: 'DEBT_REVIEW'
+            });
+        }
+
+        // Reckless lending block (NCA s80–83) — affordability must have been assessed and passed
+        // PARTNER_API applications are pre-screened by the marketplace; organic apps must pass DTI.
+        if (app.source !== 'PARTNER_API') {
+            if (app.affordability_passed === false) {
+                return res.status(422).json({
+                    error: 'Cannot conclude agreement — affordability assessment recorded a fail. Concluding this agreement would constitute reckless lending under NCA s80.',
+                    code: 'RECKLESS_LENDING'
+                });
+            }
+            if (app.affordability_passed === null || app.affordability_passed === undefined) {
+                return res.status(422).json({
+                    error: 'Cannot conclude agreement — no affordability assessment on record. Complete and confirm the affordability check first (NCA s81).',
+                    code: 'AFFORDABILITY_MISSING'
+                });
+            }
+        }
+
+        // PEP / Sanctions screening gate (FICA)
+        if (!app.pep_sanctions_cleared) {
+            return res.status(422).json({
+                error: 'Cannot conclude agreement — PEP/sanctions screening has not been cleared for this applicant (FICA requirement).',
+                code: 'PEP_SANCTIONS_NOT_CLEARED'
+            });
+        }
+
+        // Fee cap validation (NCA Regulations)
+        const principal      = Number(app.offer_principal || app.amount || 0);
+        const initiationFees = Number(app.offer_total_initiation_fees || 0);
+        const termMonths     = Number(app.term_months || 1);
+        const monthlyAdminFee = termMonths > 0
+            ? Number(app.offer_total_admin_fees || 0) / termMonths
+            : 0;
+
+        if (principal > 0 && initiationFees > principal * 0.15 + 0.01) {
+            return res.status(422).json({
+                error: `Initiation fees (R${initiationFees.toFixed(2)}) exceed the NCA cap of 15% of principal (R${(principal * 0.15).toFixed(2)}). Recalculate the offer before signing.`,
+                code: 'FEE_CAP_INITIATION'
+            });
+        }
+        if (monthlyAdminFee > 69 + 0.01) {
+            return res.status(422).json({
+                error: `Monthly service fee (R${monthlyAdminFee.toFixed(2)}) exceeds the NCA maximum of R69/month. Recalculate the offer before signing.`,
+                code: 'FEE_CAP_SERVICE'
+            });
+        }
+
+        // Record that fee caps were validated
+        await supabaseService.from('loan_applications')
+            .update({ fee_cap_validated_at: new Date().toISOString() })
+            .eq('id', applicationId);
+
+        // ────────────────────────────────────────────────────────────────────
+
+        const now = new Date().toISOString();
+        const profile = app.profiles || {};
+
+        // 1. Save signature PNG
+        const base64Data = signatureDataUrl.replace('data:image/png;base64,', '');
+        const sigBuffer = Buffer.from(base64Data, 'base64');
+        const sigPath = `signatures/${applicationId}/contract-signature.png`;
+
+        const { error: storageErr } = await supabaseService.storage
+            .from('documents')
+            .upload(sigPath, sigBuffer, { contentType: 'image/png', upsert: true });
+
+        if (storageErr) throw new Error('Failed to save signature: ' + storageErr.message);
+
+        const { data: { publicUrl: signatureUrl } } = supabaseService.storage
+            .from('documents')
+            .getPublicUrl(sigPath);
+
+        // 2. Build signed contract HTML (reuse preview HTML, append signature block)
+        const settings  = await getSystemTheme();
+        const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
+        const ncrNumber = settings?.ncr_number || process.env.COMPANY_NCR || 'NCRCP13510';
+        const term      = Number(app.term_months || 1);
+        const monthly   = Number(app.offer_monthly_repayment || 0);
+        const totalRepay= Number(app.offer_total_repayment || 0);
+        const clientNum = profile.client_number ? String(profile.client_number) : 'C' + String(applicationId).slice(-4).toUpperCase();
+        const loanSeq   = app.loan_number ? `L${String(app.loan_number).padStart(4,'0')}` : app.id.slice(0,8).toUpperCase();
+        const agreementNo = app.agreement_number || `${clientNum}-${loanSeq}`;
+        const signedDate  = new Date(now).toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' });
+        const fmtR = v => `R ${Number(v).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
+
+        const signedContractHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Signed Contract — ${agreementNo}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #1a1a1a; background: #fff; padding: 12mm 14mm; max-width: 210mm; margin: 0 auto; }
+  h1 { font-size: 14pt; font-weight: bold; margin-bottom: 4px; }
+  h2 { font-size: 10pt; font-weight: bold; margin: 12px 0 6px; border-bottom: 1px solid #ddd; padding-bottom: 3px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  td, th { padding: 5px 8px; border: 1px solid #ddd; font-size: 9pt; }
+  th { background: #f5f5f5; font-weight: bold; width: 45%; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 2px solid #E7762E; padding-bottom: 10px; }
+  .logo { font-size: 16pt; font-weight: bold; color: #E7762E; }
+  .badge { background: #16a34a; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 9pt; font-weight: bold; }
+  .sig-block { margin-top: 20px; border-top: 2px solid #E7762E; padding-top: 16px; }
+  .sig-img { border: 1px solid #ddd; border-radius: 6px; padding: 8px; background: #fafafa; display: inline-block; margin: 8px 0; }
+  .sig-img img { height: 60px; display: block; }
+  .footer { margin-top: 20px; font-size: 8pt; color: #666; border-top: 1px solid #eee; padding-top: 8px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="logo">${company}</div>
+    <div style="font-size:8pt;color:#666;margin-top:2px">NCR: ${ncrNumber}</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-weight:bold;font-size:10pt">Loan Agreement</div>
+    <div style="font-size:8pt;color:#666">${agreementNo}</div>
+    <div class="badge" style="margin-top:6px">✓ SIGNED</div>
+  </div>
+</div>
+
+<h2>Borrower Details</h2>
+<table>
+  <tr><th>Full Name</th><td>${profile.full_name || ''}</td></tr>
+  <tr><th>ID Number</th><td>${profile.identity_number || ''}</td></tr>
+  <tr><th>Cell Number</th><td>${profile.cell_tel_no || profile.contact_number || ''}</td></tr>
+  <tr><th>Email</th><td>${profile.email || ''}</td></tr>
+  <tr><th>Address</th><td>${[profile.address, profile.suburb_area, profile.postal_code].filter(Boolean).join(', ')}</td></tr>
+  <tr><th>Employer</th><td>${profile.employer_name || ''}</td></tr>
+</table>
+
+<h2>Loan Summary</h2>
+<table>
+  <tr><th>Principal Amount</th><td>${fmtR(principal)}</td></tr>
+  <tr><th>Term</th><td>${term} month${term !== 1 ? 's' : ''}</td></tr>
+  <tr><th>Monthly Repayment</th><td>${fmtR(monthly)}</td></tr>
+  <tr><th>Total Repayment</th><td>${fmtR(totalRepay)}</td></tr>
+  <tr><th>Interest Rate</th><td>5% per month</td></tr>
+  <tr><th>Initiation Fee Rate</th><td>${app.is_first_loan ? '5%' : '15%'}</td></tr>
+</table>
+
+<div class="sig-block">
+  <h2 style="border:none;padding:0;margin-bottom:10px">Electronic Signature</h2>
+  <p style="margin-bottom:8px">I, <strong>${profile.full_name || ''}</strong>, confirm that I have read, understood and agree to the terms and conditions of this loan agreement.</p>
+  <div class="sig-img"><img src="${signatureDataUrl}" alt="Signature" /></div>
+  <table style="width:auto;margin-top:10px;border:none">
+    <tr><th style="border:none;background:none;padding:0 12px 0 0">Signed by:</th><td style="border:none;padding:0">${profile.full_name || ''}</td></tr>
+    <tr><th style="border:none;background:none;padding:0 12px 0 0">Date:</th><td style="border:none;padding:0">${signedDate}</td></tr>
+    <tr><th style="border:none;background:none;padding:0 12px 0 0">Agreement:</th><td style="border:none;padding:0">${agreementNo}</td></tr>
+  </table>
+</div>
+
+<div class="footer">
+  This is an electronically signed loan agreement issued by ${company} (${ncrNumber}).
+  Signed on ${signedDate}.
+</div>
+</body>
+</html>`;
+
+        // 3. Upload signed contract HTML to Supabase Storage
+        const contractPath = `contracts/${applicationId}/signed-contract.html`;
+        const { error: contractUploadErr } = await supabaseService.storage
+            .from('documents')
+            .upload(contractPath, Buffer.from(signedContractHtml, 'utf8'), {
+                contentType: 'text/html',
+                upsert: true
+            });
+
+        let contractUrl = null;
+        if (!contractUploadErr) {
+            const { data: { publicUrl } } = supabaseService.storage
+                .from('documents')
+                .getPublicUrl(contractPath);
+            contractUrl = publicUrl;
+        } else {
+            console.warn('Contract HTML upload failed:', contractUploadErr.message);
+        }
+
+        // 4. Update application
+        const { error: updateErr } = await supabaseService
+            .from('loan_applications')
+            .update({
+                contract_signed_at: now,
+                contract_signature_url: signatureUrl,
+                contract_pdf_url: contractUrl,
+                status: 'OFFER_ACCEPTED',
+                updated_at: now
+            })
+            .eq('id', applicationId);
+
+        if (updateErr) throw new Error('Failed to update application: ' + updateErr.message);
+
+        // 5. Trigger SureSystems debit-order mandate (same as DocuSeal webhook does)
+        try {
+            const activation = await triggerSureSystemsMandateForApplication(applicationId);
+            await recordSureSystemsActivation({
+                applicationId,
+                userId: activation?.userId || null,
+                status: 'success',
+                contractReference: activation?.contractReference || null,
+                message: 'Mandate loaded after in-app contract signing',
+                requestPayload: activation?.requestPayload || null,
+                responsePayload: activation?.responsePayload || null,
+                at: now
+            });
+        } catch (mandateErr) {
+            await recordSureSystemsActivation({
+                applicationId,
+                status: 'failed',
+                message: mandateErr?.message || 'SureSystems activation failed after in-app sign',
+                at: now
+            });
+            console.warn('[contracts/sign] mandate activation failed (non-fatal):', mandateErr?.message || mandateErr);
+        }
+
+        // 6. Email the signed contract to the client (non-blocking)
+        const clientEmail = profile.email;
+        if (clientEmail && process.env.RESEND_API_KEY) {
+            try {
+                const { Resend } = require('resend');
+                const resend = new Resend(process.env.RESEND_API_KEY);
+                const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+                await resend.emails.send({
+                    from: fromEmail,
+                    to: clientEmail,
+                    subject: `Your Signed Loan Agreement — ${agreementNo}`,
+                    html: `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px;color:#1a1a1a">
+  <div style="background:#E7762E;padding:20px 24px;border-radius:10px 10px 0 0">
+    <h1 style="color:#fff;font-size:20px;margin:0">${company}</h1>
+  </div>
+  <div style="background:#f9fafb;border:1px solid #e5e7eb;border-top:none;padding:24px;border-radius:0 0 10px 10px">
+    <h2 style="font-size:16px;margin:0 0 12px">Your loan agreement has been signed</h2>
+    <p style="margin:0 0 8px">Dear <strong>${profile.full_name || 'Client'}</strong>,</p>
+    <p style="margin:0 0 16px;color:#444">Thank you for signing your loan agreement (<strong>${agreementNo}</strong>) on <strong>${signedDate}</strong>. Please keep this for your records.</p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+      <tr style="background:#fff"><td style="padding:8px 12px;border:1px solid #e5e7eb;font-weight:bold">Principal</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${fmtR(principal)}</td></tr>
+      <tr style="background:#f9fafb"><td style="padding:8px 12px;border:1px solid #e5e7eb;font-weight:bold">Monthly Repayment</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${fmtR(monthly)}</td></tr>
+      <tr style="background:#fff"><td style="padding:8px 12px;border:1px solid #e5e7eb;font-weight:bold">Term</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${term} month${term !== 1 ? 's' : ''}</td></tr>
+      <tr style="background:#f9fafb"><td style="padding:8px 12px;border:1px solid #e5e7eb;font-weight:bold">Total Repayment</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${fmtR(totalRepay)}</td></tr>
+    </table>
+    ${contractUrl ? `<div style="text-align:center;margin:20px 0"><a href="${contractUrl}" style="background:#E7762E;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px">View Signed Contract</a></div>` : ''}
+    <p style="color:#888;font-size:12px;margin-top:20px">If you have any questions, please contact us. This agreement was signed electronically on ${signedDate}.</p>
+  </div>
+</div>`
+                });
+                console.log(`[Contract] Email sent to ${clientEmail} for application ${applicationId}`);
+            } catch (emailErr) {
+                console.warn('[Contract] Email send failed (non-fatal):', emailErr.message);
+            }
+        }
+
+        return res.json({ success: true, signedAt: now, signatureUrl, contractUrl });
+    } catch (err) {
+        console.error('Contract sign error:', err.message);
+        return res.status(500).json({ error: err.message || 'Failed to process signature' });
+    }
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 // On Vercel, the module is imported directly — no listen() needed.
 // Locally, listen() starts the server and the scheduler.
 if (process.env.VERCEL) {
@@ -5985,155 +7485,6 @@ if (process.env.VERCEL) {
         startNotificationScheduler();
     });
 }
-
-// POST /api/user/save-declarations — saves financial_profiles + declarations using service role (bypasses RLS)
-app.post('/api/user/save-declarations', async (req, res) => {
-    try {
-        const authHeader = req.headers.authorization || '';
-        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-        if (!token) return res.status(401).json({ error: 'Authentication required' });
-
-        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
-        if (authErr || !user) return res.status(401).json({ error: 'Invalid session' });
-
-        const userId = user.id;
-        const { profile, financial, declarations } = req.body || {};
-
-        // Update profile
-        if (profile && Object.keys(profile).length) {
-            const { error: pErr } = await supabaseService.from('profiles').update({ ...profile, updated_at: new Date().toISOString() }).eq('id', userId);
-            if (pErr) return res.status(400).json({ error: 'Profile save failed: ' + pErr.message });
-        }
-
-        // Upsert financial_profiles
-        if (financial) {
-            const payload = { ...financial, user_id: userId };
-            const { data: existing } = await supabaseService.from('financial_profiles').select('user_id').eq('user_id', userId).maybeSingle();
-            const { error: fErr } = existing
-                ? await supabaseService.from('financial_profiles').update(payload).eq('user_id', userId)
-                : await supabaseService.from('financial_profiles').insert([payload]);
-            if (fErr) return res.status(400).json({ error: 'Financial profile save failed: ' + fErr.message });
-        }
-
-        // Upsert declarations
-        if (declarations) {
-            const payload = { ...declarations, user_id: userId, updated_at: new Date().toISOString() };
-            const { data: existingDecl } = await supabaseService.from('declarations').select('user_id').eq('user_id', userId).maybeSingle();
-            const { error: dErr } = existingDecl
-                ? await supabaseService.from('declarations').update(payload).eq('user_id', userId)
-                : await supabaseService.from('declarations').insert([payload]);
-            if (dErr) return res.status(400).json({ error: 'Declarations save failed: ' + dErr.message });
-        }
-
-        return res.json({ success: true });
-    } catch (err) {
-        console.error('save-declarations error:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// POST /api/user/create-application — creates loan application using service role (bypasses RLS)
-app.post('/api/user/create-application', async (req, res) => {
-    try {
-        const authHeader = req.headers.authorization || '';
-        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-        if (!token) return res.status(401).json({ error: 'Authentication required' });
-
-        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
-        if (authErr || !user) return res.status(401).json({ error: 'Invalid session' });
-
-        const { status = 'BUREAU_CHECKING', amount = 0, term_months = 0, purpose = 'Personal Loan' } = req.body || {};
-
-        const { data: maxRow } = await supabaseService.from('loan_applications').select('loan_number').order('loan_number', { ascending: false }).limit(1).maybeSingle();
-        const nextLoanNumber = (maxRow?.loan_number || 1000) + 1;
-
-        const { data: newApp, error: appErr } = await supabaseService.from('loan_applications').insert([{
-            user_id: user.id, status, amount, term_months, purpose,
-            has_credit_life_insurance: false,
-            offer_credit_life_total: 0,
-            credit_life_contract_signed: false,
-            loan_number: nextLoanNumber,
-        }]).select().single();
-
-        if (appErr) return res.status(400).json({ error: appErr.message });
-        return res.json({ id: newApp.id, application: newApp });
-    } catch (err) {
-        console.error('create-application error:', err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// PATCH /api/user/update-application/:id — updates loan application using service role
-app.patch('/api/user/update-application/:id', async (req, res) => {
-    try {
-        const authHeader = req.headers.authorization || '';
-        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-        if (!token) return res.status(401).json({ error: 'Authentication required' });
-
-        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
-        if (authErr || !user) return res.status(401).json({ error: 'Invalid session' });
-
-        const { id } = req.params;
-        const updates = req.body || {};
-        const { error: upErr } = await supabaseService.from('loan_applications').update(updates).eq('id', id).eq('user_id', user.id);
-        if (upErr) return res.status(400).json({ error: upErr.message });
-        return res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// POST /api/auth/register — server-side registration, auto-confirms email via service role
-app.post('/api/auth/register', async (req, res) => {
-    try {
-        const { email, password, full_name, phone } = req.body || {};
-        if (!email || !password || !full_name) {
-            return res.status(400).json({ error: 'email, password and full_name are required' });
-        }
-
-        // Create user with email pre-confirmed (no email needed)
-        const { data: newUser, error: createErr } = await supabaseService.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-            user_metadata: { full_name, phone: phone || null },
-        });
-        if (createErr) {
-            // Handle duplicate email gracefully
-            if (createErr.message?.includes('already registered') || createErr.message?.includes('already been registered')) {
-                return res.status(409).json({ error: 'An account with this email already exists. Please sign in.' });
-            }
-            return res.status(400).json({ error: createErr.message });
-        }
-
-        const userId = newUser.user.id;
-
-        // Create profile row
-        await supabaseService.from('profiles').upsert({
-            id: userId,
-            full_name,
-            email,
-            cell_tel_no: phone || null,
-            role: 'borrower',
-            updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-
-        // Sign in immediately to return a session
-        const { data: session, error: signInErr } = await supabaseService.auth.signInWithPassword({ email, password });
-        if (signInErr || !session?.session) {
-            return res.status(201).json({ message: 'Account created. Please sign in.', userId });
-        }
-
-        return res.status(201).json({
-            message: 'Account created successfully.',
-            session: session.session,
-            user: session.user,
-        });
-    } catch (err) {
-        console.error('Register error:', err);
-        res.status(500).json({ error: err.message || 'Registration failed' });
-    }
-});
 
 // Export for Vercel serverless handler
 module.exports = app;

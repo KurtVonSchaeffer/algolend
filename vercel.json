@@ -8,6 +8,14 @@
     {
       "path": "/api/cron/flag-defaults",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/section129",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-statements",
+      "schedule": "0 7 1 * *"
     }
   ],
   "headers": [
@@ -16,11 +24,11 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://zw-express.vercel.app http://localhost:5001;"
+          "value": "frame-ancestors 'self' https://zw-express.vercel.app;"
         },
         {
           "key": "X-Frame-Options",
-          "value": "ALLOWALL"
+          "value": "SAMEORIGIN"
         }
       ]
     }

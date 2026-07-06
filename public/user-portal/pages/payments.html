@@ -1,0 +1,194 @@
+<!-- User Portal: Payments & Statement History -->
+<style>
+.pmt-card { background:#fff; border-radius:16px; border:1px solid #f0f0f0; padding:20px; margin-bottom:16px; }
+.pmt-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.pmt-title { font-size:15px; font-weight:700; color:#1a1a1a; }
+.pmt-subtitle { font-size:12px; color:#9ca3af; margin-top:2px; }
+.stat-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-bottom:20px; }
+.stat-box { background:#f9fafb; border-radius:12px; padding:14px; }
+.stat-label { font-size:11px; color:#9ca3af; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+.stat-value { font-size:20px; font-weight:800; color:#1a1a1a; margin-top:4px; }
+.pmt-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #f9fafb; }
+.pmt-row:last-child { border-bottom:none; }
+.pmt-icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.pmt-meta { flex:1; min-width:0; }
+.pmt-meta-label { font-size:13px; font-weight:600; color:#1a1a1a; }
+.pmt-meta-sub { font-size:11px; color:#9ca3af; margin-top:2px; }
+.pmt-amount { font-size:14px; font-weight:700; }
+.badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:10px; font-weight:700; }
+.badge-green { background:#d1fae5; color:#059669; }
+.badge-yellow { background:#fef3c7; color:#d97706; }
+.badge-gray { background:#f3f4f6; color:#6b7280; }
+.empty-state { text-align:center; padding:40px 20px; color:#9ca3af; }
+.empty-state i { font-size:32px; margin-bottom:12px; display:block; }
+.btn-outline { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border:1px solid #e5e7eb; border-radius:10px; font-size:13px; font-weight:600; color:#374151; background:#fff; cursor:pointer; transition:all .15s; }
+.btn-outline:hover { border-color:#7C3AED; color:#7C3AED; background:#f6f2fd; }
+.loan-tab { padding:8px 16px; border-radius:99px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid #e5e7eb; background:#fff; color:#6b7280; transition:all .15s; }
+.loan-tab.active { background:#7C3AED; color:#fff; border-color:#7C3AED; }
+#payments-loading { text-align:center; padding:40px; color:#9ca3af; }
+</style>
+
+<div style="padding:20px 16px; max-width:600px; margin:0 auto;">
+
+    <div style="margin-bottom:20px;">
+        <div style="font-size:20px; font-weight:800; color:#1a1a1a;">Payment History</div>
+        <div style="font-size:13px; color:#9ca3af; margin-top:4px;">All payments across your loan accounts</div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="stat-grid" id="pmt-stats">
+        <div class="stat-box">
+            <div class="stat-label">Total Paid</div>
+            <div class="stat-value" id="stat-total-paid">—</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Payments Made</div>
+            <div class="stat-value" id="stat-count">—</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Last Payment</div>
+            <div class="stat-value" id="stat-last-date" style="font-size:14px;">—</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Outstanding</div>
+            <div class="stat-value" id="stat-outstanding" style="color:#7C3AED;">—</div>
+        </div>
+    </div>
+
+    <!-- Loan tabs -->
+    <div id="loan-tabs" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px;"></div>
+
+    <!-- Download statement -->
+    <div class="pmt-card" style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px;">
+        <div>
+            <div style="font-size:13px; font-weight:700; color:#1a1a1a;">Monthly Statement</div>
+            <div style="font-size:11px; color:#9ca3af; margin-top:2px;">NCA s108 statement of account</div>
+        </div>
+        <button id="btn-download-statement" class="btn-outline" onclick="window.downloadCurrentStatement()">
+            <i class="fas fa-file-lines" style="font-size:12px;"></i> Download
+        </button>
+    </div>
+
+    <div id="payments-loading"><i class="fas fa-circle-notch fa-spin"></i></div>
+    <div id="payments-list" class="pmt-card" style="display:none;"></div>
+</div>
+
+<script>
+(async () => {
+    const { createClient } = window.supabase || await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    const SUPABASE_URL = window.__supabaseUrl || document.querySelector('meta[name="supabase-url"]')?.content;
+    const SUPABASE_KEY = window.__supabaseKey || document.querySelector('meta[name="supabase-anon-key"]')?.content;
+    const sb = (window._supabaseClient) || (SUPABASE_URL && SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null);
+    if (!sb) { document.getElementById('payments-loading').innerHTML = '<p style="color:#ef4444">Could not connect.</p>'; return; }
+
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const userId = session.user.id;
+
+    const fmtR = v => `R ${Number(v||0).toLocaleString('en-ZA', { minimumFractionDigits:2 })}`;
+    const fmtDate = d => d ? new Date(d).toLocaleDateString('en-ZA', { day:'numeric', month:'short', year:'numeric' }) : '—';
+
+    // Fetch all data in parallel
+    const [
+        { data: loans },
+        { data: debitPayments },
+        { data: manualPayments },
+    ] = await Promise.all([
+        sb.from('loan_applications')
+          .select('id, loan_number, amount, offer_total_repayment, offer_monthly_repayment, status, contract_signed_at')
+          .eq('user_id', userId)
+          .in('status', ['DISBURSED','IN_ARREARS','IN_DEFAULT','SETTLED','DEBICHECK_AUTH'])
+          .order('contract_signed_at', { ascending: false }),
+        sb.from('payments')
+          .select('id, payment_date, amount, loan_id, status')
+          .eq('user_id', userId)
+          .order('payment_date', { ascending: false }),
+        sb.from('manual_payments')
+          .select('id, created_at, amount, reference, status')
+          .eq('user_id', userId)
+          .in('status', ['confirmed','verified'])
+          .order('created_at', { ascending: false }),
+    ]);
+
+    const allLoans = loans || [];
+    const allPayments = [
+        ...(debitPayments||[]).map(p => ({ date: p.payment_date, amount: Number(p.amount), type: 'Debit Order', ref: p.id?.slice(0,8), loanId: p.loan_id, status: p.status })),
+        ...(manualPayments||[]).map(p => ({ date: p.created_at?.slice(0,10), amount: Number(p.amount), type: 'Manual EFT', ref: p.reference || p.id?.slice(0,8), loanId: null, status: p.status })),
+    ].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+    // Stats
+    const totalPaid = allPayments.reduce((s,p) => s + p.amount, 0);
+    const totalOutstanding = allLoans.reduce((s,l) => s + Number(l.offer_total_repayment || l.amount || 0), 0);
+    document.getElementById('stat-total-paid').textContent    = fmtR(totalPaid);
+    document.getElementById('stat-count').textContent         = allPayments.length;
+    document.getElementById('stat-last-date').textContent     = allPayments[0] ? fmtDate(allPayments[0].date) : '—';
+    document.getElementById('stat-outstanding').textContent   = fmtR(Math.max(0, totalOutstanding - totalPaid));
+
+    // Loan tabs
+    let activeLoanId = allLoans[0]?.id || 'all';
+    window._allLoansRef = allLoans;
+
+    function renderTabs() {
+        const tabsEl = document.getElementById('loan-tabs');
+        const tabs = [{ id: 'all', label: 'All Accounts' }, ...allLoans.map(l => ({
+            id: l.id,
+            label: l.loan_number ? `Loan #${l.loan_number}` : `Loan ${String(l.id).slice(-4).toUpperCase()}`
+        }))];
+        tabsEl.innerHTML = tabs.map(t => `
+            <button class="loan-tab ${t.id === activeLoanId ? 'active' : ''}" onclick="window._switchLoanTab('${t.id}')">${t.label}</button>
+        `).join('');
+    }
+
+    window._switchLoanTab = (id) => {
+        activeLoanId = id;
+        renderTabs();
+        renderPayments();
+    };
+
+    function renderPayments() {
+        const filtered = activeLoanId === 'all'
+            ? allPayments
+            : allPayments.filter(p => !p.loanId || p.loanId === activeLoanId);
+
+        const list = document.getElementById('payments-list');
+        document.getElementById('payments-loading').style.display = 'none';
+        list.style.display = 'block';
+
+        if (!filtered.length) {
+            list.innerHTML = `<div class="empty-state"><i class="fas fa-receipt"></i>No payments recorded yet.</div>`;
+            return;
+        }
+
+        list.innerHTML = filtered.map(p => `
+            <div class="pmt-row">
+                <div class="pmt-icon" style="background:${p.type === 'Debit Order' ? '#eff6ff' : '#f0fdf4'}">
+                    <i class="fas ${p.type === 'Debit Order' ? 'fa-university' : 'fa-money-bill-transfer'}"
+                       style="color:${p.type === 'Debit Order' ? '#3b82f6' : '#10b981'}; font-size:15px;"></i>
+                </div>
+                <div class="pmt-meta">
+                    <div class="pmt-meta-label">${p.type}</div>
+                    <div class="pmt-meta-sub">${fmtDate(p.date)}${p.ref ? ' · Ref: ' + p.ref : ''}</div>
+                </div>
+                <div>
+                    <div class="pmt-amount" style="color:#10b981;">${fmtR(p.amount)}</div>
+                    <span class="badge badge-green" style="margin-top:3px;display:block;text-align:right;">Paid</span>
+                </div>
+            </div>`).join('');
+    }
+
+    window.downloadCurrentStatement = async () => {
+        const loanId = activeLoanId === 'all' ? (allLoans[0]?.id || null) : activeLoanId;
+        if (!loanId) return;
+        const btn = document.getElementById('btn-download-statement');
+        btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="font-size:12px;"></i> Loading…';
+        try {
+            window.open(`/api/statement/${loanId}`, '_blank');
+        } finally {
+            setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-lines" style="font-size:12px;"></i> Download'; }, 1500);
+        }
+    };
+
+    renderTabs();
+    renderPayments();
+})();
+</script>

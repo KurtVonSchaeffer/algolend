@@ -145,7 +145,7 @@
     if (await isSubscribed()) return;
 
     // Wait until user is settled on dashboard
-    if (!location.search.includes('page=dashboard') && location.pathname.endsWith('/user-portal/')) {
+    if (location.search.includes('page=dashboard') && location.pathname.endsWith('/user-portal/')) {
       setTimeout(showSoftPrompt, 10000);
     }
   }
@@ -160,14 +160,14 @@
     banner.innerHTML = `
       <style>@keyframes pushSlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}</style>
       <div style="display:flex;align-items:flex-start;gap:12px">
-        <div style="background:var(--color-primary,#E7762E);width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <div style="background:var(--color-primary,#7C3AED);width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <span class="material-symbols-outlined" style="color:#fff;font-size:22px">notifications_active</span>
         </div>
         <div style="flex:1;min-width:0">
           <h4 style="font-size:14px;font-weight:800;color:#0F172A;margin:0 0 4px;letter-spacing:-0.01em">Get instant updates</h4>
           <p style="font-size:12px;color:#64748B;margin:0;line-height:1.5">Be the first to know when your loan is approved or a payment is confirmed.</p>
           <div style="display:flex;gap:8px;margin-top:12px">
-            <button id="push-accept" style="flex:1;padding:10px;background:var(--color-primary,#E7762E);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer">Enable</button>
+            <button id="push-accept" style="flex:1;padding:10px;background:var(--color-primary,#7C3AED);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer">Enable</button>
             <button id="push-decline" style="padding:10px 14px;background:#F1F5F9;color:#64748B;border:none;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer">Not now</button>
           </div>
         </div>

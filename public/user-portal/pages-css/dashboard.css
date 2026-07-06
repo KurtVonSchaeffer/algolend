@@ -6,8 +6,8 @@
 
 :root {
   --color-bg: #FAFAFA;
-  --color-primary: #E7762E;
-  --color-primary-rgb: 231 118 46;
+  --color-primary: #7C3AED;
+  --color-primary-rgb: 124 58 237;
   --color-white: #FFFFFF;
   
   --text-main: #1C1C1E;
@@ -17,7 +17,7 @@
   --radius-lg: 24px;
   --radius-md: 16px;
   --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.04);
-  --shadow-float: 0 8px 24px rgba(231, 118, 46, 0.25);
+  --shadow-float: 0 8px 24px rgba(124, 58, 237, 0.25);
 }
 
 /* ==========================================
@@ -71,7 +71,7 @@ body, #main-content .page-container {
 #main-content .loan-card:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(0,0,0,0.06); }
 #main-content .loan-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 #main-content .loan-id { font-size: 12px; font-weight: 600; color: var(--text-muted); }
-#main-content .loan-status { padding: 4px 10px; background: rgba(231,118,46,0.1); color: var(--color-primary); border-radius: 50px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+#main-content .loan-status { padding: 4px 10px; background: rgba(124,58,237,0.1); color: var(--color-primary); border-radius: 50px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
 #main-content .loan-amount { font-size: 26px; font-weight: 700; color: var(--text-main); margin-bottom: 16px; letter-spacing: -1px; }
 
 #main-content .loan-details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; background: #FAFAFA; padding: 12px; border-radius: var(--radius-md); margin-bottom: 16px;}
@@ -200,7 +200,7 @@ body, #main-content .page-container {
     .welcome-section, .quick-actions-row, .loans-section { padding: 0 24px; }
 
     /* Typography */
-    .main-title { font-size: 36px; font-weight: 700; letter-spacing: -1.5px; color: #582AA8; margin: 0 0 4px 0; text-shadow: 0 0 20px rgba(88,42,168,0.45), 0 0 40px rgba(88,42,168,0.25), 0 0 60px rgba(88,42,168,0.15); }
+    .main-title { font-size: 36px; font-weight: 700; letter-spacing: -1.5px; color: var(--text-main); margin: 0 0 4px 0; }
     .date-label { font-size: 15px; font-weight: 500; color: var(--text-muted); margin: 0; }
 
     /* Hero Carousel - Mathematically precise viewport fit */
@@ -264,7 +264,7 @@ body, #main-content .page-container {
 .greeting-line {
     font-size: 13px;
     font-weight: 700;
-    color: var(--color-primary, #E7762E);
+    color: var(--color-primary, #7C3AED);
     letter-spacing: 0.03em;
     text-transform: uppercase;
     margin: 0 0 6px 0;

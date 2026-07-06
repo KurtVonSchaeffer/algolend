@@ -12,7 +12,22 @@ import { formatCurrency, formatDate, STATUS_DISPLAY } from '../shared/utils.js';
 const getStatusDisplay = (s) => STATUS_DISPLAY[s] || { label: s, color: '#6b7280', bg: '#f3f4f6' };
 
 // --- CONFIGURATION ---
-const USER_PORTAL_URL = window.location.origin;
+const USER_PORTAL_URL = 'https://zw-express-6ulf9yybu-mps-projects-81dea2b0.vercel.app';
+
+// Universal branch codes — must match public/user-portal/pages-js/documents.js BRANCH_CODES.
+// Freeform branch code entry caused invalid codes (e.g. "1021" for Standard Bank, which should
+// be "051001") to reach SureSystems mandate requests and get rejected.
+const BANK_BRANCH_CODES = {
+  'FNB': '250655',
+  'Standard Bank': '051001',
+  'ABSA': '632005',
+  'Nedbank': '198765',
+  'Capitec': '470010',
+  'Investec': '580105',
+  'TymeBank': '678910',
+  'Discovery Bank': '679000',
+  'African Bank': '430000',
+};
 
 const ALL_STATUSES = [
   'STARTED',
@@ -503,8 +518,15 @@ function renderPageContent() {
 
             <select id="status-filter" class="bg-white border border-outline-variant/30 text-on-surface-variant py-2 pl-4 pr-8 rounded-xl text-sm font-medium cursor-pointer">
                 <option value="all">All Statuses</option>
-                <option value="pending">Needs Review</option>
-                ${ALL_STATUSES.map(s => `<option value="${s}">${s}</option>`).join('')}
+                <option value="pending">⏳ Needs Review</option>
+                <option value="DISBURSED">✅ Disbursed</option>
+                <option value="DECLINED">❌ Declined</option>
+                <optgroup label="── Pipeline ──">
+                ${ALL_STATUSES.filter(s => !['DISBURSED','DECLINED','ERROR'].includes(s)).map(s => `<option value="${s}">${s}</option>`).join('')}
+                </optgroup>
+                <optgroup label="── Final ──">
+                <option value="ERROR">ERROR</option>
+                </optgroup>
             </select>
 
             <div class="relative w-full sm:w-64">
@@ -1805,7 +1827,10 @@ async function renderConfirmation(container) {
 
                         <div id="new-bank-form" class="hidden p-6 bg-gray-900 rounded-2xl border border-gray-700 space-y-4 animate-fade-in">
                             <div class="grid grid-cols-2 gap-4">
-                                <input type="text" id="new-bank-name" placeholder="Bank Name" class="bg-gray-800 text-white rounded-lg py-2 px-3">
+                                <select id="new-bank-name" class="bg-gray-800 text-white rounded-lg py-2 px-3">
+                                    <option value="" disabled selected>Select bank</option>
+                                    ${Object.keys(BANK_BRANCH_CODES).map(bank => `<option value="${bank}">${bank}</option>`).join('')}
+                                </select>
                                 <select id="new-acc-type" class="bg-gray-800 text-white rounded-lg py-2 px-3">
                                     <option value="savings">Savings</option>
                                     <option value="cheque">Cheque</option>
@@ -1813,7 +1838,7 @@ async function renderConfirmation(container) {
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <input type="text" id="new-acc-number" inputmode="numeric" placeholder="Account Number" class="bg-gray-800 text-white rounded-lg py-2 px-3">
-                                <input type="text" id="new-branch-code" inputmode="numeric" placeholder="Branch Code" class="bg-gray-800 text-white rounded-lg py-2 px-3">
+                                <input type="text" id="new-branch-code" inputmode="numeric" placeholder="Branch Code (auto-filled)" readonly class="bg-gray-800 text-white rounded-lg py-2 px-3 opacity-70 cursor-not-allowed">
                             </div>
                             <button id="btn-save-bank" class="w-full bg-brand-accent text-white py-3 rounded-xl font-bold">Link Account</button>
                         </div>
@@ -1883,7 +1908,11 @@ async function renderConfirmation(container) {
 
     document.getElementById('toggle-new-bank').onclick = () => { newBankForm.classList.toggle('hidden'); bankSelect.value = ""; updatePreview(); };
     bankSelect.onchange = () => { newBankForm.classList.add('hidden'); updatePreview(); };
-    ['new-bank-name', 'new-acc-number'].forEach(id => document.getElementById(id).oninput = updatePreview);
+    document.getElementById('new-bank-name').onchange = (e) => {
+        document.getElementById('new-branch-code').value = BANK_BRANCH_CODES[e.target.value] || '';
+        updatePreview();
+    };
+    document.getElementById('new-acc-number').oninput = updatePreview;
 
     document.getElementById('admin-consent').onchange = (e) => { document.getElementById('wizard-next-btn').disabled = !e.target.checked; };
     document.getElementById('wizard-next-btn').onclick = handleFinalSubmit;
@@ -2073,19 +2102,12 @@ const filterAndSearch = (resetPage = true) => {
     const term = document.getElementById('search-input')?.value.toLowerCase().trim() || ''; 
     const status = document.getElementById('status-filter')?.value || 'all'; 
     
-    const PENDING_STATUSES = new Set([
-        'STARTED','BUREAU_CHECKING','BUREAU_OK','BUREAU_REFER',
-        'BANK_LINKING','AFFORD_OK','AFFORD_REFER','AFFORD_FAIL',
-        'OFFERED','OFFER_ACCEPTED','CONTRACT_SIGN','DEBICHECK_AUTH','APPROVED'
-    ]);
-
     filteredApplications = allApplications.filter(app => {
         // 1. Status Match
-        const statusMatch = status === 'all'
-            ? true
-            : status === 'pending'
-                ? PENDING_STATUSES.has(app.status)
-                : app.status === status;
+        const PENDING_STATUSES = ['STARTED','BUREAU_CHECKING','BUREAU_OK','BUREAU_REFER','BANK_LINKING','AFFORD_OK','AFFORD_REFER','OFFERED','OFFER_ACCEPTED','CONTRACT_SIGN','DEBICHECK_AUTH','APPROVED'];
+        const statusMatch = status === 'all' ? true
+            : status === 'pending' ? PENDING_STATUSES.includes(app.status)
+            : app.status === status;
 
         // 2. Text Match (Name, ID, or Amount)
         const textMatch = !term || 
@@ -2208,14 +2230,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         renderPageContent();
 
-        // Pre-set filter from URL param (?filter=pending)
-        const urlFilter = new URLSearchParams(window.location.search).get('filter');
-        if (urlFilter) {
-            const sel = document.getElementById('status-filter');
-            if (sel) sel.value = urlFilter;
-        }
-
         await loadApplications();
+
+        // Pre-apply filter from URL param e.g. ?filter=pending (from dashboard "Review Now")
+        const urlFilter = new URLSearchParams(window.location.search).get('filter');
+        if (urlFilter === 'pending') {
+            const sel = document.getElementById('status-filter');
+            if (sel) { sel.value = 'pending'; filterAndSearch(true); }
+        }
     }
 });
 // --- Final Application Submission ---

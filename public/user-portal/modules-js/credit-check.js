@@ -350,9 +350,7 @@ window.goToStep = function(step) {
 
 // Continue to loan selection
 window.continueToLoanSelection = function() {
-  // Close popup if present
-  const popup = document.getElementById('credit-result-popup');
-  if (popup) popup.style.display = 'none';
+  closeModule();
   if (typeof loadPage === 'function') {
     loadPage('apply-loan-3');
   } else {
@@ -871,8 +869,6 @@ function _showCreditResultPopup(score, riskType, eligibility = null) {
   popup.style.display = 'flex';
 }
 
-window.resetCreditCheckProcessing = function() { isProcessing = false; };
-
 window.startCreditCheckSilent = async function(button) {
   if (isProcessing) return;
 
@@ -938,42 +934,42 @@ window.startCreditCheckSilent = async function(button) {
       .eq('user_id', session.user.id)
       .maybeSingle();
 
-    // Fall back to user_metadata if RLS blocks the declarations table read
-    const metaDeclCC = (() => { try { const s = session?.user?.user_metadata?.declarations; return s ? (typeof s === 'object' ? s : JSON.parse(s)) : null; } catch(_){return null;} })();
-
     const alreadyConsented =
       declaration?.credit_check_consent_accepted === true ||
-      declaration?.metadata?.credit_check_consent_accepted === true ||
-      metaDeclCC?.accepted_std_conditions === true ||
-      session?.user?.user_metadata?.credit_check_consent === true;
+      declaration?.metadata?.credit_check_consent_accepted === true;
 
     if (!alreadyConsented) {
       await persistCreditConsent(supabase, session.user.id);
     }
     hasCreditConsent = true;
 
-    // Get or create application (via server to bypass RLS)
+    // Get or create application
     let applicationId = sessionStorage.getItem('currentApplicationId');
     if (!applicationId) {
-      const appResp = await fetch('/api/user/create-application', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ status: 'BUREAU_CHECKING', amount: 0, term_months: 0, purpose: 'Personal Loan' })
-      });
-      const appData = await appResp.json();
-      if (!appResp.ok) {
+      const { data: newApp, error: appError } = await supabase
+        .from('loan_applications')
+        .insert([{
+          user_id:     session.user.id,
+          status:      'BUREAU_CHECKING',
+          amount:      0,
+          term_months: 0,
+          purpose:     'Personal Loan'
+        }])
+        .select()
+        .single();
+
+      if (appError) {
         window.showToast?.('Error', 'Failed to create application. Please try again.', 'error');
         _resetCircleButton(button);
         return;
       }
-      applicationId = appData.id;
+      applicationId = newApp.id;
       sessionStorage.setItem('currentApplicationId', applicationId);
     } else {
-      await fetch(`/api/user/update-application/${applicationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ status: 'BUREAU_CHECKING' })
-      });
+      await supabase
+        .from('loan_applications')
+        .update({ status: 'BUREAU_CHECKING' })
+        .eq('id', applicationId);
     }
 
     // Normalise gender to single char expected by Experian

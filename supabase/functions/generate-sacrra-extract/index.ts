@@ -33,7 +33,7 @@ serve(async (req) => {
     const sacrraFormat = (val: any, len: number) => String(val || '').toUpperCase().substring(0, len).padEnd(len, ' ');
     
     // Header (H) includes the Sequence Number at Field 5
-    const header = sacrraFormat(`H20231031ZWANE FINANCIAL SERVICES${seqNum.toString().padStart(4, '0')}`, 700); 
+    const header = sacrraFormat(`H20231031ALGOLEND${seqNum.toString().padStart(4, '0')}`, 700); 
     
     const body = records.map(r => {
         return Object.values(r).join('');

@@ -35,23 +35,23 @@ const currencyFormatter = new Intl.NumberFormat('en-ZA', { minimumFractionDigits
 const getThemePalette = () => {
     const styles = getComputedStyle(document.documentElement);
     const read = (name, fallback) => (styles.getPropertyValue(name).trim() || fallback);
-    const primary = read('--color-primary', '#E7762E');
+    const primary = read('--color-primary', '#7C3AED');
 
     // Build a reliable rgba() that canvas accepts
-    // CSS var might be "231 118 46", "231, 118, 46", or missing
+    // CSS var might be "124 58 237", "231, 118, 46", or missing
     function primaryAlpha(alpha) {
         try {
-            const raw = read('--color-primary-rgb', '231 118 46');
+            const raw = read('--color-primary-rgb', '124 58 237');
             // Normalise: remove commas, collapse whitespace → "R G B" → "R, G, B"
             const csv = raw.replace(/,/g, ' ').trim().replace(/\s+/g, ', ');
             const rgba = `rgba(${csv}, ${alpha})`;
             // Validate — new OffscreenCanvas test is too heavy; just check pattern
             if (!/^rgba\(\d+,\s*\d+,\s*\d+,\s*[\d.]+\)$/.test(rgba)) {
-                return `rgba(231, 118, 46, ${alpha})`; // hard fallback
+                return `rgba(124, 58, 237, ${alpha})`; // hard fallback
             }
             return rgba;
         } catch (_) {
-            return `rgba(231, 118, 46, ${alpha})`;
+            return `rgba(124, 58, 237, ${alpha})`;
         }
     }
 
@@ -281,7 +281,7 @@ function buildRingProgress(pct, size = 56) {
     return `
       <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="transform:rotate(-90deg);flex-shrink:0">
         <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="#f0f0f0" stroke-width="4"/>
-        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--color-primary,#E7762E)" stroke-width="4"
+        <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--color-primary,#7C3AED)" stroke-width="4"
           stroke-dasharray="${fill} ${circ}" stroke-linecap="round"
           style="transition:stroke-dasharray 1.2s cubic-bezier(0.22,1,0.36,1)"/>
       </svg>
@@ -402,7 +402,7 @@ function buildLoanCard(loan, isMobile = false) {
 function buildEmptyState(isMobile = false) {
     return `
     <div style="text-align:center;padding:${isMobile ? '40px 20px' : '60px 20px'};${isMobile ? '' : 'grid-column:1/-1;'}">
-      <div style="width:72px;height:72px;background:rgba(231,118,46,0.08);border-radius:50%;
+      <div style="width:72px;height:72px;background:rgba(124,58,237,0.08);border-radius:50%;
                   display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
         <i class="fas fa-file-contract" style="font-size:28px;color:var(--color-primary)"></i>
       </div>
@@ -413,7 +413,7 @@ function buildEmptyState(isMobile = false) {
       <button onclick="${isMobile ? "if(typeof loadPage==='function')loadPage('apply-loan');else window.location.href='/user-portal/?page=apply-loan'" : "createNewApplication()"}"
         style="background:linear-gradient(135deg,var(--color-primary),#f08840);color:white;border:none;
                padding:14px 28px;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;
-               box-shadow:0 4px 16px rgba(231,118,46,0.3)">
+               box-shadow:0 4px 16px rgba(124,58,237,0.3)">
         Apply for a Loan <i class="fas fa-arrow-right" style="margin-left:8px"></i>
       </button>
     </div>`;
@@ -493,28 +493,18 @@ function populateApplications() {
         const editLockReason = app.status === 'AFFORD_OK' ? 'Edit locked' : app.status === 'APPROVED' ? 'Edit locked' : 'Edit locked after 2 hours';
         const deleteLockReason = app.status === 'APPROVED' ? 'Delete locked' : 'Delete locked after 2 hours';
 
-        const isOffered = ['OFFERED', 'CONTRACT_SIGN'].includes(app.status);
-        const signBtn = isOffered ? `
-            <button onclick="openContractSign('${app.rawId}')"
-              style="display:flex;align-items:center;gap:6px;background:#7c3aed;color:#fff;border:none;
-                     padding:7px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;
-                     box-shadow:0 2px 8px rgba(124,58,237,.3);white-space:nowrap;flex-shrink:0;">
-              <i class="fas fa-file-signature" style="font-size:11px;"></i> Sign Contract
-            </button>` : '';
-
         return `
-        <div class="application-item" style="${isOffered ? 'border:1.5px solid rgba(124,58,237,.2);border-radius:14px;background:rgba(124,58,237,.03);' : ''}">
+        <div class="application-item">
             <div class="application-icon ${app.status.toLowerCase()}"><i class="fas fa-${app.status === 'Approved' ? 'check' : app.status === 'Pending' ? 'clock' : 'times'}"></i></div>
             <div class="item-details"><div class="item-title">${app.type}</div><div class="item-date">${app.date}</div></div>
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap:wrap; justify-content:flex-end;">
-                ${signBtn}
-                ${!isOffered ? window.renderStatusBadge(app.status) : ''}
-                ${!isOffered ? `<button class="app-action-btn ${!canEdit ? 'locked' : ''}" onclick="editApplication('${app.rawId}')" ${!canEdit ? 'disabled' : ''} title="${!canEdit ? editLockReason : 'Edit'}">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                ${window.renderStatusBadge(app.status)}
+                <button class="app-action-btn ${!canEdit ? 'locked' : ''}" onclick="editApplication('${app.rawId}')" ${!canEdit ? 'disabled' : ''} title="${!canEdit ? editLockReason : 'Edit'}">
                     <i class="fas fa-${!canEdit ? 'lock' : 'edit'}"></i>
                 </button>
                 <button class="app-action-btn delete ${!canDelete ? 'locked' : ''}" onclick="deleteApplication('${app.rawId}')" ${!canDelete ? 'disabled' : ''} title="${!canDelete ? deleteLockReason : 'Delete'}">
                     <i class="fas fa-${!canDelete ? 'lock' : 'trash'}"></i>
-                </button>` : ''}
+                </button>
             </div>
         </div>`;
     }).join('');
@@ -609,7 +599,7 @@ function initializeCharts() {
                         backgroundColor: '#0F172A',
                         titleColor: '#fff',
                         bodyColor: '#ffead6',
-                        borderColor: 'rgba(231,118,46,0.3)',
+                        borderColor: 'rgba(124,58,237,0.3)',
                         borderWidth: 1,
                         padding: 14,
                         displayColors: false,
@@ -681,7 +671,7 @@ function initializeCharts() {
                         backgroundColor: '#0F172A',
                         titleColor: '#fff',
                         bodyColor: '#ffead6',
-                        borderColor: 'rgba(231,118,46,0.3)',
+                        borderColor: 'rgba(124,58,237,0.3)',
                         borderWidth: 1,
                         padding: 14,
                         cornerRadius: 12,
@@ -814,15 +804,12 @@ async function loadDashboardData() {
             latestPaymentDate = payments[0].payment_date;
         }
 
-        const safePayments = Array.isArray(payments) ? payments : [];
-        const paymentsByLoan = safePayments.reduce((acc, payment) => {
-            acc[payment.loan_id] = (acc[payment.loan_id] || 0) + (Number(payment.amount) || 0);
-            return acc;
+        const paymentsByLoan = (payments || []).reduce((acc, payment) => {
+            acc[payment.loan_id] = (acc[payment.loan_id] || 0) + (Number(payment.amount) || 0); return acc;
         }, {});
-        const totalRepaidAllLoans = safePayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        const totalRepaidAllLoans = (payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-        const _loansRes = await fetch('/api/user/loans', { headers: { Authorization: `Bearer ${session.access_token}` } });
-        const loans = _loansRes.ok ? (await _loansRes.json()).filter(l => l.status === 'active') : [];
+        const { data: loans } = await supabase.from('loans').select('*').eq('user_id', session.user.id).eq('status', 'active').order('created_at', { ascending: false });
         
         if (loans && loans.length > 0) {
             const enrichedLoans = loans.map((loan) => {
@@ -950,6 +937,44 @@ async function loadDashboardData() {
             }
         }
 
+        // Check for unsigned agreement — show prominent banner if found
+        const { data: unsignedApps } = await supabase
+            .from('loan_applications')
+            .select('id, status, amount, purpose')
+            .eq('user_id', session.user.id)
+            .in('status', ['OFFERED', 'CONTRACT_SIGN'])
+            .is('contract_signed_at', null)
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        const signBanner = document.getElementById('sign-agreement-banner');
+        if (unsignedApps?.[0] && signBanner) {
+            const ua = unsignedApps[0];
+            const amt = `R ${parseFloat(ua.amount || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
+            signBanner.style.display = 'block';
+            signBanner.innerHTML = `
+              <div style="background:linear-gradient(135deg,#fff7ed,#fef3c7);border:2px solid #f97316;border-radius:18px;
+                          padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:14px">
+                  <div style="width:48px;height:48px;background:#f97316;border-radius:14px;display:flex;align-items:center;
+                              justify-content:center;flex-shrink:0">
+                    <i class="fas fa-file-signature" style="font-size:20px;color:#fff"></i>
+                  </div>
+                  <div>
+                    <p style="font-size:15px;font-weight:800;color:#9a3412;margin:0 0 2px">Action Required: Sign Your Agreement</p>
+                    <p style="font-size:13px;color:#c2410c;margin:0">Your loan offer of <strong>${amt}</strong> is ready — sign to proceed.</p>
+                  </div>
+                </div>
+                <button onclick="if(typeof loadPage==='function')loadPage('sign-contract');else window.location.href='/user-portal/?page=sign-contract'"
+                  style="background:#f97316;color:#fff;border:none;padding:12px 22px;border-radius:12px;
+                         font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+                  Sign Now <i class="fas fa-arrow-right" style="margin-left:6px"></i>
+                </button>
+              </div>`;
+        } else if (signBanner) {
+            signBanner.style.display = 'none';
+        }
+
         const { data: applications } = await supabase.from('loan_applications').select('*').eq('user_id', session.user.id).neq('status', 'OFFERED').neq('status', 'DISBURSED').order('created_at', { ascending: false }).limit(5);
         if (applications && applications.length > 0) {
             dashboardData.applications = applications.map(app => ({
@@ -1018,7 +1043,7 @@ window.openLoansModule = function() {
             <div class="modern-list-item">
                 <div class="modern-item-header">
                     <span class="modern-item-id">${loan.id}</span>
-                    <span class="status-badge" style="background:rgba(231,118,46,0.1); color:var(--color-primary); padding:6px 12px; border-radius:100px; font-size:11px; font-weight:700;">${loan.status}</span>
+                    <span class="status-badge" style="background:rgba(124,58,237,0.1); color:var(--color-primary); padding:6px 12px; border-radius:100px; font-size:11px; font-weight:700;">${loan.status}</span>
                 </div>
                 <div class="modern-item-grid">
                     <div class="modern-grid-col"><div class="label">Amount</div><div class="val">${loan.amount}</div></div>
@@ -1056,12 +1081,6 @@ window.openTransactionsModule = function() {
 };
 
 // Mobile Full Screen Modals (Bottom Sheet) Overrides
-window.openContractSign = function(appId) {
-    sessionStorage.setItem('contractSignAppId', appId);
-    if (typeof loadPage === 'function') loadPage('contract-sign');
-    else window.location.href = '/user-portal/?page=contract-sign&appId=' + appId;
-};
-
 window.openFullScreenModal = function(type) {
     const modal = document.getElementById('fullScreenModal');
     const title = document.getElementById('modalTitle');
@@ -1084,7 +1103,7 @@ window.openFullScreenModal = function(type) {
                     </div>
                     <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--text-muted); font-weight:600;">
                         <span>${app.date}</span>
-                        <span style="color:var(--color-primary); background: rgba(231,118,46,0.1); padding: 4px 10px; border-radius: 10px;">${app.status}</span>
+                        <span style="color:var(--color-primary); background: rgba(124,58,237,0.1); padding: 4px 10px; border-radius: 10px;">${app.status}</span>
                     </div>
                 </div>`).join('');
     }

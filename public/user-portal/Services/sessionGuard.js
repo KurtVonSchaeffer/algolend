@@ -37,9 +37,8 @@ export async function enforceSession() {
       .maybeSingle();
 
     if (profileError) {
-      console.warn('Profile lookup error during session guard:', profileError);
-    }
-    if (!profile) {
+      console.warn('Profile lookup error during session guard — continuing:', profileError);
+    } else if (!profile) {
       console.log('🔒 Profile not found - logging out');
       await supabase.auth.signOut();
       window.location.replace('/auth/login.html');

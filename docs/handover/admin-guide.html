@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AlgoLend — Admin Portal User Guide</title>
+  <base href="file:///Users/kurtvonschaeffer/AlgoLendOfficial/docs/handover/">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #1F2937;
+      line-height: 1.65;
+      font-size: 11pt;
+      background: #fff;
+    }
+    body { padding: 32pt 40pt 24pt; max-width: 760pt; margin: 0 auto; }
+
+    /* Title page styling */
+    h1 {
+      font-size: 28pt; font-weight: 800;
+      color: #E7762E;
+      margin: 0 0 0 0;
+      letter-spacing: -0.02em;
+      page-break-after: avoid;
+    }
+    h1 + h2 {
+      font-size: 16pt; font-weight: 600;
+      color: #6B7280; border: none;
+      margin-top: 4pt; padding: 0;
+    }
+    h2 {
+      font-size: 20pt; font-weight: 800;
+      color: #111827;
+      margin: 32pt 0 14pt;
+      padding-bottom: 8pt;
+      border-bottom: 2pt solid #E7762E;
+      letter-spacing: -0.01em;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 14pt; font-weight: 700;
+      color: #111827;
+      margin: 22pt 0 10pt;
+      letter-spacing: -0.01em;
+      page-break-after: avoid;
+    }
+    h4 {
+      font-size: 11.5pt; font-weight: 700;
+      color: #374151;
+      margin: 14pt 0 8pt;
+    }
+    p { margin: 0 0 10pt; }
+    a { color: #E7762E; text-decoration: none; }
+
+    /* Inline & block code */
+    code {
+      background: #F3F4F6;
+      padding: 1pt 5pt;
+      border-radius: 3pt;
+      font-family: 'SF Mono', Menlo, Consolas, monospace;
+      font-size: 9.5pt;
+      color: #DC2626;
+    }
+    pre {
+      background: #1F2937; color: #F3F4F6;
+      padding: 12pt 14pt;
+      border-radius: 6pt;
+      overflow-x: auto;
+      font-size: 9pt;
+      line-height: 1.5;
+      page-break-inside: avoid;
+    }
+    pre code { background: transparent; color: inherit; padding: 0; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12pt 0;
+      font-size: 10pt;
+      page-break-inside: avoid;
+    }
+    th {
+      background: #FEF3EC;
+      color: #9A3412;
+      font-weight: 700;
+      text-align: left;
+      padding: 8pt 10pt;
+      border-bottom: 2pt solid #E7762E;
+    }
+    td {
+      padding: 7pt 10pt;
+      border-bottom: 1pt solid #E5E7EB;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    /* Lists */
+    ul, ol { margin: 0 0 12pt 24pt; padding: 0; }
+    li { margin-bottom: 4pt; }
+
+    /* Images */
+    img {
+      max-width: 100%;
+      height: auto;
+      border: 1pt solid #E5E7EB;
+      border-radius: 4pt;
+      margin: 14pt 0;
+      page-break-inside: avoid;
+      box-shadow: 0 4pt 12pt rgba(0,0,0,0.06);
+    }
+
+    /* Horizontal rules → page breaks */
+    hr {
+      border: none;
+      border-top: 1pt solid #E5E7EB;
+      margin: 20pt 0;
+    }
+
+    /* Strong & emphasis */
+    strong { font-weight: 700; color: #111827; }
+    em { font-style: italic; color: #4B5563; }
+
+    /* Blockquotes (used for notes) */
+    blockquote {
+      border-left: 3pt solid #E7762E;
+      background: #FEF3EC;
+      margin: 12pt 0;
+      padding: 10pt 14pt;
+      color: #92400E;
+      font-style: italic;
+      page-break-inside: avoid;
+    }
+
+    /* Page breaks before major H2 sections (except the first) */
+    h2:not(:first-of-type) { page-break-before: always; }
+
+    /* Print-only styles */
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+    }
+    @media print {
+      body { padding: 0; }
+    }
+  </style>
+</head>
+<body>
+<h1>AlgoLend</h1>
+<h2>Admin Portal — User Guide</h2>
+<p><strong>Version 1.0</strong>
+<strong>Prepared by AlgoHive for AlgoLend</strong></p>
+<hr>
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#1-getting-started">Getting Started</a></li>
+<li><a href="#2-dashboard">Dashboard</a></li>
+<li><a href="#3-applications">Applications</a></li>
+<li><a href="#4-application-detail">Application Detail</a></li>
+<li><a href="#5-loan-book">Loan Book</a></li>
+<li><a href="#6-users-clients--staff">Users (Clients &amp; Staff)</a></li>
+<li><a href="#7-cash-ledger">Cash Ledger</a></li>
+<li><a href="#8-incoming-payments">Incoming Payments</a></li>
+<li><a href="#9-outgoing-payments--disbursements">Outgoing Payments / Disbursements</a></li>
+<li><a href="#10-credit-rules">Credit Rules</a></li>
+<li><a href="#11-sacrra-bureau-reporting">SACRRA Bureau Reporting</a></li>
+<li><a href="#12-sacrra-migration-validator">SACRRA Migration Validator</a></li>
+<li><a href="#13-analytics--financials">Analytics &amp; Financials</a></li>
+<li><a href="#14-settings">Settings</a></li>
+<li><a href="#15-common-workflows">Common Workflows</a></li>
+<li><a href="#16-troubleshooting">Troubleshooting</a></li>
+</ol>
+<hr>
+<h2>1. Getting Started</h2>
+<h3>1.1 Logging In</h3>
+<p><strong>URL:</strong> <code>https://app.algolend.co.za/auth/login.html</code></p>
+<p>Enter your email address and password. If you have forgotten your password, click &quot;Forgot password&quot; — a reset link will be emailed to you.</p>
+<p><img src="screenshots/00-login.png" alt="Login page"></p>
+<p>After login, you will land on the <strong>Dashboard</strong>.</p>
+<h3>1.2 User Roles</h3>
+<p>The admin portal supports several roles:</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>What they can do</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Super Admin</strong></td>
+<td>Full access — all branches, all settings, all data</td>
+</tr>
+<tr>
+<td><strong>Admin / Owner</strong></td>
+<td>Full operational access except billing-level system settings</td>
+</tr>
+<tr>
+<td><strong>Branch Admin</strong></td>
+<td>Manage applications, payments and clients <strong>for their assigned branch only</strong></td>
+</tr>
+<tr>
+<td><strong>Branch Staff</strong></td>
+<td>View applications and clients for their branch, capture new applications</td>
+</tr>
+<tr>
+<td><strong>Borrower</strong></td>
+<td>Cannot access the admin portal (uses the client app instead)</td>
+</tr>
+</tbody></table>
+<p>Roles are assigned by a Super Admin via the <strong>Users</strong> page → <strong>Staff &amp; Admins</strong> tab.</p>
+<h3>1.3 The Layout</h3>
+<p>Every admin page has the same layout:</p>
+<ul>
+<li><strong>Left sidebar</strong> — navigation between modules</li>
+<li><strong>Top right</strong> — your profile, notifications, sign out</li>
+<li><strong>Main area</strong> — the page content</li>
+<li><strong>Logo top-left</strong> — click any time to return to the Dashboard</li>
+</ul>
+<p><img src="screenshots/01-dashboard.png" alt="Admin layout"></p>
+<hr>
+<h2>2. Dashboard</h2>
+<p><strong>URL:</strong> <code>/admin/dashboard</code></p>
+<p>The Dashboard is the home page — a snapshot of how the business is performing right now.</p>
+<h3>2.1 What you see</h3>
+<p><strong>Welcome header</strong> — your name and today&#39;s date.</p>
+<p><strong>Action banner</strong> (only appears if there is work to do) — shows pending applications waiting for review. Click &quot;Review Now&quot; to jump straight to the Applications page.</p>
+<p><strong>KPI cards (4 across the top)</strong></p>
+<table>
+<thead>
+<tr>
+<th>KPI</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Total Revenue</strong></td>
+<td>Lifetime collections — all repayments received</td>
+</tr>
+<tr>
+<td><strong>Total Disbursed</strong></td>
+<td>Principal lent out across all loans</td>
+</tr>
+<tr>
+<td><strong>Cash Flow</strong></td>
+<td>Net collections this period</td>
+</tr>
+<tr>
+<td><strong>Active Loans</strong></td>
+<td>Number of loans currently being repaid</td>
+</tr>
+</tbody></table>
+<p><strong>Charts</strong></p>
+<ul>
+<li><strong>Cash Flow Velocity</strong> — money out vs money in by month, with 1M / 3M / 6M / 1Y / YTD tabs</li>
+<li><strong>Portfolio Composition</strong> — donut showing loan status breakdown (Disbursed / In Arrears / In Default / Settled)</li>
+<li><strong>Vintage Analysis</strong> — recovery rate by cohort (which months had the best repayment performance)</li>
+<li><strong>Risk Matrix</strong> — bubble chart of credit score vs DTI ratio</li>
+<li><strong>Conversion Funnel</strong> — application pipeline (Started → Processing → Finalising → Ready)</li>
+<li><strong>Portfolio Growth</strong> — principal vs interest over time</li>
+<li><strong>Performance Targets</strong> — radial showing profit margin, portfolio health, recovery rate</li>
+<li><strong>Revenue Trajectory</strong> — total exposure growth</li>
+<li><strong>Historical Trends</strong> — long-term performance metrics</li>
+</ul>
+<p><img src="screenshots/01-dashboard.png" alt="Dashboard"></p>
+<h3>2.2 Status indicators (header row)</h3>
+<p>Two pill-shaped indicators show <strong>system health</strong>:</p>
+<ul>
+<li><strong>Operational / System Error</strong> — backend status</li>
+<li><strong>SureSystems: Connected</strong> — DebiCheck integration status</li>
+</ul>
+<h3>2.3 Export Dashboard</h3>
+<p>Click <strong>Export Dashboard</strong> (top right) to download a CSV with all KPI values, pipeline summary, and current portfolio metrics. Useful for board reports.</p>
+<hr>
+<h2>3. Applications</h2>
+<p><strong>URL:</strong> <code>/admin/applications</code></p>
+<p>The Applications page is your <strong>work queue</strong> — every loan application coming through the system.</p>
+<h3>3.1 What you see</h3>
+<p><strong>Filter bar at top:</strong></p>
+<ul>
+<li><strong>Status tabs</strong> — All / New / Processing / Approved / Disbursed / Rejected / Settled</li>
+<li><strong>Branch filter</strong> — drop-down to filter by branch</li>
+<li><strong>Search</strong> — by name, ID, reference number</li>
+<li><strong>Date range</strong> — From / To</li>
+<li><strong>+ Create Application</strong> — start a walk-in application</li>
+</ul>
+<p><strong>Application table:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Ref</td>
+<td>Application reference (e.g. C0001-L0042)</td>
+</tr>
+<tr>
+<td>Client</td>
+<td>Full name + ID number</td>
+</tr>
+<tr>
+<td>Branch</td>
+<td>Where the application was captured</td>
+</tr>
+<tr>
+<td>Amount</td>
+<td>Loan amount requested</td>
+</tr>
+<tr>
+<td>Status</td>
+<td>Coloured badge — see legend below</td>
+</tr>
+<tr>
+<td>Credit Score</td>
+<td>Bureau score with risk band colour</td>
+</tr>
+<tr>
+<td>Created</td>
+<td>When the application started</td>
+</tr>
+<tr>
+<td>Actions</td>
+<td>View / Edit / Approve / Decline</td>
+</tr>
+</tbody></table>
+<h3>3.2 Status legend</h3>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟡 STARTED</td>
+<td>Client just began the application</td>
+</tr>
+<tr>
+<td>🔵 BUREAU_CHECKING</td>
+<td>Credit check in progress</td>
+</tr>
+<tr>
+<td>🔵 BUREAU_OK</td>
+<td>Credit check passed</td>
+</tr>
+<tr>
+<td>🟠 BUREAU_REFER</td>
+<td>Credit check flagged for review</td>
+</tr>
+<tr>
+<td>🔵 BANK_LINKING</td>
+<td>Bank statement upload in progress</td>
+</tr>
+<tr>
+<td>🟢 AFFORD_OK</td>
+<td>Affordability passed</td>
+</tr>
+<tr>
+<td>🟠 AFFORD_REFER</td>
+<td>Affordability flagged</td>
+</tr>
+<tr>
+<td>🟣 OFFERED</td>
+<td>Loan offer made to client</td>
+</tr>
+<tr>
+<td>🟢 OFFER_ACCEPTED</td>
+<td>Client accepted the offer</td>
+</tr>
+<tr>
+<td>🟣 CONTRACT_SIGN</td>
+<td>Contract sent for signing</td>
+</tr>
+<tr>
+<td>🟣 DEBICHECK_AUTH</td>
+<td>Mandate sent for client authorisation</td>
+</tr>
+<tr>
+<td>✅ APPROVED</td>
+<td>Ready to disburse</td>
+</tr>
+<tr>
+<td>💰 DISBURSED</td>
+<td>Money paid out</td>
+</tr>
+<tr>
+<td>🔴 IN_ARREARS</td>
+<td>Payment overdue</td>
+</tr>
+<tr>
+<td>🔴 IN_DEFAULT</td>
+<td>More than 30 days overdue</td>
+</tr>
+<tr>
+<td>⚫ SETTLED</td>
+<td>Loan paid off</td>
+</tr>
+<tr>
+<td>🚫 REJECTED</td>
+<td>Declined</td>
+</tr>
+<tr>
+<td>🚫 CANCELLED</td>
+<td>Client withdrew</td>
+</tr>
+</tbody></table>
+<h3>3.3 Capturing a new walk-in application</h3>
+<p>Click <strong>+ Create Application</strong>. The wizard has 3 steps:</p>
+<ol>
+<li><strong>Client details</strong> — search by ID number to see if they already exist; if not, capture their personal details, address, employer, NOK</li>
+<li><strong>Loan details</strong> — amount, term, purpose, frequency</li>
+<li><strong>Bank account</strong> — for DebiCheck mandate setup</li>
+</ol>
+<p>Submit to land the application in the queue at status <code>STARTED</code>.</p>
+<p><img src="screenshots/02-applications.png" alt="Applications"></p>
+<hr>
+<h2>4. Application Detail</h2>
+<p><strong>URL:</strong> <code>/admin/application-detail?id=&lt;application_id&gt;</code></p>
+<p>Click any row in Applications to open the <strong>detail page</strong> — the most important page in the system. This is where most work happens.</p>
+<h3>4.1 Left side — client information</h3>
+<p>Tabs:</p>
+<ul>
+<li><strong>Personal</strong> — Name, ID, DOB, gender, address. Editable, with a Save button.</li>
+<li><strong>Next of Kin</strong> — Name, relationship, phone. Editable, with a Save button.</li>
+<li><strong>Employer</strong> — Employer name, phone, address. Editable, with a Save button.</li>
+<li><strong>Bank Account</strong> — Bank name, account number, branch code, holder name.</li>
+<li><strong>Documents</strong> — Uploaded files (ID, bank statement, payslip, till slip). Click to download.</li>
+</ul>
+<h3>4.2 Right side — application data</h3>
+<p><strong>Status banner</strong> — Current status and history. Click to see all status changes with timestamps.</p>
+<p><strong>Financial Snapshot:</strong></p>
+<ul>
+<li>Loan amount, term, monthly instalment, total repayable</li>
+<li>All fees broken out (initiation, service, CPI, VAT, interest)</li>
+<li>Credit Life Insurance (if applicable)</li>
+</ul>
+<p><strong>Affordability:</strong></p>
+<ul>
+<li>Gross income, expenses, disposable income</li>
+<li>Two income source checkboxes (Salary / Other) — toggle to see what affordability looks like with/without each</li>
+<li>Affordability ratio with traffic-light indicator</li>
+</ul>
+<p><strong>Credit Check:</strong></p>
+<ul>
+<li>Bureau score with risk band</li>
+<li>Number of accounts, total balance, arrears amount</li>
+<li>Existing judgements, NLR consumer credit data</li>
+<li><strong>Decline Reasons</strong> (red panel) — if the application was declined, every rule that failed appears here</li>
+</ul>
+<p><strong>Action buttons (right side panel):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>When to use it</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Approve</strong></td>
+<td>Move to APPROVED status — ready to disburse</td>
+</tr>
+<tr>
+<td><strong>Decline</strong></td>
+<td>Reject — opens a modal to enter the reason (sent to client)</td>
+</tr>
+<tr>
+<td><strong>Send Contract</strong></td>
+<td>Trigger DocuSeal e-contract send</td>
+</tr>
+<tr>
+<td><strong>Activate Mandate</strong></td>
+<td>Send DebiCheck mandate to client for authorisation</td>
+</tr>
+<tr>
+<td><strong>Mark Disbursed</strong></td>
+<td>Loan disbursed — auto-creates loan record, decrements client balance, posts to ledger</td>
+</tr>
+<tr>
+<td><strong>Letters of Demand</strong></td>
+<td>Generate Section 129 NCA legal letter</td>
+</tr>
+<tr>
+<td><strong>Route to Head Office</strong></td>
+<td>Escalate to the Online Processing Team for review</td>
+</tr>
+<tr>
+<td><strong>View Statement</strong></td>
+<td>Generate branded loan statement (HTML)</td>
+</tr>
+</tbody></table>
+<h3>4.3 Audit trail</h3>
+<p>Every status change is logged — who made the change, when, and what changed. Visible in the right sidebar.</p>
+<hr>
+<h2>5. Loan Book</h2>
+<p><strong>URL:</strong> <code>/admin/loan-book</code></p>
+<p>The Loan Book is the live portfolio register — every active and historical loan.</p>
+<h3>5.1 What you see</h3>
+<p><strong>Filters:</strong></p>
+<ul>
+<li>Branch filter</li>
+<li>Status filter — Disbursed / In Arrears / In Default / Settled</li>
+<li>Date range (disbursed from / to)</li>
+<li>Search by client name, reference, or ID</li>
+</ul>
+<p><strong>Summary cards (5 across):</strong></p>
+<ul>
+<li><strong>Total Loans</strong> — count</li>
+<li><strong>Loan Book Value</strong> — sum of outstanding balances</li>
+<li><strong>In Arrears</strong> — count</li>
+<li><strong>In Default</strong> — count</li>
+<li><strong>Avg Days Active</strong> — portfolio age</li>
+</ul>
+<p><strong>Loan table:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>What it shows</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Reference</td>
+<td>Loan ref number</td>
+</tr>
+<tr>
+<td>Client</td>
+<td>Name + ID</td>
+</tr>
+<tr>
+<td>Principal</td>
+<td>Original amount disbursed</td>
+</tr>
+<tr>
+<td><strong>Outstanding</strong></td>
+<td>Live balance — orange if owing, green if zero</td>
+</tr>
+<tr>
+<td>Monthly</td>
+<td>Instalment amount</td>
+</tr>
+<tr>
+<td>Status</td>
+<td>Current status</td>
+</tr>
+<tr>
+<td>Days Active</td>
+<td>How long since disbursement</td>
+</tr>
+<tr>
+<td>Days Overdue</td>
+<td>If in arrears</td>
+</tr>
+<tr>
+<td>Maturity In</td>
+<td>Days until final payment due</td>
+</tr>
+<tr>
+<td>Disbursed</td>
+<td>Disbursement date</td>
+</tr>
+<tr>
+<td>Maturity Date</td>
+<td>Final payment date</td>
+</tr>
+<tr>
+<td>Band</td>
+<td>Credit risk band</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Loan purpose</td>
+</tr>
+<tr>
+<td>Actions</td>
+<td>View / Send SMS reminder (for arrears)</td>
+</tr>
+</tbody></table>
+<h3>5.2 Sending an SMS reminder</h3>
+<p>For any loan in <code>IN_ARREARS</code> or <code>IN_DEFAULT</code> status, a message bubble icon appears in the Actions column. Click it to send a payment reminder SMS to the client.</p>
+<h3>5.3 Exporting</h3>
+<p>Click <strong>Export</strong> (top right) for a CSV of the filtered loan book — including bank account details for collection purposes.</p>
+<p><img src="screenshots/03-loan-book.png" alt="Loan Book"></p>
+<hr>
+<h2>6. Users (Clients &amp; Staff)</h2>
+<p><strong>URL:</strong> <code>/admin/users</code></p>
+<p>Manage all users — both clients (borrowers) and staff (admins).</p>
+<h3>6.1 Tabs</h3>
+<ul>
+<li><strong>Clients</strong> — borrowers in the system</li>
+<li><strong>Staff &amp; Admins</strong> — internal users</li>
+</ul>
+<h3>6.2 Clients tab</h3>
+<p><strong>Filters:</strong></p>
+<ul>
+<li>Branch filter</li>
+<li>Search by name, email, ID</li>
+</ul>
+<p><strong>Columns:</strong></p>
+<ul>
+<li>Client identity (avatar, name, role)</li>
+<li>Match key (last 8 of UUID)</li>
+<li>Branch</li>
+<li>Compliance — ID Valid / ID Invalid badge</li>
+<li>Action</li>
+</ul>
+<p>Click any client to open their <strong>detail panel</strong> — full profile, financial snapshot, all their loan applications, all uploaded documents, transfer between branches.</p>
+<h3>6.3 Staff &amp; Admins tab</h3>
+<p>Shows internal users with their role and branch assignment.</p>
+<p><strong>+ Invite Staff</strong> (top right) — sends an email invitation to a new staff member with a sign-up link.</p>
+<p><img src="screenshots/04-users.png" alt="Users"></p>
+<hr>
+<h2>7. Cash Ledger</h2>
+<p><strong>URL:</strong> <code>/admin/cash-ledger</code></p>
+<p>The Cash Ledger is the financial journal — every rand that moved in or out, automatic and manual.</p>
+<h3>7.1 What you see</h3>
+<p><strong>Filters:</strong></p>
+<ul>
+<li>Branch filter</li>
+<li>Date range (default: current month)</li>
+<li>Quick buttons: Today / Week / Month / All</li>
+</ul>
+<p><strong>Summary cards (6):</strong></p>
+<ul>
+<li>Cash In (for the selected period)</li>
+<li>Cash Out (for the selected period)</li>
+<li>Net Position</li>
+<li>Loans Disbursed (cash out by category)</li>
+<li>Repayments Collected (cash in by category)</li>
+<li>Entry count</li>
+</ul>
+<p><strong>Ledger table:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Date</td>
+<td>Transaction date</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>Cash In / Cash Out / Opening Balance / Closing Balance / Adjustment</td>
+</tr>
+<tr>
+<td>Category</td>
+<td>Loan disbursement / Repayment / Petty Cash / Expense / Bank Deposit / Bank Withdrawal</td>
+</tr>
+<tr>
+<td>Description</td>
+<td>Free text</td>
+</tr>
+<tr>
+<td>Reference</td>
+<td>Loan number or receipt number</td>
+</tr>
+<tr>
+<td>Cash In</td>
+<td>Amount in</td>
+</tr>
+<tr>
+<td>Cash Out</td>
+<td>Amount out</td>
+</tr>
+<tr>
+<td>Running Balance</td>
+<td>Live running total</td>
+</tr>
+<tr>
+<td>By</td>
+<td>Who created the entry</td>
+</tr>
+</tbody></table>
+<h3>7.2 Automatic entries</h3>
+<p>The system auto-posts entries for:</p>
+<ul>
+<li><strong>Disbursements</strong> — when a loan is marked DISBURSED, a <code>cash_out</code> entry is auto-created with the loan reference</li>
+<li><strong>Confirmed payments</strong> — when a manual EFT proof is confirmed, a <code>cash_in</code> entry is auto-created</li>
+</ul>
+<h3>7.3 Adding a manual journal entry</h3>
+<p>Click <strong>+ Add Journal Entry</strong> to open the form. Use this for petty cash, bank deposits, expenses, or any other cash movement.</p>
+<p><img src="screenshots/05-cash-ledger.png" alt="Cash Ledger"></p>
+<hr>
+<h2>8. Incoming Payments</h2>
+<p><strong>URL:</strong> <code>/admin/incoming-payments</code></p>
+<p>This page handles client-side payment submissions and recovery analytics.</p>
+<h3>8.1 Pending Manual Payment Proofs (top panel)</h3>
+<p>When a client submits proof of an EFT payment via the client portal, it lands here.</p>
+<p>Each card shows:</p>
+<ul>
+<li>Client name + phone + loan reference</li>
+<li>Amount paid + payment type (Payment / Settlement)</li>
+<li>Bank reference number</li>
+<li>Proof link (screenshot or URL the client provided)</li>
+<li>How long ago submitted</li>
+</ul>
+<p><strong>Confirm</strong> — Marks payment as confirmed → posts to Cash Ledger → decrements outstanding balance → sends SMS + push + email to client. If it was a Settlement, loan status changes to SETTLED.</p>
+<p><strong>Reject</strong> — Prompts for a reason that gets sent to the client.</p>
+<h3>8.2 Admin Record Payment (with back-date)</h3>
+<p>Use this when a payment came in via another channel (e.g. cash at branch) and needs to be captured manually. You can backdate the payment.</p>
+<p>Fields:</p>
+<ul>
+<li>Application ID / loan reference</li>
+<li>Amount</li>
+<li>Payment type (Partial / Settlement / Arrears)</li>
+<li>Date (default today, editable to backdate)</li>
+<li>Reference</li>
+</ul>
+<p>Save → auto-posts to Cash Ledger and decrements loan balance.</p>
+<h3>8.3 Recovery Detail (lower section)</h3>
+<p>Shows all confirmed payments with:</p>
+<ul>
+<li>KPI cards (MTD Recoveries, Realised Profit, Active Payers)</li>
+<li>Filter tabs (Today / 7 Days / 30 Days / All)</li>
+<li>Searchable table</li>
+</ul>
+<p>Click <strong>Sync SureSystems</strong> to pull DebiCheck collection results into the ledger.</p>
+<p><strong>Export CSV</strong> for accounting reconciliation.</p>
+<p><img src="screenshots/06-incoming-payments.png" alt="Incoming Payments"></p>
+<hr>
+<h2>9. Outgoing Payments / Disbursements</h2>
+<p><strong>URL:</strong> <code>/admin/outgoing-payments</code></p>
+<p>Manage loan disbursements.</p>
+<h3>9.1 Tabs</h3>
+<ul>
+<li><strong>Pending</strong> — applications ready for disbursement</li>
+<li><strong>History</strong> — completed disbursements</li>
+<li><strong>Comparison</strong> — vs expected vs actual</li>
+</ul>
+<h3>9.2 Disbursement workflow</h3>
+<ol>
+<li>Application is approved</li>
+<li>Appears in <strong>Pending</strong> tab</li>
+<li>Tick the loans to include in a batch</li>
+<li>Click <strong>Generate Capitec CSV</strong> — system creates a CSV file ready for upload to bank</li>
+<li>CSV is PIN-protected (set in env) — enter PIN to download</li>
+<li>Once bank processes, click <strong>Mark as Disbursed</strong></li>
+<li>System:<ul>
+<li>Updates status to DISBURSED</li>
+<li>Sends client SMS / push / email</li>
+<li>Posts cash_out entry to Cash Ledger</li>
+<li>Creates the loan record (sets outstanding balance)</li>
+</ul>
+</li>
+</ol>
+<p><img src="screenshots/07-outgoing-payments.png" alt="Outgoing Payments"></p>
+<hr>
+<h2>10. Credit Rules</h2>
+<p><strong>URL:</strong> <code>/admin/credit-rules</code></p>
+<p>Configure the credit decision engine. This is where you decide who qualifies for what.</p>
+<h3>10.1 Score Bands</h3>
+<p>The main table is your <strong>score bands</strong> — the bridge from credit bureau score to loan offer.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Band Label</td>
+<td>e.g. &quot;Excellent&quot;</td>
+</tr>
+<tr>
+<td>Score Range</td>
+<td>e.g. 700–850</td>
+</tr>
+<tr>
+<td>Risk Level</td>
+<td>Low / Medium / High / Declined</td>
+</tr>
+<tr>
+<td>Max Loan</td>
+<td>What this band qualifies for</td>
+</tr>
+<tr>
+<td>Rate (p.a.)</td>
+<td>Interest rate applied</td>
+</tr>
+<tr>
+<td>Max Term</td>
+<td>Maximum repayment term</td>
+</tr>
+<tr>
+<td>Decision</td>
+<td>Approve / Manual Review / Decline</td>
+</tr>
+<tr>
+<td>1st Loan Term</td>
+<td>Optional restriction for first-time borrowers</td>
+</tr>
+<tr>
+<td>Decline Message</td>
+<td>Shown to client if their band declines</td>
+</tr>
+<tr>
+<td>Active</td>
+<td>Toggle</td>
+</tr>
+</tbody></table>
+<p>Edit any band by clicking the pencil icon. Add new band with <strong>+ Add Band</strong>.</p>
+<p><strong>Overlap warning</strong> — if two bands have overlapping score ranges (e.g. 650–750 and 700–800), a red banner appears. Fix the ranges to prevent unpredictable decisions.</p>
+<h3>10.2 Eligibility Rules</h3>
+<p>Hard pass/fail criteria checked before bands:</p>
+<ul>
+<li>Minimum credit score</li>
+<li>Minimum income</li>
+<li>Maximum DTI (Debt-to-Income ratio)</li>
+<li>Minimum age</li>
+<li>Must be employed</li>
+<li>No active judgements</li>
+<li>Not under debt review</li>
+</ul>
+<p>Toggle on/off, edit thresholds, edit decline messages.</p>
+<h3>10.3 Simulate</h3>
+<p>Click <strong>Simulate</strong> (top right, purple button) to test a decision before going live. Enter:</p>
+<ul>
+<li>Credit score</li>
+<li>Income</li>
+<li>Monthly debt</li>
+<li>Age</li>
+<li>Employed / Has Judgements / Under Debt Review / First Loan</li>
+</ul>
+<p>Click <strong>Run Simulation</strong> to see:</p>
+<ul>
+<li>The exact decision (Approved / Manual Review / Declined)</li>
+<li>Which band matched</li>
+<li>Max loan, rate, term applied</li>
+<li>Every rule that failed with the reason</li>
+</ul>
+<p>Use this every time you change a band or rule to make sure it behaves as expected.</p>
+<p><img src="screenshots/08-credit-rules.png" alt="Credit Rules"></p>
+<hr>
+<h2>11. SACRRA Bureau Reporting</h2>
+<p><strong>URL:</strong> <code>/admin/sacrra</code></p>
+<p>The SACRRA module handles your monthly Layout 700v2 submission to the four credit bureaux (Experian, TransUnion, XDS, Compuscan).</p>
+<h3>11.1 Dashboard tab</h3>
+<p>Shows:</p>
+<ul>
+<li>Compliance Score ring — % of records currently passing all rules</li>
+<li>Total records ready for submission</li>
+<li>Active issues count</li>
+<li>Bureau acceptance status (Pending / Accepted / Rejected per bureau)</li>
+</ul>
+<h3>11.2 Generating the monthly file</h3>
+<p>Click <strong>Generate Compliance File</strong> (top right).</p>
+<p>A modal appears:</p>
+<ul>
+<li><strong>Submission Type</strong> — Monthly (default) or Daily</li>
+<li><strong>Reporting Period</strong> — leave blank for current month, or pick a past month for back-dated submissions</li>
+<li>Click <strong>Generate</strong></li>
+</ul>
+<p>The system:</p>
+<ol>
+<li>Pulls every loan from the <code>sacrra_700_view</code></li>
+<li>Builds a 700-character fixed-width text file per Layout 700v2 spec</li>
+<li>Creates header + data records + trailer</li>
+<li>Encrypts the file with each bureau&#39;s PGP public key</li>
+<li>Saves the file for download / submission</li>
+</ol>
+<h3>11.3 Submissions tab</h3>
+<p>History of every SACRRA file generated, with:</p>
+<ul>
+<li>Date generated</li>
+<li>Records included</li>
+<li>Submission status per bureau</li>
+<li>Download links</li>
+</ul>
+<h3>11.4 Bureaux tab</h3>
+<p>Per-bureau configuration:</p>
+<ul>
+<li>Enabled / Disabled</li>
+<li>Supplier Reference Number (10-char SRN issued by bureau)</li>
+<li>PGP public key</li>
+<li>Submission method (MOVEit auto-upload for Experian, Email for others)</li>
+<li>Submission destination (email address / MOVEit folder)</li>
+</ul>
+<p>Configure each bureau once at setup — the system uses these settings for every monthly submission.</p>
+<h3>11.5 Rejections tab</h3>
+<p>Upload rejection responses from bureaux to see what failed and why. The system parses the error messages and shows which records to fix.</p>
+<p><img src="screenshots/09-sacrra.png" alt="SACRRA Dashboard"></p>
+<hr>
+<h2>12. SACRRA Migration Validator</h2>
+<p><strong>URL:</strong> <code>/admin/sacrra-validator</code></p>
+<p>This is the tool we use to validate an external loan book (e.g. from AlgoLend&#39;s old system) <strong>before</strong> importing it.</p>
+<h3>12.1 Why use this?</h3>
+<p>When you bring loans across from another lending system, the data needs to pass SACRRA Layout 700v2 rules before it can be reported to bureaux. This tool checks every record up front.</p>
+<h3>12.2 How to use it</h3>
+<p><strong>Step 1: Upload Loan Book</strong></p>
+<p>Click the upload area and select a CSV file. The system auto-detects the header row.</p>
+<p><strong>Step 2: Column Mapping</strong></p>
+<p>The system tries to <strong>auto-map</strong> AlgoLend&#39;s column names to our SACRRA fields. Required fields are shown in bold. Adjust any incorrect mappings using the drop-downs.</p>
+<p>Required fields:</p>
+<ul>
+<li>SA ID Number</li>
+<li>Surname, First Names</li>
+<li>Address</li>
+<li>Account Number</li>
+<li>Opening Balance, Current Balance</li>
+<li>Date Opened, Term (Months)</li>
+</ul>
+<p>Optional fields (recommended):</p>
+<ul>
+<li>DOB, Gender, Mobile, Postal Code</li>
+<li>Status Code, Installment, Months in Arrears</li>
+</ul>
+<p>Click <strong>Validate Records</strong>.</p>
+<p><strong>Step 3: Results</strong></p>
+<p>Four cards at the top:</p>
+<ul>
+<li>Total Records</li>
+<li>Valid count (green)</li>
+<li>Errors count (red)</li>
+<li>Compliance % (orange — the headline metric)</li>
+</ul>
+<p>Tab filter: All / Failed Only / Passed Only</p>
+<p>Table shows every record with:</p>
+<ul>
+<li>Row number</li>
+<li>SA ID</li>
+<li>Name</li>
+<li>Balance</li>
+<li>Status</li>
+<li>Issues (red list of every failed rule per record)</li>
+</ul>
+<p><strong>Step 4: Download</strong></p>
+<ul>
+<li><strong>Errors CSV</strong> — send back to AlgoLend to fix</li>
+<li><strong>Valid CSV</strong> — cleaned, column-normalised, ready for import</li>
+</ul>
+<h3>12.3 What gets checked</h3>
+<ul>
+<li>SA ID must be 13 digits with valid Luhn checksum</li>
+<li>DOB must match SA ID digits 1–6</li>
+<li>Gender must match SA ID digit 11 (0–4 = Female, 5–9 = Male)</li>
+<li>All required fields populated</li>
+<li>Balances ≥ 0, within N9 limit (max R999,999,999)</li>
+<li>Dates valid YYYYMMDD, opened date in past</li>
+<li>Status codes valid (C/P/D/T/V/L)</li>
+<li>Months in arrears consistent with status (e.g. status C cannot have arrears)</li>
+<li>Mobile in valid SA format</li>
+<li>Postal code 4 digits</li>
+</ul>
+<p><img src="screenshots/10-sacrra-validator.png" alt="SACRRA Validator"></p>
+<hr>
+<h2>13. Analytics &amp; Financials</h2>
+<h3>13.1 Analytics</h3>
+<p><strong>URL:</strong> <code>/admin/analytics</code></p>
+<p>Deep-dive analytics — cohort analysis, risk metrics, vintage performance, recovery curves. Includes CSV export.</p>
+<h3>13.2 Financials</h3>
+<p><strong>URL:</strong> <code>/admin/financials</code></p>
+<p>The financial reporting module — income statement, balance sheet, cash flow. Date-range filters with YTD default. Export to CSV for board reports.</p>
+<hr>
+<h2>14. Settings</h2>
+<p><strong>URL:</strong> <code>/admin/settings</code></p>
+<p>System configuration. Most of the time you only touch this at initial setup.</p>
+<h3>14.1 Tabs</h3>
+<ul>
+<li><strong>My Profile</strong> — Your own profile, password, avatar</li>
+<li><strong>Security</strong> — Push notification settings, change password</li>
+<li><strong>User Management</strong> — Add / edit / remove staff</li>
+<li><strong>Billing</strong> — Subscription and invoice info</li>
+<li><strong>System Branding</strong> — Company-wide settings (Super Admin only)</li>
+</ul>
+<h3>14.2 System Branding tab</h3>
+<p>Critical sections:</p>
+<p><strong>Company Identity</strong></p>
+<ul>
+<li>Company name (appears everywhere)</li>
+<li>Company logo (upload or paste URL)</li>
+</ul>
+<p><strong>Company Legal Details</strong> (appear in contracts and NCA disclosures)</p>
+<ul>
+<li>NCR Registration Number</li>
+<li>Company Registration Number</li>
+<li>VAT Number</li>
+<li>Branch Code (for contracts)</li>
+<li>Company phone</li>
+<li>Physical address</li>
+<li>Postal address</li>
+</ul>
+<p><strong>Company Banking Details</strong> (used by clients for manual EFT payments)</p>
+<ul>
+<li>Bank name</li>
+<li>Account holder name</li>
+<li>Account number</li>
+<li>Branch code</li>
+<li>Account type</li>
+<li>Reference prefix (clients use this + their loan ID)</li>
+<li><strong>Live preview</strong> at the bottom showing exactly what clients see</li>
+</ul>
+<p><strong>Theme Colours</strong></p>
+<ul>
+<li>Primary / Secondary / Tertiary</li>
+<li>Live gradient preview</li>
+</ul>
+<p><strong>Login Styling</strong></p>
+<ul>
+<li>Background wallpaper</li>
+<li>Overlay colour</li>
+<li>Auth page carousel slides</li>
+</ul>
+<p>Click <strong>Save Changes</strong> to commit.</p>
+<p><img src="screenshots/11-settings.png" alt="Settings"></p>
+<hr>
+<h2>15. Common Workflows</h2>
+<h3>15.1 Approve and disburse a new loan</h3>
+<ol>
+<li><strong>Applications</strong> → click application → opens <strong>Application Detail</strong></li>
+<li>Review <strong>Credit Check</strong> section — score, decline reasons (if any)</li>
+<li>Review <strong>Affordability</strong> — toggle income sources if needed</li>
+<li>Click <strong>Approve</strong></li>
+<li>Click <strong>Send Contract</strong> — client signs via DocuSeal</li>
+<li>Once signed, click <strong>Activate Mandate</strong> — client authorises DebiCheck via SureSystems</li>
+<li>Once authorised, status becomes APPROVED</li>
+<li>Go to <strong>Outgoing Payments</strong> → Pending tab → tick the loan → <strong>Generate Capitec CSV</strong> → upload to bank</li>
+<li>Once bank confirms paid, click <strong>Mark as Disbursed</strong></li>
+<li>Client gets SMS / push / email — loan balance is now tracked</li>
+</ol>
+<h3>15.2 Confirm a manual EFT payment</h3>
+<ol>
+<li>Client submits proof of payment via client app</li>
+<li>Goes to <strong>Incoming Payments</strong> → Pending Manual Payment Proofs panel</li>
+<li>Open the card, check the proof (screenshot link or reference number)</li>
+<li>Verify amount matches your bank statement</li>
+<li>Click <strong>Confirm</strong></li>
+<li>Automatically: posts to Cash Ledger, decrements loan balance, sends client SMS / push / email</li>
+</ol>
+<h3>15.3 Record a payment that came in via cash or other channel</h3>
+<ol>
+<li><strong>Incoming Payments</strong> → Admin Record Payment panel</li>
+<li>Pick application</li>
+<li>Enter amount and reference</li>
+<li>Backdate if needed</li>
+<li>Save → auto-posts to Cash Ledger and decrements balance</li>
+</ol>
+<h3>15.4 Send arrears reminders</h3>
+<ol>
+<li><strong>Loan Book</strong> → Status filter = In Arrears</li>
+<li>For each row, click the SMS icon in Actions column</li>
+<li>Client receives reminder</li>
+</ol>
+<h3>15.5 Generate and submit monthly SACRRA file</h3>
+<ol>
+<li>End of month</li>
+<li>Go to <strong>SACRRA</strong> → <strong>Generate Compliance File</strong></li>
+<li>Confirm settings (Monthly type, current period)</li>
+<li>Click Generate</li>
+<li>File is built, encrypted per bureau, ready to submit</li>
+<li>For Experian — auto-uploaded via MOVEit</li>
+<li>For TransUnion / XDS / Compuscan — download <code>.pgp</code> file and email per bureau settings</li>
+</ol>
+<h3>15.6 Validate AlgoLend&#39;s loan book before import</h3>
+<ol>
+<li><strong>SACRRA Migration Validator</strong> → upload AlgoLend&#39;s CSV</li>
+<li>Adjust column mappings if needed</li>
+<li>Click Validate Records</li>
+<li>Download <strong>Errors CSV</strong> → send to AlgoLend for fixes</li>
+<li>When file passes, download <strong>Valid CSV</strong> → use for database import</li>
+</ol>
+<h3>15.7 Add or update a staff member</h3>
+<ol>
+<li><strong>Users</strong> → Staff &amp; Admins tab</li>
+<li>Click <strong>+ Invite Staff</strong> to invite a new user — they get an email with sign-up link</li>
+<li>To change an existing user&#39;s role or branch, click their row → edit modal opens</li>
+</ol>
+<h3>15.8 Change credit policy</h3>
+<ol>
+<li><strong>Credit Rules</strong></li>
+<li>Edit existing band or rule, or add new one</li>
+<li>Click <strong>Simulate</strong> to test a few example clients</li>
+<li>Confirm the decisions are correct before saving</li>
+</ol>
+<h3>15.9 Route a complex case to Head Office</h3>
+<ol>
+<li>Open the <strong>Application Detail</strong> for the loan in question</li>
+<li>Click <strong>Route to Head Office</strong> in the action panel</li>
+<li>Application now appears in Head Office&#39;s queue with a routed marker</li>
+<li>Original branch can still see the application but cannot action it until Head Office reviews</li>
+</ol>
+<hr>
+<h2>16. Troubleshooting</h2>
+<h3>Login fails</h3>
+<ul>
+<li>Check email and password</li>
+<li>Use &quot;Forgot password&quot; to reset</li>
+<li>Confirm you have an active account — ask the Super Admin</li>
+</ul>
+<h3>Pages slow to load</h3>
+<ul>
+<li>Refresh the page</li>
+<li>Check internet connection</li>
+<li>Try again in a few minutes</li>
+</ul>
+<h3>Can&#39;t see a client / application</h3>
+<ul>
+<li>Check your branch filter — you might only have access to your branch&#39;s data</li>
+<li>Check the status filter — old or archived items may be hidden</li>
+</ul>
+<h3>Client can&#39;t see banking details on the EFT screen</h3>
+<ul>
+<li><strong>Settings</strong> → <strong>System Branding</strong> → <strong>Company Banking Details</strong> — ensure all fields are filled in</li>
+</ul>
+<h3>SMS notifications not sending</h3>
+<ul>
+<li>Check <strong>System Status</strong> indicator on Dashboard</li>
+<li>Contact your platform administrator</li>
+</ul>
+<h3>A disbursement marked as paid but no client SMS</h3>
+<ul>
+<li>Check the client&#39;s <code>cell_tel_no</code> field on their profile — must be valid SA format</li>
+<li>Check SMS provider quota with platform administrator</li>
+</ul>
+<h3>Cash Ledger doesn&#39;t reflect a payment</h3>
+<ul>
+<li>Confirm the payment was set to &quot;Confirmed&quot; — pending entries don&#39;t update balances</li>
+<li>Check the date filter on the Cash Ledger</li>
+</ul>
+<h3>SACRRA file generated but no records</h3>
+<ul>
+<li>Check the <code>sacrra_700_view</code> — only loans with eligible statuses appear</li>
+<li>Check date filter on the SACRRA page</li>
+</ul>
+<h3>Credit score not updating</h3>
+<ul>
+<li>Check <strong>Settings</strong> that EXPERIAN_USERNAME and EXPERIAN_PASSWORD are set</li>
+<li>Confirm the client&#39;s ID number is correct</li>
+<li>View the credit check error log on the application detail page</li>
+</ul>
+<hr>
+<h2>Contact</h2>
+<p>For platform support or feature requests, contact:</p>
+<p><strong>AlgoHive (Pty) Ltd</strong>
+Email: <a href="mailto:info@algolend.co.za">info@algolend.co.za</a>
+Phone: 069 119 5046</p>
+<hr>
+<p><em>End of guide — Version 1.0 — Prepared by AlgoHive for AlgoLend</em></p>
+
+</body>
+</html>

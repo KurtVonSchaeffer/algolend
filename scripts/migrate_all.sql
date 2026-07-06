@@ -731,7 +731,7 @@ create table if not exists user_action_log (
   created_at timestamptz not null default now()
 );
 -- ================================================================
--- Zwane Financial Services — Phase 1–5 Full Migration
+-- AlgoLend — Phase 1–5 Full Migration
 -- Run this in Supabase SQL Editor
 -- Safe to re-run (uses IF NOT EXISTS / IF EXISTS guards)
 -- ================================================================
@@ -784,10 +784,10 @@ ALTER TABLE public.credit_checks
 ALTER TABLE public.credit_score_bands
   ADD COLUMN IF NOT EXISTS first_loan_max_term_months integer DEFAULT NULL;
 
--- Set first loan = 1 month for existing Zwane bands
+-- Set first loan = 1 month for existing AlgoLend bands
 UPDATE public.credit_score_bands
 SET first_loan_max_term_months = 1
-WHERE organization_id = (SELECT id FROM public.organizations WHERE code = 'zwane');
+WHERE organization_id = (SELECT id FROM public.organizations WHERE code = 'algolend');
 
 -- ── 6. CASH JOURNAL ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.cash_journal (
@@ -852,7 +852,7 @@ CREATE POLICY "Service inserts audit"
 
 -- ── 9. ORGANISATIONS (if credit_rules.sql already ran, skip) ──────
 INSERT INTO public.organizations (name, code)
-VALUES ('Zwane Financial Services', 'zwane')
+VALUES ('AlgoLend', 'algolend')
 ON CONFLICT (code) DO NOTHING;
 
 -- ── 10. INDEXES (performance) ─────────────────────────────────────
@@ -879,7 +879,7 @@ CREATE INDEX IF NOT EXISTS idx_loan_apps_user      ON public.loan_applications (
 CREATE TABLE IF NOT EXISTS public.organizations (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name          text NOT NULL,
-  code          text UNIQUE NOT NULL,  -- slug, e.g. 'zwane', 'mintlend'
+  code          text UNIQUE NOT NULL,  -- slug, e.g. 'algolend', 'mintlend'
   is_active     boolean DEFAULT true,
   created_at    timestamptz DEFAULT now(),
   updated_at    timestamptz DEFAULT now()
@@ -887,7 +887,7 @@ CREATE TABLE IF NOT EXISTS public.organizations (
 
 -- Seed the default org for this deployment
 INSERT INTO public.organizations (name, code)
-VALUES ('Zwane Financial Services', 'zwane')
+VALUES ('AlgoLend', 'algolend')
 ON CONFLICT (code) DO NOTHING;
 
 -- ---------------------------------------------------------------
@@ -922,7 +922,7 @@ CREATE TABLE IF NOT EXISTS public.credit_score_bands (
   CONSTRAINT no_overlapping_bands UNIQUE (organization_id, min_score, max_score)
 );
 
--- Seed sensible defaults for Zwane
+-- Seed sensible defaults for AlgoLend
 INSERT INTO public.credit_score_bands
   (organization_id, label, min_score, max_score, risk_level, color,
    max_loan_amount, interest_rate_pa, max_term_months, auto_decision, sort_order)
@@ -938,7 +938,7 @@ CROSS JOIN (VALUES
   ('Poor',       300, 579, 'high',     '#ef4444', 3000,  35.00,  6, 'review',  4),
   ('Declined',     0, 299, 'declined', '#6b7280', 0,     0,      0, 'decline', 5)
 ) AS b(label, min_score, max_score, risk_level, color, max_loan, rate, term, decision, ord)
-WHERE o.code = 'zwane'
+WHERE o.code = 'algolend'
 ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------
@@ -1025,7 +1025,7 @@ CROSS JOIN (VALUES
    'is_true', null, 'decline',
    'Proof of employment or income is required to apply.', 8)
 ) AS r(rule_key, label, description, operator, threshold, fail_action, reason, ord)
-WHERE o.code = 'zwane'
+WHERE o.code = 'algolend'
 ON CONFLICT DO NOTHING;
 
 -- ---------------------------------------------------------------

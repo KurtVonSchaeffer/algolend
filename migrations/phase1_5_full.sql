@@ -1,5 +1,5 @@
 -- ================================================================
--- Zwane Financial Services — Phase 1–5 Full Migration
+-- AlgoLend — Phase 1–5 Full Migration
 -- Run this in Supabase SQL Editor
 -- Safe to re-run (uses IF NOT EXISTS / IF EXISTS guards)
 -- ================================================================
@@ -52,10 +52,10 @@ ALTER TABLE public.credit_checks
 ALTER TABLE public.credit_score_bands
   ADD COLUMN IF NOT EXISTS first_loan_max_term_months integer DEFAULT NULL;
 
--- Set first loan = 1 month for existing Zwane bands
+-- Set first loan = 1 month for existing AlgoLend bands
 UPDATE public.credit_score_bands
 SET first_loan_max_term_months = 1
-WHERE organization_id = (SELECT id FROM public.organizations WHERE code = 'zwane');
+WHERE organization_id = (SELECT id FROM public.organizations WHERE code = 'algolend');
 
 -- ── 6. CASH JOURNAL ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.cash_journal (
@@ -120,7 +120,7 @@ CREATE POLICY "Service inserts audit"
 
 -- ── 9. ORGANISATIONS (if credit_rules.sql already ran, skip) ──────
 INSERT INTO public.organizations (name, code)
-VALUES ('Zwane Financial Services', 'zwane')
+VALUES ('AlgoLend', 'algolend')
 ON CONFLICT (code) DO NOTHING;
 
 -- ── 10. INDEXES (performance) ─────────────────────────────────────

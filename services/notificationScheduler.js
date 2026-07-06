@@ -216,7 +216,7 @@ async function flagDefaultedLoans() {
         try {
           const messaging = require('./messagingService');
           const { data: settings } = await supabase.from('system_settings').select('company_name').maybeSingle();
-          const company  = settings?.company_name || 'AlgoLend';
+          const company  = settings?.company_name || 'AlgoLend Financial';
           const profile  = updatedLoan?.profiles;
           const phone    = profile?.cell_tel_no || profile?.contact_number;
           const name     = profile?.full_name || 'Client';

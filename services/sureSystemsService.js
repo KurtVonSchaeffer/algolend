@@ -69,14 +69,21 @@ function resolveCertPath(filePath) {
   return path.isAbsolute(filePath) ? filePath : path.resolve(process.cwd(), filePath);
 }
 
+// SureSystems validates message timestamps against their SAST clock (UTC+2).
+// Vercel runs UTC — offset manually so messageDate/messageTime match SAST,
+// the same way buildSignatureHeaders() already does for dsDTS below.
+function sastNow() {
+  return new Date(Date.now() + 2 * 60 * 60 * 1000);
+}
+
 function getToday() {
-  const now = new Date();
-  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const now = sastNow();
+  return `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}`;
 }
 
 function getNow() {
-  const now = new Date();
-  return `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+  const now = sastNow();
+  return `${String(now.getUTCHours()).padStart(2, '0')}${String(now.getUTCMinutes()).padStart(2, '0')}${String(now.getUTCSeconds()).padStart(2, '0')}`;
 }
 
 function buildContractReference(merchantGid, uniqueSequence) {
@@ -130,16 +137,15 @@ function buildSignatureHeaders() {
   //   HMACSHA512_String = dsClientId + dsDTS
   //   dsHMAC = CryptoJS.HmacSHA512(message, clientSecret) -> Base64
 
-  // SureSystems requires SAST (UTC+2) — use UTC methods + 2h offset so the
-  // timestamp is correct regardless of the server's local timezone.
-  const now  = new Date();
-  const sast = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-  const dd   = String(sast.getUTCDate()).padStart(2, '0');
-  const mm   = String(sast.getUTCMonth() + 1).padStart(2, '0');
-  const yyyy = sast.getUTCFullYear();
-  const hh   = String(sast.getUTCHours()).padStart(2, '0');
-  const mi   = String(sast.getUTCMinutes()).padStart(2, '0');
-  const ss   = String(sast.getUTCSeconds()).padStart(2, '0');
+  // SureSystems validates DTS against their SAST clock (UTC+2).
+  // Vercel runs UTC — offset manually so the signed timestamp matches.
+  const now  = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const dd   = String(now.getUTCDate()).padStart(2, '0');
+  const mm   = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const yyyy = now.getUTCFullYear();
+  const hh   = String(now.getUTCHours()).padStart(2, '0');
+  const mi   = String(now.getUTCMinutes()).padStart(2, '0');
+  const ss   = String(now.getUTCSeconds()).padStart(2, '0');
 
   const dts      = `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
   const sigInput = config.clientId + dts;
@@ -149,11 +155,12 @@ function buildSignatureHeaders() {
     CryptoJS.HmacSHA512(sigInput, config.clientSecret)
   );
 
+  // ClientSecret is the HMAC signing key only — do not transmit it as a header.
+  // Sending it caused SureSystems to follow a broken auth path (CLASS DOES NOT EXIST error).
   return {
-    'SS_SD_SWITCH_ClientId':     config.clientId,
-    'SS_SD_SWITCH_ClientSecret': config.clientSecret,
-    'SS_SD_SWITCH_DTS':          dts,
-    'SS_SD_SWITCH_HSH':          hmac
+    'SS_SD_SWITCH_ClientId': config.clientId,
+    'SS_SD_SWITCH_DTS':      dts,
+    'SS_SD_SWITCH_HSH':      hmac
   };
 }
 
@@ -233,8 +240,13 @@ async function request(endpoint, payload) {
       validateStatus: () => true
     });
 
+    console.log('[SureSystems DEBUG] RESPONSE STATUS:', response.status);
+    console.log('[SureSystems DEBUG] RESPONSE BODY:', JSON.stringify(response.data, null, 2));
+
     if (response.status < 200 || response.status >= 300) {
-      const error = new Error(response.data?.message || 'SureSystems request failed');
+      const msg = response.data?.message || response.data?.error || response.data?.resultDescription
+        || response.data?.statusMessage || `SureSystems request failed (HTTP ${response.status})`;
+      const error = new Error(msg);
       error.status = response.status;
       error.endpoint = url;
       error.details = {
@@ -276,7 +288,7 @@ function buildMandatePayload(input = {}) {
         messageDate: getToday(),
         messageTime: getNow(),
         systemUserName: config.systemUsername,
-        frontEndUserName: input.frontEndUserName || config.systemUsername || 'algohiveuat'
+        frontEndUserName: input.frontEndUserName || config.systemUsername || config.systemUsername
       },
       mandate: {
         clientNo:                    input.clientNo || 'WEB001',
@@ -290,7 +302,7 @@ function buildMandatePayload(input = {}) {
         contractReference,
         magId:                       Number(input.magId || 45),
         debitValueType:              Number(input.debitValueType || 1),
-        typeOfAuthorizationRequired: Number(input.typeOfAuthorizationRequired ?? 3),
+        typeOfAuthorizationRequired: Number(input.typeOfAuthorizationRequired ?? 6),
         initialAmount:               Number(input.initialAmount ?? 0),
         firstCollectionDate:         collectionDate,
         maximumCollectionAmount:     input.maximumCollectionAmount != null ? Number(input.maximumCollectionAmount) : maximumCollectionAmount,
@@ -312,7 +324,7 @@ function buildMandatePayload(input = {}) {
         debtorTelephone:             input.debtorTelephone || '',
         debtorEmail:                 input.debtorEmail || '',
         mandateInitiationDate:       input.mandateInitiationDate || getToday(),
-        authorizationIndicator:      input.authorizationIndicator || '0229',
+        authorizationIndicator:      input.authorizationIndicator || '0227',
         dateList:                    input.dateList ?? '',
         ...products,
       }
@@ -362,7 +374,7 @@ async function checkFinalFate({ contractReference, frontEndUserName } = {}) {
     contractReference,
     merchantGid: config.merchantGid,
     remoteGid:   config.remoteGid,
-    frontEndUserName: frontEndUserName || config.systemUsername || 'algohiveuat'
+    frontEndUserName: frontEndUserName || config.systemUsername || config.systemUsername
   };
 
   const response = await request('/mandates/finalfate', payload);
@@ -383,8 +395,13 @@ async function downloadPayments({ frontEndUserName } = {}) {
 async function mandateEnquiry(input = {}) {
   const { frontEndUserName: _ignored, ...rest } = input;
   const payload = {
-    merchantGid: config.merchantGid,
-    remoteGid: config.remoteGid,
+    merchantGid:        config.merchantGid,
+    remoteGid:          config.remoteGid,
+    magId:              config.magId || 45,
+    debtorAccountNumber: '',
+    frequencyCode:      '',
+    fromDate:           '',
+    toDate:             '',
     ...rest
   };
 
@@ -396,7 +413,7 @@ async function cancelMandate(input = {}) {
   const payload = {
     merchantGid: config.merchantGid,
     remoteGid: config.remoteGid,
-    frontEndUserName: input.frontEndUserName || config.systemUsername || 'algohiveuat',
+    frontEndUserName: input.frontEndUserName || config.systemUsername || config.systemUsername,
     ...input
   };
 
@@ -405,10 +422,15 @@ async function cancelMandate(input = {}) {
 }
 
 async function createInstallmentRequest(input = {}) {
+  if (!input.contractReference) {
+    const error = new Error('contractReference is required');
+    error.status = 400;
+    throw error;
+  }
   const { frontEndUserName: _a, ...rest } = input;
   const payload = {
     merchantGid: config.merchantGid,
-    remoteGid: config.remoteGid,
+    remoteGid:   config.remoteGid,
     ...rest
   };
 
@@ -417,25 +439,83 @@ async function createInstallmentRequest(input = {}) {
 }
 
 async function updateInstallmentRequest(input = {}) {
-  const { frontEndUserName: _a, ...rest } = input;
+  const installments = input.installment || input.installments || [];
   const payload = {
-    merchantGid: config.merchantGid,
-    remoteGid: config.remoteGid,
-    ...rest
+    messageInfo: {
+      merchantGid:      config.merchantGid,
+      remoteGid:        config.remoteGid,
+      messageDate:      getToday(),
+      messageTime:      getNow(),
+      systemUserName:   config.systemUsername || config.systemUsername,
+      frontEndUserName: input.frontEndUserName || config.systemUsername || config.systemUsername
+    },
+    installment: installments
   };
-
   const response = await request('/installments/batch/update', payload);
   return { response };
 }
 
-async function cancelInstallment(input = {}) {
-  const { frontEndUserName: _a, ...rest } = input;
+// TT3 (paper/POS mandate) — upload signed authorization image/document.
+// Field names based on SureSystems v3 API spec; confirm with SureSystems support if rejected.
+// typeOfAuthorizationRequired=3 / authorizationIndicator='0000' for paper authorization.
+async function submitTT3Signature(input = {}) {
+  if (!input.contractReference) {
+    const error = new Error('contractReference is required');
+    error.status = 400;
+    throw error;
+  }
+  if (!input.signatureImageBase64) {
+    const error = new Error('signatureImageBase64 is required');
+    error.status = 400;
+    throw error;
+  }
   const payload = {
-    merchantGid: config.merchantGid,
-    remoteGid: config.remoteGid,
-    ...rest
+    merchantGid:          config.merchantGid,
+    remoteGid:            config.remoteGid,
+    contractReference:    input.contractReference,
+    signatureImageBase64: input.signatureImageBase64,
+    signatureMimeType:    input.signatureMimeType || 'image/png',
+    frontEndUserName:     input.frontEndUserName || config.systemUsername
   };
+  const response = await request('/mandates/signature', payload);
+  return { response };
+}
 
+async function getDateList(input = {}) {
+  if (!input.contractReference) {
+    const error = new Error('contractReference is required');
+    error.status = 400;
+    throw error;
+  }
+  const payload = {
+    merchantGid:       config.merchantGid,
+    remoteGid:         config.remoteGid,
+    contractReference: input.contractReference,
+    frontEndUserName:  input.frontEndUserName || config.systemUsername
+  };
+  const response = await request('/mandates/datelist', payload);
+  return { response };
+}
+
+async function cancelInstallment(input = {}) {
+  if (!input.contractReference) {
+    const error = new Error('contractReference is required');
+    error.status = 400;
+    throw error;
+  }
+  if (!input.installmentNo) {
+    const error = new Error('installmentNo is required');
+    error.status = 400;
+    throw error;
+  }
+  const payload = {
+    merchantGid:      config.merchantGid,
+    remoteGid:        config.remoteGid,
+    contractReference: input.contractReference,
+    installmentNo:    Number(input.installmentNo),
+    action:           input.action || 'C',
+    frontEndUserName: input.frontEndUserName || config.systemUsername || config.systemUsername
+  };
   const response = await request('/installments/cancel', payload);
   return { response };
 }
@@ -504,6 +584,8 @@ module.exports = {
   downloadPayments,
   mandateEnquiry,
   cancelMandate,
+  submitTT3Signature,
+  getDateList,
   createInstallmentRequest,
   updateInstallmentRequest,
   cancelInstallment,

@@ -392,9 +392,67 @@ async function extractCreditScore(xmlData) {
 }
 
 /**
+ * Return a realistic mock credit result when EXPERIAN_TEST_MODE=true.
+ * Nothing is sent to Experian — no enquiry is logged on the person's record.
+ */
+function buildDemoCreditScore(userData, applicationId) {
+    const idNumber = userData.identity_number || '';
+    // Vary the score deterministically by ID so the same person always gets the same result
+    const seed = idNumber.split('').reduce((s, c) => s + c.charCodeAt(0), 0);
+    const score = 580 + (seed % 200); // 580–779
+
+    return {
+        score,
+        riskType: score >= 700 ? 'LOW' : score >= 600 ? 'MEDIUM' : 'HIGH',
+        thinFileIndicator: 'N',
+        version: 'DEMO',
+        scoreType: 'CompuSCORE',
+        enquiryId: `DEMO-${Date.now()}`,
+        clientRef: String(applicationId),
+        identity: {
+            idNumber,
+            name: userData.forename || 'DEMO',
+            surname: userData.surname || 'USER',
+            status: 'Active',
+            deceasedDate: null,
+            countryCode: 'ZA'
+        },
+        activities: { enquiries: 2, loans: 3, judgements: 0, notices: 0, collections: 0, adminOrders: 0, balance: 15000, installment: 800 },
+        adverseStats: { judgements12M: 0, judgements24M: 0, judgements36M: 0, notices12M: 0, notices24M: 0, notices36M: 0, adverse12M: 0, adverse24M: 0, adverse36M: 0, adverseTotal: 0 },
+        enquiryCounts: { addresses: 1, adminOrders: 0, collections: 0, directMatches: 1, judgements: 0, notices: 0, possibleMatches: 0, previousEnquiries: 2, telephoneNumbers: 1, employers: 1, fraudAlerts: 0 },
+        nlr: { past12Months: { enquiriesByClient: 1, enquiriesByOthers: 1, positiveLoans: 2, highestMonthsArrears: 0 }, past24Months: { enquiriesByClient: 2, enquiriesByOthers: 2, positiveLoans: 3, highestMonthsArrears: 0 }, worstMonthsArrears: 0, activeAccounts: 1, balanceExposure: 15000, monthlyInstallment: 800, cumulativeArrears: 0, closedAccounts: 2 },
+        cca: { past12Months: { enquiriesByClient: 0, enquiriesByOthers: 1, positiveLoans: 1, highestMonthsArrears: 0 }, worstMonthsArrears: 0, activeAccounts: 0, balanceExposure: 0, monthlyInstallment: 0, cumulativeArrears: 0, closedAccounts: 1 },
+        accountSummary: { adverseAccounts: 0, revolvingAccounts: 1, instalmentAccounts: 2, openAccounts: 1, highestJudgement: 0 },
+        previousEnquiries: [{ date: '20260101', branch: 'DEMO LENDER', contactPerson: 'DEMO', telephone: '0100000000' }],
+        searchInfo: { idNumber, name: userData.forename || '', surname: userData.surname || '', dob: userData.date_of_birth || '', gender: userData.gender || '', address: userData.address1 || '', enquiryPurpose: '12', loanAmount: 0, netIncome: 0 },
+        totalEnquiries: 2, totalLoans: 3, totalJudgements: 0, totalCollections: 0
+    };
+}
+
+/**
  * Main function: Perform credit check
  */
 async function performCreditCheck(userData, applicationId, authToken = null) {
+    // ── DEMO MODE — no live API call, no bureau enquiry logged ──────────────
+    if (EXPERIAN_CONFIG.testMode) {
+        console.log('⚠️  [DEMO MODE] Returning mock credit score — Experian NOT called');
+        const creditScore = buildDemoCreditScore(userData, applicationId);
+        const savedRecord = await saveCreditCheckToDatabase(
+            creditScore, userData.user_id, applicationId,
+            '<ROOT><DEMO>true</DEMO></ROOT>', authToken
+        );
+        return {
+            success: true,
+            creditScore,
+            zipData: null,
+            databaseId: savedRecord.id,
+            recommendation: savedRecord.recommendation,
+            riskFlags: savedRecord.risk_flags,
+            message: 'DEMO MODE — mock credit check, no live bureau enquiry'
+        };
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     try {
         console.log('🔍 Starting credit check for application:', applicationId);
         console.log('🔧 Experian endpoint:', EXPERIAN_CONFIG.url);

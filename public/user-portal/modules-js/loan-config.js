@@ -95,8 +95,8 @@ async function checkLoanHistory() {
       .eq('user_id', session.user.id)
       .in('status', ['DISBURSED', 'OFFER_ACCEPTED', 'READY_TO_DISBURSE', 'ACTIVE', 'CONTRACT_SIGN', 'DEBICHECK_AUTH']);
 
-    if (error) {
-      console.error('Error checking loan history:', error);
+    if (allLoansError) {
+      console.error('Error checking loan history:', allLoansError);
       return;
     }
 
@@ -383,7 +383,7 @@ function getLoanSummary() {
   const INTEREST_RATE_MONTHLY    = 0.05;   // 5% per month
   const INITIATION_FEE_RATE      = 0.15;   // 15% one-time (standard)
   const INITIATION_FEE_RATE_FIRST = 0.05;  // 5% for first loan of the calendar year
-  const CREDIT_LIFE_RATE         = 0.0045; // R4.50/R1,000 Sanlam Credit Life (reducing balance)
+  const CREDIT_LIFE_RATE         = 0.0045; // 0.45% per month CPI
   const SERVICE_FEE_MONTHLY      = 60;     // R60/month
   const VAT_RATE                 = 0.15;
 
@@ -406,19 +406,8 @@ function getLoanSummary() {
 
   const totalInterest        = amount * INTEREST_RATE_MONTHLY * period;
   const totalInitiationFees  = amount * initiationRate;
-
-  // Reducing-balance credit life: balance decreases by principal/term each month
-  let totalCreditLife = 0;
-  const creditLifeSchedule = [];
-  for (let i = 1; i <= period; i++) {
-    const balance = amount * (period - i + 1) / period;
-    const premium = Math.round(balance * CREDIT_LIFE_RATE * 100) / 100;
-    creditLifeSchedule.push({ month: i, balance: Math.round(balance * 100) / 100, premium });
-    totalCreditLife += premium;
-  }
-  totalCreditLife = Math.round(totalCreditLife * 100) / 100;
-  const monthlyCreditLife    = Math.round((totalCreditLife / period) * 100) / 100;
-
+  const totalCreditLife      = amount * CREDIT_LIFE_RATE * period;
+  const monthlyCreditLife    = amount * CREDIT_LIFE_RATE;
   const vatAmount            = (totalInitiationFees + totalServiceFees) * VAT_RATE;
   const totalCostOfCredit    = totalInterest + totalInitiationFees + totalServiceFees + totalCreditLife + vatAmount;
   const totalRepayment       = amount + totalCostOfCredit;
@@ -430,7 +419,6 @@ function getLoanSummary() {
     totalServiceFees,
     totalCreditLife,
     monthlyCreditLife,
-    creditLifeSchedule,
     vatAmount,
     totalCostOfCredit,
     totalRepayment,
@@ -691,13 +679,10 @@ window.prepareLoanApplication = function() {
     offer_total_admin_fees:      Number(summary.totalServiceFees ?? summary.totalMonthlyFees) || 0,
     offer_total_initiation_fees: Number(summary.totalInitiationFees) || 0,
     offer_credit_life_monthly:   Number(summary.monthlyCreditLife) || 0,
-    offer_credit_life_total:     Number(summary.totalCreditLife) || 0,
-    has_credit_life_insurance:   true,
     offer_vat_amount:            Number(summary.vatAmount) || 0,
     offer_total_cost_of_credit:  Number(summary.totalCostOfCredit) || 0,
     offer_monthly_repayment:     Number(summary.monthlyPayment) || 0,
     offer_total_repayment:       Number(summary.totalRepayment) || 0,
-    offer_details:               { credit_life_schedule: summary.creditLifeSchedule || [] },
     stagedAt: new Date().toISOString()
   };
 

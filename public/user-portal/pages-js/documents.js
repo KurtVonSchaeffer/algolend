@@ -253,7 +253,7 @@ function renderActiveLoans() {
                 </div>
                 <div style="text-align:right;">
                     <div style="font-weight:700; color:var(--text-main); font-size:18px;">${formatCurrency(loan.outstanding)}</div>
-                    <span style="display:inline-block; margin-top:6px; padding:4px 12px; background:rgba(231,118,46,0.1); color:var(--color-primary); border-radius:50px; font-size:10px; font-weight:700; text-transform:uppercase;">Active</span>
+                    <span style="display:inline-block; margin-top:6px; padding:4px 12px; background:rgba(124,58,237,0.1); color:var(--color-primary); border-radius:50px; font-size:10px; font-weight:700; text-transform:uppercase;">Active</span>
                 </div>
             </div>
         </div>
@@ -262,7 +262,7 @@ function renderActiveLoans() {
     // View All button for active loans
     if (activeLoans.length > 3) {
         html += `
-            <button class="text-btn" onclick="openLoansModule()" style="width: 100%; text-align: center; margin-top: 16px; padding: 12px; font-weight: 600; color: var(--color-primary); background: rgba(231,118,46,0.05); border-radius: var(--radius-md); transition: 0.2s; cursor: pointer;">
+            <button class="text-btn" onclick="openLoansModule()" style="width: 100%; text-align: center; margin-top: 16px; padding: 12px; font-weight: 600; color: var(--color-primary); background: rgba(124,58,237,0.05); border-radius: var(--radius-md); transition: 0.2s; cursor: pointer;">
                 View All ${activeLoans.length} Active Loans
             </button>
         `;
@@ -296,7 +296,7 @@ function renderBankAccounts() {
             </div>
             
             <div style="display: flex; align-items: center; gap: 16px;">
-                ${account.isPrimary ? '<span class="status-badge completed" style="background:rgba(231,118,46,0.1); color:var(--color-primary);">Primary</span>' : ''}
+                ${account.isPrimary ? '<span class="status-badge completed" style="background:rgba(124,58,237,0.1); color:var(--color-primary);">Primary</span>' : ''}
                 
                 <button class="btn-icon" onclick="confirmDeleteAccount('${account.id}')" title="Remove Account" style="color: #ef4444; width: 36px; height: 36px; background: #fff1f2; border: none; border-radius: 50%; display: grid; place-items: center; cursor: pointer; transition: 0.2s;">
                     <i class="fas fa-trash"></i>
@@ -308,7 +308,7 @@ function renderBankAccounts() {
     // View All button for bank accounts
     if (bankAccounts.length > 3) {
         html += `
-            <button class="text-btn" onclick="openBankAccountsModule()" style="width: 100%; text-align: center; margin-top: 16px; padding: 12px; font-weight: 600; color: var(--color-primary); background: rgba(231,118,46,0.05); border-radius: var(--radius-md); transition: 0.2s; cursor: pointer;">
+            <button class="text-btn" onclick="openBankAccountsModule()" style="width: 100%; text-align: center; margin-top: 16px; padding: 12px; font-weight: 600; color: var(--color-primary); background: rgba(124,58,237,0.05); border-radius: var(--radius-md); transition: 0.2s; cursor: pointer;">
                 View All ${bankAccounts.length} Accounts
             </button>
         `;
@@ -502,7 +502,7 @@ window.openBankAccountsModule = function() {
             </div>
             
             <div style="display: flex; align-items: center; gap: 16px;">
-                ${account.isPrimary ? '<span class="status-badge completed" style="background:rgba(231,118,46,0.1); color:var(--color-primary);">Primary</span>' : ''}
+                ${account.isPrimary ? '<span class="status-badge completed" style="background:rgba(124,58,237,0.1); color:var(--color-primary);">Primary</span>' : ''}
                 
                 <button class="btn-icon" onclick="confirmDeleteAccount('${account.id}')" title="Remove Account" style="color: #ef4444; width: 36px; height: 36px; background: #fff1f2; border: none; border-radius: 50%; display: grid; place-items: center; cursor: pointer; transition: 0.2s;">
                     <i class="fas fa-trash"></i>
@@ -529,7 +529,7 @@ window.openLoansModule = function() {
             <div class="modern-list-item" style="border: 1px solid #eee; background: var(--color-white); box-shadow: var(--shadow-soft);">
                 <div class="modern-item-header">
                     <span class="modern-item-id">Loan #${loan.applicationId || loan.id}</span>
-                    <span class="status-badge" style="background:rgba(231,118,46,0.1); color:var(--color-primary);">Active</span>
+                    <span class="status-badge" style="background:rgba(124,58,237,0.1); color:var(--color-primary);">Active</span>
                 </div>
                 <div class="modern-item-grid">
                     <div class="modern-grid-col"><div class="label">Principal</div><div class="val">${formatCurrency(loan.principal)}</div></div>
@@ -573,7 +573,7 @@ window.openAddBankAccountModal = function() {
        </div>
        <div class="form-group">
            <label>Branch Code</label>
-           <input type="text" id="branchCode" required class="modern-input" placeholder="e.g. 250655">
+           <input type="text" id="branchCode" required class="modern-input" placeholder="Auto-filled when you pick your bank">
        </div>
        <div class="form-group">
            <label>Account Type</label>
@@ -593,6 +593,34 @@ window.openAddBankAccountModal = function() {
     </form>`;
 
     openUniversalModal('Add Bank Account', formHTML, false);
+
+    const BRANCH_CODES = {
+        'FNB': '250655',
+        'Standard Bank': '051001',
+        'ABSA': '632005',
+        'Nedbank': '198765',
+        'Capitec': '470010',
+        'Investec': '580105',
+        'TymeBank': '678910',
+        'Discovery Bank': '679000',
+        'African Bank': '430000',
+    };
+
+    document.getElementById('bankName')?.addEventListener('change', (e) => {
+        const code = BRANCH_CODES[e.target.value];
+        const branchField = document.getElementById('branchCode');
+        if (branchField && code) {
+            branchField.value = code;
+            branchField.readOnly = true;
+            branchField.style.background = 'var(--surface-container, #f3f4f6)';
+            branchField.style.color = 'var(--outline, #6b7280)';
+        } else if (branchField) {
+            branchField.value = '';
+            branchField.readOnly = false;
+            branchField.style.background = '';
+            branchField.style.color = '';
+        }
+    });
 };
 
 window.saveNewBankAccount = async function(e) {

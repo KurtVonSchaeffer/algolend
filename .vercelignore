@@ -1,0 +1,10 @@
+# Built admin bundle — regenerated fresh on every Vercel build
+# These files must not be uploaded; Vite rebuilds them during deployment
+public/admin/dist/
+
+# Also exclude dist_backup (legacy, not needed for deployment)
+public/admin/dist_backup/
+
+# Local dev / OS artifacts
+.DS_Store
+*.local

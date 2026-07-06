@@ -8,8 +8,8 @@ let viewState = 'login'; // Options: 'login', 'signup', 'forgot'
 let formMessage = { type: '', text: '' }; 
 let brandingTheme = null;
 
-const DEFAULT_BRAND_LOGO = 'https://placehold.co/240x80/E7762E/ffffff?text=AlgoLend';
-const DEFAULT_AUTH_WALLPAPER = '';
+const DEFAULT_BRAND_LOGO = 'https://placehold.co/240x80?text=Your+Logo';
+const DEFAULT_AUTH_WALLPAPER = 'https://static.wixstatic.com/media/f82622_a05fcfc8600d48818feb2feeef4796fa~mv2.png';
 const DEFAULT_AUTH_OVERLAY_COLOR = DEFAULT_SYSTEM_SETTINGS.auth_overlay_color || '#212121ff';
 const DEFAULT_AUTH_OVERLAY_ENABLED = DEFAULT_SYSTEM_SETTINGS.auth_overlay_enabled !== false;
 const DEFAULT_CAROUSEL_SLIDES = (DEFAULT_SYSTEM_SETTINGS.carousel_slides || []).map((slide) => ({
@@ -184,22 +184,12 @@ function startCarousel() {
     const updateSlide = (index) => {
         titleEl.style.opacity = '0';
         textEl.style.opacity = '0';
-
+        
         setTimeout(() => {
             const activeSlides = getSlides();
             const safeIndex = index % activeSlides.length;
-            const slide = activeSlides[safeIndex];
-            titleEl.innerText = slide.title;
-            if (Array.isArray(slide.bullets) && slide.bullets.length) {
-                textEl.innerHTML = slide.bullets.map(b =>
-                    `<span style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;">
-                        <span style="color:#9B6FE0;font-size:10px;margin-top:4px;flex-shrink:0;">&#9679;</span>
-                        <span>${b}</span>
-                    </span>`
-                ).join('');
-            } else {
-                textEl.innerText = slide.text || '';
-            }
+            titleEl.innerText = activeSlides[safeIndex].title;
+            textEl.innerText = activeSlides[safeIndex].text;
             titleEl.style.opacity = '1';
             textEl.style.opacity = '1';
         }, 200);
@@ -217,7 +207,7 @@ function startCarousel() {
     carouselInterval = setInterval(() => {
         currentSlideIndex = (currentSlideIndex + 1) % totalSlides;
         updateSlide(currentSlideIndex);
-    }, 8000); 
+    }, 20000); 
 
     window.setSlide = (index) => {
         currentSlideIndex = index;
@@ -240,7 +230,7 @@ function render() {
     if (!authContainer) return;
 
     const theme = brandingTheme || getCachedTheme() || {};
-    const brandLogo = (theme.company_logo_url || '').trim();
+    const brandLogo = (theme.company_logo_url || '').trim() || DEFAULT_BRAND_LOGO;
     const wallpaper = (theme.auth_background_url || '').trim() || DEFAULT_AUTH_WALLPAPER;
     const overlayEnabled = typeof theme.auth_overlay_enabled === 'undefined'
         ? DEFAULT_AUTH_OVERLAY_ENABLED
@@ -252,6 +242,17 @@ function render() {
     const wallpaperAttr = escapeAttr(wallpaper);
     const overlayColorAttr = escapeAttr(overlayColor);
     const companyName = escapeHtml(getActiveCompanyName());
+    // Compliance — pulled from system_settings (set in admin → Settings → Legal Details)
+    const settings = brandingTheme || getCachedTheme() || DEFAULT_SYSTEM_SETTINGS;
+    const legalEntityName = escapeHtml(settings.legal_entity_name || settings.company_reg_name || settings.company_name || companyName);
+    const fspNumber       = escapeHtml(settings.fsp_number || '');
+    const ncrNumber       = escapeHtml(settings.ncr_number || '');
+    // Build the inline regulatory tag for the left panel
+    const regTagParts = [];
+    if (ncrNumber) regTagParts.push('NCR Registered');
+    if (fspNumber) regTagParts.push(`FSP ${fspNumber}`);
+    if (ncrNumber) regTagParts.push(ncrNumber);
+    const leftFooterText = regTagParts.length ? regTagParts.join(' · ') : 'Registered Credit Provider';
 
     let mainHeading, subHeading, buttonText;
     
@@ -322,28 +323,14 @@ function render() {
 
         .auth-left-bg {
             position: absolute; inset: 0;
-            overflow: hidden;
-        }
-        .auth-slide {
-            position: absolute; inset: 0;
+            background-image: url('${wallpaperAttr}');
             background-size: cover; background-position: center;
-            opacity: 0;
-            animation: slideFade 20s ease-in-out infinite;
-        }
-        .auth-slide:nth-child(1) { animation-delay: 0s;    background-image: url('/photo-piggybank.jpg'); }
-        .auth-slide:nth-child(2) { animation-delay: 5s;    background-image: url('/photo-newhome.jpg'); }
-        .auth-slide:nth-child(3) { animation-delay: 10s;   background-image: url('/photo-family.jpg'); }
-        .auth-slide:nth-child(4) { animation-delay: 15s;   background-image: url('/photo-finance.jpg'); }
-        @keyframes slideFade {
-            0%   { opacity: 0; transform: scale(1.05); }
-            5%   { opacity: 1; transform: scale(1.03); }
-            20%  { opacity: 1; transform: scale(1); }
-            28%  { opacity: 0; transform: scale(1); }
-            100% { opacity: 0; transform: scale(1); }
+            animation: kenBurns 40s ease-in-out infinite alternate;
+            transform: scaleX(${wallpaperScaleX});
         }
         .auth-left-overlay {
             position: absolute; inset: 0;
-            background: linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(43,21,81,0.45) 50%, rgba(15,23,42,0.70) 100%);
+            background: linear-gradient(160deg, rgba(15,23,42,0.72) 0%, rgba(124,58,237,0.35) 100%);
         }
         .auth-left-content {
             position: relative; z-index: 2;
@@ -351,23 +338,16 @@ function render() {
             height: 100%; padding: 48px;
         }
         .auth-brand-logo {
-            height: 70px; width: auto; max-width: 320px; object-fit: contain; object-position: left;
+            height: 44px; width: auto; object-fit: contain; object-position: left;
             filter: brightness(0) invert(1);
-        }
-        .auth-brand-wordmark {
-            display: inline-block;
-            font-size: 28px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            color: #ffffff;
             opacity: 0.95;
         }
         .auth-carousel-body { max-width: 440px; }
         .auth-carousel-tag {
             display: inline-block;
-            background: rgba(88,42,168,0.25);
+            background: rgba(124,58,237,0.25);
             color: rgba(255,255,255,0.9);
-            border: 1px solid rgba(88,42,168,0.45);
+            border: 1px solid rgba(124,58,237,0.4);
             font-size: 11px; font-weight: 700; letter-spacing: .1em;
             text-transform: uppercase;
             padding: 5px 14px; border-radius: 100px;
@@ -379,9 +359,9 @@ function render() {
             margin: 0 0 16px; letter-spacing: -0.5px;
         }
         #carousel-text {
-            font-size: 13px; font-weight: 400;
-            color: rgba(255,255,255,0.80); line-height: 1.6;
-            margin: 0 0 24px;
+            font-size: 15px; font-weight: 400;
+            color: rgba(255,255,255,0.75); line-height: 1.7;
+            margin: 0 0 32px;
         }
         #carousel-dots { display: flex; gap: 6px; }
         .carousel-dot {
@@ -390,7 +370,7 @@ function render() {
             transition: all .3s ease; cursor: pointer;
         }
         .carousel-dot.active {
-            background: var(--color-primary, #E7762E);
+            background: var(--color-primary, #7C3AED);
             width: 40px;
         }
         .auth-left-footer {
@@ -448,7 +428,7 @@ function render() {
         .auth-field input {
             width: 100%;
             padding: 13px 16px;
-            border: 1.5px solid #e2e8f0;
+            border: 1.5px solid #cbd5e1; /* WCAG-AA contrast — was #e2e8f0 (too faint) */
             border-radius: 12px;
             font-size: 14px; font-weight: 400; color: #0F172A;
             background: #fff;
@@ -456,19 +436,46 @@ function render() {
             transition: border-color .2s, box-shadow .2s;
             font-family: 'IBM Plex Sans', sans-serif;
         }
+        .auth-field input:hover { border-color: #94a3b8; }
         .auth-field input::placeholder { color: #94a3b8; }
         .auth-field input:focus {
-            border-color: var(--color-primary, #E7762E);
-            box-shadow: 0 0 0 3px rgba(231,118,46,0.12);
+            border-color: var(--color-primary, #7C3AED);
+            box-shadow: 0 0 0 3px rgba(124,58,237,0.12);
         }
 
-        /* Forgot link */
-        .auth-forgot {
-            display: flex; justify-content: flex-end; margin-top: -10px; margin-bottom: 18px;
+        /* Password field with visibility toggle */
+        .auth-password-wrap { position: relative; }
+        .auth-password-wrap input { padding-right: 44px; }
+        .auth-password-toggle {
+            position: absolute; right: 14px; top: 50%;
+            transform: translateY(-50%);
+            background: none; border: none; padding: 6px; cursor: pointer;
+            color: #94a3b8;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 6px;
+            transition: color .15s, background .15s;
+        }
+        .auth-password-toggle:hover { color: var(--color-primary, #7C3AED); background: rgba(124,58,237,0.06); }
+        .auth-password-toggle i { font-size: 15px; }
+
+        /* Remember Me + Forgot row */
+        .auth-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: -4px; margin-bottom: 22px;
+        }
+        .auth-remember {
+            display: flex; align-items: center; gap: 8px; cursor: pointer;
+            font-size: 13px; font-weight: 500; color: #475569;
+            user-select: none;
+        }
+        .auth-remember input[type="checkbox"] {
+            width: 16px; height: 16px;
+            accent-color: var(--color-primary, #7C3AED);
+            cursor: pointer; margin: 0;
         }
         .auth-forgot button {
             background: none; border: none; padding: 0; cursor: pointer;
-            font-size: 13px; font-weight: 600; color: var(--color-primary, #E7762E);
+            font-size: 13px; font-weight: 600; color: var(--color-primary, #7C3AED);
             font-family: inherit;
         }
         .auth-forgot button:hover { opacity: 0.75; }
@@ -480,15 +487,15 @@ function render() {
             border: none; border-radius: 12px;
             font-size: 15px; font-weight: 700;
             color: #fff; cursor: pointer;
-            background: linear-gradient(135deg, #582AA8 0%, #7B3FD4 100%);
-            box-shadow: 0 4px 16px rgba(88,42,168,0.40), 0 1px 3px rgba(0,0,0,0.08);
+            background: linear-gradient(135deg, var(--color-primary, #7C3AED) 0%, #9B6FE0 100%);
+            box-shadow: 0 4px 16px rgba(124,58,237,0.30), 0 1px 3px rgba(0,0,0,0.08);
             transition: transform .18s ease, box-shadow .18s ease;
             font-family: inherit;
             display: flex; align-items: center; justify-content: center; gap: 8px;
         }
         .auth-submit:hover {
             transform: translateY(-1px);
-            box-shadow: 0 8px 24px rgba(231,118,46,0.40);
+            box-shadow: 0 8px 24px rgba(124,58,237,0.40);
         }
         .auth-submit:active { transform: scale(0.98); }
 
@@ -512,7 +519,7 @@ function render() {
         .auth-switch button {
             background: none; border: none; padding: 0; cursor: pointer;
             font-size: 14px; font-weight: 700;
-            color: var(--color-primary, #E7762E);
+            color: var(--color-primary, #7C3AED);
             font-family: inherit; margin-left: 4px;
         }
         .auth-switch button:hover { opacity: 0.75; }
@@ -534,19 +541,11 @@ function render() {
 
         <!-- Left: Brand panel -->
         <div class="auth-left">
-            <div class="auth-left-bg">
-                <div class="auth-slide"></div>
-                <div class="auth-slide"></div>
-                <div class="auth-slide"></div>
-                <div class="auth-slide"></div>
-            </div>
+            <div class="auth-left-bg"></div>
             <div class="auth-left-overlay"></div>
             <div class="auth-left-content">
                 <div>
-                    ${brandLogo
-                        ? `<img src="${brandLogoAttr}" alt="${companyName}" class="auth-brand-logo">`
-                        : `<span class="auth-brand-wordmark">${companyName}</span>`
-                    }
+                    <img src="${brandLogoAttr}" alt="${companyName}" class="auth-brand-logo">
                 </div>
                 <div class="auth-carousel-body">
                     <span class="auth-carousel-tag">Registered Credit Provider</span>
@@ -555,7 +554,7 @@ function render() {
                     <div id="carousel-dots"></div>
                 </div>
                 <div class="auth-left-footer">
-                    NCR Registered · FSP 53423 · NCRCP13510
+                    ${leftFooterText}
                 </div>
             </div>
         </div>
@@ -598,14 +597,29 @@ function render() {
                     ${viewState !== 'forgot' ? `
                     <div class="auth-field">
                         <label for="password">Password</label>
-                        <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="••••••••">
+                        <div class="auth-password-wrap">
+                            <input id="password" name="password" type="password" autocomplete="${viewState === 'signup' ? 'new-password' : 'current-password'}" required placeholder="••••••••">
+                            <button type="button" class="auth-password-toggle" id="btn-toggle-password"
+                                    aria-label="Show password" tabindex="-1">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
                         ${viewState === 'signup' ? '<p style="font-size:12px;color:#94a3b8;margin-top:6px;">Minimum 6 characters.</p>' : ''}
                     </div>` : ''}
 
                     ${viewState === 'login' ? `
-                    <div class="auth-forgot">
-                        <button type="button" id="btn-to-forgot">Forgot Password?</button>
+                    <div class="auth-row">
+                        <label class="auth-remember">
+                            <input type="checkbox" id="remember-me" checked>
+                            Remember me
+                        </label>
+                        <div class="auth-forgot">
+                            <button type="button" id="btn-to-forgot">Forgot Password?</button>
+                        </div>
                     </div>` : ''}
+
+                    <!-- Cloudflare Turnstile (renders only if site key is configured) -->
+                    <div id="cf-turnstile-container" style="margin-bottom: 16px;"></div>
 
                     <button type="submit" class="auth-submit">
                         <span id="auth-button-content">${buttonText}</span>
@@ -617,9 +631,9 @@ function render() {
                 <div class="auth-switch">${getFooterText()}</div>
 
                 <div class="auth-legal">
-                    ${companyName} is an authorised financial services<br>
-                    provider (FSP 53423) · NCRCP13510<br>
-                    © 2025 ${companyName}. All rights reserved.
+                    ${legalEntityName} t/a ${companyName} is an authorised<br>
+                    Financial Services Provider${fspNumber ? ` (FSP ${fspNumber})` : ''}${ncrNumber ? ` and registered Credit Provider (${ncrNumber})` : ''}.<br>
+                    © ${new Date().getFullYear()} ${companyName}. All rights reserved.
                 </div>
 
             </div>
@@ -661,6 +675,49 @@ function attachListeners() {
     addClick('btn-to-signup', 'signup');
     addClick('btn-to-login', 'login');
     addClick('btn-to-forgot', 'forgot');
+
+    // Password visibility toggle
+    const toggleBtn = document.getElementById('btn-toggle-password');
+    const pwField   = document.getElementById('password');
+    if (toggleBtn && pwField) {
+        toggleBtn.addEventListener('click', () => {
+            const isPw = pwField.type === 'password';
+            pwField.type = isPw ? 'text' : 'password';
+            toggleBtn.setAttribute('aria-label', isPw ? 'Hide password' : 'Show password');
+            const icon = toggleBtn.querySelector('i');
+            if (icon) icon.className = isPw ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+            // Keep keyboard focus in the password field
+            pwField.focus();
+            pwField.setSelectionRange(pwField.value.length, pwField.value.length);
+        });
+    }
+
+    // Restore email if "Remember me" was previously checked
+    const emailField   = document.getElementById('email-address');
+    const rememberCb   = document.getElementById('remember-me');
+    if (emailField && !emailField.value) {
+        const remembered = localStorage.getItem('zw_remember_email');
+        if (remembered) emailField.value = remembered;
+        if (rememberCb)  rememberCb.checked = !!remembered;
+    }
+
+    // Cloudflare Turnstile — renders only if site key is configured
+    const cfContainer = document.getElementById('cf-turnstile-container');
+    if (cfContainer) {
+        const siteKey = (window.__ALGOLEND_CONFIG__ || {}).turnstileSiteKey || '';
+        if (siteKey) {
+            if (!document.getElementById('cf-turnstile-script')) {
+                const s = document.createElement('script');
+                s.id = 'cf-turnstile-script';
+                s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+                s.async = true; s.defer = true;
+                document.head.appendChild(s);
+            }
+            cfContainer.innerHTML = `<div class="cf-turnstile" data-sitekey="${siteKey}" data-theme="light" data-size="flexible"></div>`;
+        } else {
+            cfContainer.style.display = 'none';
+        }
+    }
 }
 
 // ============================================
@@ -680,37 +737,47 @@ async function handleAuth(e) {
         if (viewState === 'login') {
             const password = e.target.password.value;
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            
+
             if (error) throw error;
 
+            // Persist email if "Remember me" is checked
+            const rememberCb = document.getElementById('remember-me');
+            try {
+                if (rememberCb?.checked) localStorage.setItem('zw_remember_email', email);
+                else                     localStorage.removeItem('zw_remember_email');
+            } catch (_) { /* localStorage blocked */ }
+
             const isAllowed = await resolveAdminAccess(data?.session, 'base_admin');
-            
+
             window.location.replace(isAllowed ? '/admin/dashboard' : '/user-portal/index.html');
 
         } else if (viewState === 'signup') {
             const password = e.target.password.value;
             const fullName = e.target.fullName.value;
-
-            const resp = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password, full_name: fullName }),
+            
+            const { data, error } = await supabase.auth.signUp({ 
+                email, 
+                password,
+                options: { data: { full_name: fullName } }
             });
-            const result = await resp.json();
-            if (!resp.ok) throw new Error(result.error || 'Registration failed');
 
-            if (result.session) {
-                await supabase.auth.setSession({
-                    access_token: result.session.access_token,
-                    refresh_token: result.session.refresh_token,
+            if (error) throw error;
+
+            if (data.user) {
+                supabase.from('profiles').insert({ 
+                    id: data.user.id, 
+                    full_name: fullName, 
+                    email: data.user.email, 
+                    role: 'borrower' 
                 });
-                window.location.replace('/user-portal/index.html');
-                return;
-            }
 
-            viewState = 'login';
-            formMessage = { type: 'success', text: 'Account created! You can now sign in.' };
-            render();
+                viewState = 'login';
+                formMessage = {
+                    type: 'success',
+                    text: 'Account created! Check your email to confirm. After confirming your email and logging in, you will be required to complete BOTH Financial Information and Declarations to unlock the user portal.'
+                };
+                render();
+            }
 
         } else if (viewState === 'forgot') {
             const { data, error } = await supabase.auth.resetPasswordForEmail(email, {

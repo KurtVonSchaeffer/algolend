@@ -4,7 +4,7 @@ import { ensureThemeLoaded, getCompanyName, DEFAULT_SYSTEM_SETTINGS } from './th
 const appShell = document.getElementById('app-shell');
 let userProfile = null;
 let userRole = 'borrower';
-const DEFAULT_BRAND_LOGO = 'https://placehold.co/240x80/E7762E/ffffff?text=AlgoLend';
+const DEFAULT_BRAND_LOGO = 'https://static.wixstatic.com/media/f82622_cde1fbd5680141c5b0fccca81fb92ad6~mv2.png';
 
 const escapeAttr = (value = '') => {
   if (!value) return '';
@@ -245,13 +245,12 @@ function renderSidebarNav(role) {
           </ul>
         </li>
         ${navLink('/admin/applications', 'assignment', 'Applications')}
-        ${navLink('/admin/reminders',   'notifications_active', 'Reminders')}
       ` : ''}
 
       ${isAdmin ? `
         ${navSection('Finance')}
         ${navLink('/admin/users', 'group', 'Users')}
-        ${navLink('/admin/mandates', 'receipt_long', 'Mandates')}
+        ${navLink('/admin/mandates.html', 'receipt_long', 'Mandates')}
         <li>
           <button type="button" id="payments-toggle" class="nav-link w-full flex items-center justify-between gap-4 px-4 py-3 rounded-xl transition-all duration-200 text-on-surface-variant hover:bg-surface-variant/50 hover:text-on-surface text-sm font-medium">
             <span class="flex items-center gap-4">
@@ -269,8 +268,8 @@ function renderSidebarNav(role) {
 
       ${isAdmin ? `
         ${navSection('Tools')}
-        ${navLink('/admin/products',      'inventory_2',             'Loan Products')}
         ${navLink('/admin/credit-rules',  'rule',                    'Credit Rules')}
+        ${navLink('/admin/portfolio',      'analytics',               'Portfolio')}
         ${navLink('/admin/loan-book',     'menu_book',               'Loan Book')}
         ${navLink('/admin/cash-ledger',   'account_balance_wallet',  'Cash Ledger')}
       ` : ''}
@@ -279,6 +278,10 @@ function renderSidebarNav(role) {
         ${navSection('Compliance')}
         ${navLink('/admin/sacrra', 'verified_user', 'SACRRA')}
         ${navLink('/admin/sacrra-validator', 'rule_folder', 'Migration Validator')}
+        ${navLink('/admin/ncr-reporting', 'assignment', 'NCR Reporting')}
+        ${navLink('/admin/ncr-registers', 'manage_accounts', 'NCR Registers')}
+        ${navLink('/admin/compliance-tracker', 'checklist', 'Compliance Tracker')}
+        ${navLink('/admin/goaml', 'security', 'FIC goAML')}
       ` : ''}
 
       ${isSuperAdmin ? `
@@ -505,9 +508,18 @@ async function initNotifications(role, userId) {
 
     if(markAllReadBtn) {
         markAllReadBtn.addEventListener('click', async () => {
-            // Marks all for current role read by the current user
-            const { error } = await supabase.rpc('mark_notifications_read', { p_target_role: role });
-            if(!error) await fetchNotifications();
+            const { data: all } = await supabase
+                .from('admin_notifications')
+                .select('id, read_by');
+            if (!all?.length) return;
+            const unread = all.filter(n => !(n.read_by || []).includes(userId));
+            if (!unread.length) return;
+            await Promise.all(unread.map(n =>
+                supabase.from('admin_notifications')
+                    .update({ read_by: [...(n.read_by || []), userId] })
+                    .eq('id', n.id)
+            ));
+            await fetchNotifications();
         });
     }
 }

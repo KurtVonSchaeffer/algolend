@@ -1,7 +1,7 @@
 /* =================================================================
-   AlgoLend Portal — Premium Design System v4
+   AlgoLend Financial Portal — Premium Design System v4
    UI/UX Pro Max · IBM Plex Sans · Fintech Bento Grid
-   Brand: var(--color-primary, #E7762E) orange · #0F172A dark · #FAFAFA bg
+   Brand: var(--color-primary, #7C3AED) orange · #0F172A dark · #FAFAFA bg
    ================================================================= */
 
 /* ── 1. FONTS ─────────────────────────────────────────────────── */
@@ -9,12 +9,12 @@
 
 :root {
   --ds-font:        'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --ds-orange:      var(--color-primary, #E7762E);
+  --ds-orange:      var(--color-primary, #7C3AED);
 
   --ds-shadow-sm:   0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.07);
   --ds-shadow-md:   0 2px 4px rgba(0,0,0,0.05), 0 8px 20px rgba(0,0,0,0.08), 0 20px 40px rgba(0,0,0,0.05);
   --ds-shadow-lg:   0 4px 8px rgba(0,0,0,0.06), 0 12px 28px rgba(0,0,0,0.11), 0 32px 56px rgba(0,0,0,0.07);
-  --ds-shadow-orange: 0 4px 16px rgba(var(--color-primary-rgb, 231 118 46)/0.32), 0 8px 32px rgba(var(--color-primary-rgb, 231 118 46)/0.16);
+  --ds-shadow-orange: 0 4px 16px rgba(var(--color-primary-rgb, 124 58 237)/0.32), 0 8px 32px rgba(var(--color-primary-rgb, 124 58 237)/0.16);
 
   --ds-ease:        cubic-bezier(0.22, 1, 0.36, 1);
   --ds-spring:      cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -32,8 +32,8 @@ a, li, ul, ol, td, th, caption {
 body {
   background-color: #FDF9F6 !important;
   background-image:
-    radial-gradient(ellipse 80% 60% at 10% 0%,  rgba(var(--color-primary-rgb, 231 118 46)/0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 90% 100%, rgba(var(--color-primary-rgb, 231 118 46)/0.04) 0%, transparent 55%) !important;
+    radial-gradient(ellipse 80% 60% at 10% 0%,  rgba(var(--color-primary-rgb, 124 58 237)/0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 100%, rgba(var(--color-primary-rgb, 124 58 237)/0.04) 0%, transparent 55%) !important;
   background-attachment: fixed !important;
   -webkit-font-smoothing: antialiased !important;
 }
@@ -44,7 +44,7 @@ header.navbar-desktop {
   background: rgba(255,255,255,0.88) !important;
   backdrop-filter: blur(24px) saturate(2) !important;
   -webkit-backdrop-filter: blur(24px) saturate(2) !important;
-  border-bottom: 1px solid rgba(var(--color-primary-rgb, 231 118 46)/0.12) !important;
+  border-bottom: 1px solid rgba(var(--color-primary-rgb, 124 58 237)/0.12) !important;
   box-shadow: 0 1px 0 rgba(255,255,255,0.8), 0 4px 24px rgba(0,0,0,0.06) !important;
 }
 
@@ -57,12 +57,12 @@ header.navbar-desktop {
 
 /* Active nav pill — full rounded highlight */
 .nav-link.active {
-  background: linear-gradient(135deg, rgba(var(--color-primary-rgb, 231 118 46)/0.12), rgba(var(--color-primary-rgb, 231 118 46)/0.06)) !important;
-  color: var(--color-primary, #E7762E) !important;
+  background: linear-gradient(135deg, rgba(var(--color-primary-rgb, 124 58 237)/0.12), rgba(var(--color-primary-rgb, 124 58 237)/0.06)) !important;
+  color: var(--color-primary, #7C3AED) !important;
   border-radius: 12px !important;
   font-weight: 600 !important;
   border-left: none !important;
-  box-shadow: inset 0 0 0 1px rgba(var(--color-primary-rgb, 231 118 46)/0.18) !important;
+  box-shadow: inset 0 0 0 1px rgba(var(--color-primary-rgb, 124 58 237)/0.18) !important;
 }
 
 .nav-link:not(.active):hover {
@@ -71,7 +71,7 @@ header.navbar-desktop {
 }
 
 /* Sidebar icon colours per page */
-.nav-link[data-page="dashboard"]    .nav-icon { color: var(--color-primary, #E7762E) !important; }
+.nav-link[data-page="dashboard"]    .nav-icon { color: var(--color-primary, #7C3AED) !important; }
 .nav-link[data-page="apply-loan"]   .nav-icon { color: #10b981 !important; }
 .nav-link[data-page="loan-calculator"] .nav-icon { color: #3b82f6 !important; }
 .nav-link[data-page="transcripts"]  .nav-icon { color: #8b5cf6 !important; }
@@ -80,7 +80,7 @@ header.navbar-desktop {
 .nav-link[data-page="profile"]      .nav-icon { color: #06b6d4 !important; }
 
 /* Keep active icon orange */
-.nav-link.active .nav-icon { color: var(--color-primary, #E7762E) !important; }
+.nav-link.active .nav-icon { color: var(--color-primary, #7C3AED) !important; }
 
 /* ══════════════════════════════════════════════════════════════
    6. CARDS — Staggered entrance + premium surfaces
@@ -125,7 +125,7 @@ header.navbar-desktop {
   right: -50px !important;
   width: 130px !important;
   height: 130px !important;
-  background: radial-gradient(circle, rgba(var(--color-primary-rgb, 231 118 46)/0.10) 0%, transparent 70%) !important;
+  background: radial-gradient(circle, rgba(var(--color-primary-rgb, 124 58 237)/0.10) 0%, transparent 70%) !important;
   pointer-events: none !important;
   transition: transform 0.4s var(--ds-ease), opacity 0.4s ease !important;
   z-index: 0 !important;
@@ -151,8 +151,8 @@ header.navbar-desktop {
   box-shadow:
     0 2px 4px rgba(0,0,0,0.05),
     0 14px 36px rgba(0,0,0,0.10),
-    0 0 0 1px rgba(var(--color-primary-rgb, 231 118 46)/0.12),
-    0 0 48px rgba(var(--color-primary-rgb, 231 118 46)/0.06) !important;
+    0 0 0 1px rgba(var(--color-primary-rgb, 124 58 237)/0.12),
+    0 0 48px rgba(var(--color-primary-rgb, 124 58 237)/0.06) !important;
 }
 
 #main-content .card:hover::before,
@@ -202,8 +202,8 @@ header.navbar-desktop {
   width: 38px !important;
   height: 38px !important;
   border-radius: 11px !important;
-  background: var(--badge-bg, rgba(var(--color-primary-rgb, 231 118 46)/0.10)) !important;
-  color: var(--badge-color, var(--color-primary, #E7762E)) !important;
+  background: var(--badge-bg, rgba(var(--color-primary-rgb, 124 58 237)/0.10)) !important;
+  color: var(--badge-color, var(--color-primary, #7C3AED)) !important;
   display: grid !important;
   place-items: center !important;
   font-size: 15px !important;
@@ -213,7 +213,7 @@ header.navbar-desktop {
 
 .card:hover .card-icon-badge {
   transform: scale(1.10) rotate(-6deg) !important;
-  box-shadow: 0 4px 14px var(--badge-bg, rgba(var(--color-primary-rgb, 231 118 46)/0.25)) !important;
+  box-shadow: 0 4px 14px var(--badge-bg, rgba(var(--color-primary-rgb, 124 58 237)/0.25)) !important;
 }
 
 /* Card value — tighter, more financial */
@@ -241,7 +241,7 @@ header.navbar-desktop {
 .greeting-line {
   font-size: 13px !important;
   font-weight: 700 !important;
-  color: var(--color-primary, #E7762E) !important;
+  color: var(--color-primary, #7C3AED) !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
   margin: 0 0 6px !important;
@@ -257,11 +257,11 @@ header.navbar-desktop {
 
 /* ── 8. HERO SNAP-CARDS (mobile) ─────────────────────────────── */
 .snap-card {
-  background: linear-gradient(135deg, var(--color-primary, #E7762E) 0%, color-mix(in srgb, var(--color-primary, #E7762E) 80%, #fff) 45%, color-mix(in srgb, var(--color-primary, #E7762E) 70%, #fff) 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary, #7C3AED) 0%, color-mix(in srgb, var(--color-primary, #7C3AED) 80%, #fff) 45%, color-mix(in srgb, var(--color-primary, #7C3AED) 70%, #fff) 100%) !important;
   border: none !important;
   box-shadow:
-    0 4px 16px rgba(var(--color-primary-rgb, 231 118 46)/0.40),
-    0 12px 40px rgba(var(--color-primary-rgb, 231 118 46)/0.20),
+    0 4px 16px rgba(var(--color-primary-rgb, 124 58 237)/0.40),
+    0 12px 40px rgba(var(--color-primary-rgb, 124 58 237)/0.20),
     inset 0 1px 0 rgba(255,255,255,0.25) !important;
   overflow: hidden !important;
 }
@@ -316,7 +316,7 @@ header.navbar-desktop {
 .minimal-header h1,
 .notifications-header h1,
 .transcripts-header h1 {
-  background: linear-gradient(110deg, #0F172A 0%, #0F172A 35%, var(--color-primary, #E7762E) 50%, #0F172A 65%, #0F172A 100%) !important;
+  background: linear-gradient(110deg, #0F172A 0%, #0F172A 35%, var(--color-primary, #7C3AED) 50%, #0F172A 65%, #0F172A 100%) !important;
   background-size: 300% 100% !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
@@ -333,7 +333,7 @@ header.navbar-desktop {
 .action-btn.primary,
 #refreshTranscriptsBtn,
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary, #E7762E) 0%, color-mix(in srgb, var(--color-primary, #E7762E) 80%, #fff) 100%) !important;
+  background: linear-gradient(135deg, var(--color-primary, #7C3AED) 0%, color-mix(in srgb, var(--color-primary, #7C3AED) 80%, #fff) 100%) !important;
   box-shadow: var(--ds-shadow-orange) !important;
   border: none !important;
   font-weight: 600 !important;
@@ -343,7 +343,7 @@ header.navbar-desktop {
 .action-btn.primary:hover,
 #refreshTranscriptsBtn:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 28px rgba(var(--color-primary-rgb, 231 118 46)/0.45), 0 16px 48px rgba(var(--color-primary-rgb, 231 118 46)/0.20) !important;
+  box-shadow: 0 8px 28px rgba(var(--color-primary-rgb, 124 58 237)/0.45), 0 16px 48px rgba(var(--color-primary-rgb, 124 58 237)/0.20) !important;
 }
 
 /* ── 12. SECTION HEADERS ──────────────────────────────────────── */
@@ -352,7 +352,7 @@ header.navbar-desktop {
 .section-header h3,
 .section-title-bar h2 {
   padding-left: 12px !important;
-  border-left: 3px solid var(--color-primary, #E7762E) !important;
+  border-left: 3px solid var(--color-primary, #7C3AED) !important;
 }
 
 /* ── 13. MOBILE BOTTOM NAV ───────────────────────────────────── */
@@ -362,7 +362,7 @@ header.navbar-desktop {
   background: rgba(15,23,42,0.96) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
-  border-top: 1px solid rgba(var(--color-primary-rgb, 231 118 46)/0.20) !important;
+  border-top: 1px solid rgba(var(--color-primary-rgb, 124 58 237)/0.20) !important;
   box-shadow: 0 -4px 24px rgba(0,0,0,0.15) !important;
 }
 
@@ -390,12 +390,12 @@ input[type="number"], input[type="password"], select, textarea {
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: var(--color-primary, #E7762E) !important;
-  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb, 231 118 46)/0.15) !important;
+  border-color: var(--color-primary, #7C3AED) !important;
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb, 124 58 237)/0.15) !important;
   outline: none !important;
 }
 
-input[type="range"] { accent-color: var(--color-primary, #E7762E); }
+input[type="range"] { accent-color: var(--color-primary, #7C3AED); }
 
 /* ── 16. MODALS ───────────────────────────────────────────────── */
 .modern-modal-panel {
@@ -405,7 +405,7 @@ input[type="range"] { accent-color: var(--color-primary, #E7762E); }
 }
 
 .modern-modal-close:hover {
-  background: var(--color-primary, #E7762E) !important;
+  background: var(--color-primary, #7C3AED) !important;
   color: white !important;
   transform: scale(1.08) rotate(5deg) !important;
 }
@@ -431,9 +431,9 @@ input[type="range"] { accent-color: var(--color-primary, #E7762E); }
 .why-card:hover { transform: translateY(-3px) !important; box-shadow: var(--ds-shadow-md) !important; }
 
 .faq-item { background: #fafafa !important; border: 1px solid rgba(0,0,0,0.04) !important; }
-.faq-item.active { background: #ffffff !important; border-color: rgba(var(--color-primary-rgb, 231 118 46)/0.18) !important; box-shadow: var(--ds-shadow-sm) !important; }
+.faq-item.active { background: #ffffff !important; border-color: rgba(var(--color-primary-rgb, 124 58 237)/0.18) !important; box-shadow: var(--ds-shadow-sm) !important; }
 
-.code-of-conduct { background: linear-gradient(145deg, #fff8f3 0%, #fff1e6 100%) !important; border: 1px solid rgba(var(--color-primary-rgb, 231 118 46)/0.15) !important; }
+.code-of-conduct { background: linear-gradient(145deg, #f6f2fd 0%, #fff1e6 100%) !important; border: 1px solid rgba(var(--color-primary-rgb, 124 58 237)/0.15) !important; }
 
 /* ── 19. LOAN DETAILS ────────────────────────────────────────── */
 .modern-item-grid,
@@ -444,14 +444,14 @@ input[type="range"] { accent-color: var(--color-primary, #E7762E); }
 }
 
 /* ── 20. CAROUSEL DOTS ───────────────────────────────────────── */
-.dot       { background: rgba(var(--color-primary-rgb, 231 118 46)/0.22) !important; }
-.dot.active { background: var(--color-primary, #E7762E) !important; }
+.dot       { background: rgba(var(--color-primary-rgb, 124 58 237)/0.22) !important; }
+.dot.active { background: var(--color-primary, #7C3AED) !important; }
 
 /* ── 21. SCROLLBAR ───────────────────────────────────────────── */
 ::-webkit-scrollbar        { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track  { background: transparent; }
-::-webkit-scrollbar-thumb  { background: rgba(var(--color-primary-rgb, 231 118 46)/0.28); border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(var(--color-primary-rgb, 231 118 46)/0.55); }
+::-webkit-scrollbar-thumb  { background: rgba(var(--color-primary-rgb, 124 58 237)/0.28); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(var(--color-primary-rgb, 124 58 237)/0.55); }
 
 /* ── 22. SKELETON — Warm shimmer ─────────────────────────────── */
 .sk, [class*="skeleton"], .notif-skeleton {
@@ -461,7 +461,7 @@ input[type="range"] { accent-color: var(--color-primary, #E7762E); }
 
 /* ── 23. FOCUS RING ──────────────────────────────────────────── */
 button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
-  outline: 2.5px solid var(--color-primary, #E7762E) !important;
+  outline: 2.5px solid var(--color-primary, #7C3AED) !important;
   outline-offset: 3px !important;
   border-radius: 6px !important;
 }

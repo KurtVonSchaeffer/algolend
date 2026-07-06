@@ -813,11 +813,20 @@ async function renderSystemSettingsTab() {
 
             <section class="glass-card p-8 rounded-2xl">
                 <h4 class="text-lg font-headline font-bold text-on-surface mb-4 border-b border-outline-variant/10 pb-2">Company Legal Details</h4>
-                <p class="text-xs text-gray-400 mb-4">These details appear in loan contracts and NCA disclosures generated via DocuSeal.</p>
+                <p class="text-xs text-gray-400 mb-4">These details appear in loan contracts and NCA disclosures.</p>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Legal Entity Name (Pty Ltd)</label>
+                        <input type="text" id="legal-entity-name-input" value="${escapeHtmlAttr(systemSettingsDraft.legal_entity_name || '')}" class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:ring-orange-500 focus:border-orange-500" placeholder="AlgoLend (Pty) Ltd">
+                        <p class="text-xs text-gray-400 mt-1">Appears on login page and contracts: "{Legal Entity} t/a {Trading Name}".</p>
+                    </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">NCR Registration Number</label>
                         <input type="text" id="ncr-number-input" value="${escapeHtmlAttr(systemSettingsDraft.ncr_number || '')}" class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:ring-orange-500 focus:border-orange-500" placeholder="NCRCP12345">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">FSP Number</label>
+                        <input type="text" id="fsp-number-input" value="${escapeHtmlAttr(systemSettingsDraft.fsp_number || '')}" class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:ring-orange-500 focus:border-orange-500" placeholder="12345">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Company Registration Number</label>
@@ -842,6 +851,31 @@ async function renderSystemSettingsTab() {
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Postal Address</label>
                         <input type="text" id="company-postal-address-input" value="${escapeHtmlAttr(systemSettingsDraft.company_postal_address || '')}" class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:ring-orange-500 focus:border-orange-500" placeholder="PO Box 1234, Johannesburg, 2001">
+                    </div>
+                </div>
+            </section>
+
+            <!-- ── NCR Reporting ─────────────────────────────────────── -->
+            <section class="glass-card p-8 rounded-2xl">
+                <h4 class="text-lg font-headline font-bold text-on-surface mb-1 border-b border-outline-variant/10 pb-2 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[20px]" style="color:var(--color-primary)">assignment</span>
+                    NCR Statutory Reporting
+                </h4>
+                <p class="text-xs text-gray-400 mb-4">Controls period generation on the NCR Reporting screen (Form 39 &amp; Form 40).</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Form 39 Submission Frequency</label>
+                        <select id="ncr-frequency-input" class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:ring-orange-500 focus:border-orange-500">
+                            <option value="annually" ${(systemSettingsDraft.ncr_submission_frequency || 'annually') === 'annually' ? 'selected' : ''}>Annually (smaller provider — due 15 Feb)</option>
+                            <option value="quarterly" ${(systemSettingsDraft.ncr_submission_frequency || '') === 'quarterly' ? 'selected' : ''}>Quarterly (larger provider — Q1–Q4)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Financial Year-End Month (for Form 40)</label>
+                        <select id="ncr-year-end-input" class="w-full border-gray-300 rounded-lg p-2.5 text-sm focus:ring-orange-500 focus:border-orange-500">
+                            ${['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => `<option value="${i+1}" ${Number(systemSettingsDraft.ncr_financial_year_end_month || 12) === i+1 ? 'selected' : ''}>${m}</option>`).join('')}
+                        </select>
+                        <p class="text-xs text-gray-400 mt-1">Form 40 is due 6 months after this month.</p>
                     </div>
                 </div>
             </section>
@@ -997,8 +1031,10 @@ async function renderSystemSettingsTab() {
     });
 
     document.getElementById('company-name-input')?.addEventListener('input', (e) => commitThemeDraft({ company_name: e.target.value }));
-    document.getElementById('ncr-number-input')?.addEventListener('input', (e) => commitThemeDraft({ ncr_number: e.target.value }));
-    document.getElementById('company-reg-input')?.addEventListener('input', (e) => commitThemeDraft({ company_reg_number: e.target.value }));
+    document.getElementById('ncr-number-input')?.addEventListener('input',          (e) => commitThemeDraft({ ncr_number: e.target.value }));
+    document.getElementById('fsp-number-input')?.addEventListener('input',          (e) => commitThemeDraft({ fsp_number: e.target.value }));
+    document.getElementById('legal-entity-name-input')?.addEventListener('input',  (e) => commitThemeDraft({ legal_entity_name: e.target.value }));
+    document.getElementById('company-reg-input')?.addEventListener('input',         (e) => commitThemeDraft({ company_reg_number: e.target.value }));
     document.getElementById('company-vat-input')?.addEventListener('input', (e) => commitThemeDraft({ company_vat_number: e.target.value }));
     document.getElementById('provider-branch-code-input')?.addEventListener('input', (e) => commitThemeDraft({ provider_branch_code: e.target.value }));
     document.getElementById('company-phone-input')?.addEventListener('input', (e) => commitThemeDraft({ company_phone: e.target.value }));
@@ -1011,6 +1047,8 @@ async function renderSystemSettingsTab() {
     document.getElementById('bank-branch-code-input')?.addEventListener('input',  (e) => commitThemeDraft({ company_bank_branch_code: e.target.value }));
     document.getElementById('bank-account-type-input')?.addEventListener('change',(e) => commitThemeDraft({ company_bank_account_type: e.target.value }));
     document.getElementById('bank-ref-prefix-input')?.addEventListener('input',   (e) => commitThemeDraft({ company_bank_reference_prefix: e.target.value }));
+    document.getElementById('ncr-frequency-input')?.addEventListener('change',    (e) => commitThemeDraft({ ncr_submission_frequency: e.target.value }));
+    document.getElementById('ncr-year-end-input')?.addEventListener('change',     (e) => commitThemeDraft({ ncr_financial_year_end_month: Number(e.target.value) }));
     document.getElementById('wallpaper-flip-toggle')?.addEventListener('change', (e) => commitThemeDraft({ auth_background_flip: e.target.checked }));
     document.getElementById('overlay-disable-toggle')?.addEventListener('change', (e) => commitThemeDraft({ auth_overlay_enabled: !e.target.checked }));
     document.getElementById('overlay-color-picker')?.addEventListener('input', (e) => {

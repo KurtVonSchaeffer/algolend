@@ -1,5 +1,8 @@
 <div class="page-container">
   <div class="content-wrapper">
+    <!-- Sign agreement banner — shown when an unsigned offer exists -->
+    <div id="sign-agreement-banner" style="display:none;padding:0 0 16px"></div>
+
     <div class="dashboard-wrapper">
       <div class="dashboard-container">
 
@@ -68,7 +71,7 @@
                 <div class="card ds-metric-card">
                   <div class="ds-card-header">
                     <span class="card-label">Outstanding Balance</span>
-                    <div class="card-icon-badge" style="--badge-color:#E7762E;--badge-bg:rgba(231,118,46,0.10)"><i class="fas fa-wallet"></i></div>
+                    <div class="card-icon-badge" style="--badge-color:#7C3AED;--badge-bg:rgba(124,58,237,0.10)"><i class="fas fa-wallet"></i></div>
                   </div>
                   <div class="card-value" id="currentBalance">R 0.00</div>
                   <div class="card-subtitle">Total principal remaining</div>
@@ -101,7 +104,7 @@
               <div class="credit-score-card card ds-metric-card">
                 <div class="ds-card-header">
                   <span class="card-label">Credit Score</span>
-                  <div class="card-icon-badge" style="--badge-color:#E7762E;--badge-bg:rgba(231,118,46,0.10)"><i class="fas fa-chart-line"></i></div>
+                  <div class="card-icon-badge" style="--badge-color:#7C3AED;--badge-bg:rgba(124,58,237,0.10)"><i class="fas fa-chart-line"></i></div>
                 </div>
                 <div class="card-value" id="creditScore">0</div>
                 <div class="card-subtitle">Experian Financial Standing</div>
@@ -123,7 +126,7 @@
                 <div id="eligibilityDetails" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;"></div>
                 <div id="eligibilityFirstLoan" style="display:none;background:#fff8ed;border-radius:10px;padding:8px 12px;font-size:12px;color:#d97706;font-weight:600;"></div>
                 <button onclick="window.location.href='/user-portal/?page=apply-loan'"
-                  style="margin-top:10px;width:100%;padding:10px;border:none;border-radius:12px;background:linear-gradient(135deg,#E7762E,#f08840);color:white;font-weight:700;font-size:13px;cursor:pointer;">
+                  style="margin-top:10px;width:100%;padding:10px;border:none;border-radius:12px;background:linear-gradient(135deg,#7C3AED,#f08840);color:white;font-weight:700;font-size:13px;cursor:pointer;">
                   Apply Now <i class="fas fa-arrow-right"></i>
                 </button>
               </div>
