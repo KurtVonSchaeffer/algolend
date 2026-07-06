@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { DEFAULT_SYSTEM_SETTINGS, type SystemSettings } from './constants';
 import { normalizeTheme, applyCssVariables } from './colorUtils';
@@ -31,7 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     placeholderData: normalizeTheme(DEFAULT_SYSTEM_SETTINGS)
   });
 
-  const theme = data ?? normalizeTheme(DEFAULT_SYSTEM_SETTINGS);
+  const theme = useMemo(() => data ?? normalizeTheme(DEFAULT_SYSTEM_SETTINGS), [data]);
 
   useEffect(() => {
     applyCssVariables(theme);
