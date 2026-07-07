@@ -9,6 +9,8 @@ import { PageRedirect } from './layout/PageRedirect';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoanCalculatorPage } from './pages/LoanCalculatorPage';
 import { SupportPage } from './pages/SupportPage';
+import { TranscriptsPage } from './pages/TranscriptsPage';
+import { TransactionsPage } from './pages/TransactionsPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 
 const queryClient = new QueryClient({
@@ -18,15 +20,15 @@ const queryClient = new QueryClient({
 });
 
 const PLACEHOLDER_PAGES = [
-  { path: 'apply',        title: 'Apply for Loan',  icon: 'fa-file-contract' },
-  { path: 'transcripts',  title: 'Transcripts',     icon: 'fa-file-lines' },
-  { path: 'transactions', title: 'Transactions',    icon: 'fa-receipt' },
-  { path: 'profile',      title: 'Profile',         icon: 'fa-user' }
+  { path: 'apply',   title: 'Apply for Loan', icon: 'fa-file-contract' },
+  { path: 'profile', title: 'Profile',        icon: 'fa-user' }
 ];
 
 const PORTAL_PAGES = [
-  { path: 'calculator', element: <LoanCalculatorPage /> },
-  { path: 'support',    element: <SupportPage /> }
+  { path: 'calculator',   element: <LoanCalculatorPage /> },
+  { path: 'support',      element: <SupportPage /> },
+  { path: 'transcripts',  element: <TranscriptsPage /> },
+  { path: 'transactions', element: <TransactionsPage /> }
 ];
 
 export default function App() {
