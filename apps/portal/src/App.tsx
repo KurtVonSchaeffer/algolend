@@ -7,6 +7,8 @@ import { ProtectedRoute } from './auth/ProtectedRoute';
 import { PortalLayout } from './layout/PortalLayout';
 import { PageRedirect } from './layout/PageRedirect';
 import { DashboardPage } from './pages/DashboardPage';
+import { LoanCalculatorPage } from './pages/LoanCalculatorPage';
+import { SupportPage } from './pages/SupportPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 
 const queryClient = new QueryClient({
@@ -17,11 +19,14 @@ const queryClient = new QueryClient({
 
 const PLACEHOLDER_PAGES = [
   { path: 'apply',        title: 'Apply for Loan',  icon: 'fa-file-contract' },
-  { path: 'calculator',   title: 'Loan Calculator', icon: 'fa-calculator' },
   { path: 'transcripts',  title: 'Transcripts',     icon: 'fa-file-lines' },
   { path: 'transactions', title: 'Transactions',    icon: 'fa-receipt' },
-  { path: 'support',      title: 'Support',         icon: 'fa-headset' },
   { path: 'profile',      title: 'Profile',         icon: 'fa-user' }
+];
+
+const PORTAL_PAGES = [
+  { path: 'calculator', element: <LoanCalculatorPage /> },
+  { path: 'support',    element: <SupportPage /> }
 ];
 
 export default function App() {
@@ -43,6 +48,17 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            {PORTAL_PAGES.map(({ path, element }) => (
+              <Route
+                key={path}
+                path={`/user-portal/${path}`}
+                element={
+                  <ProtectedRoute>
+                    <PortalLayout>{element}</PortalLayout>
+                  </ProtectedRoute>
+                }
+              />
+            ))}
             {PLACEHOLDER_PAGES.map(({ path, title, icon }) => (
               <Route
                 key={path}
