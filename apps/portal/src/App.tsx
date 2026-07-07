@@ -11,6 +11,7 @@ import { LoanCalculatorPage } from './pages/LoanCalculatorPage';
 import { SupportPage } from './pages/SupportPage';
 import { TranscriptsPage } from './pages/TranscriptsPage';
 import { TransactionsPage } from './pages/TransactionsPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 
 const queryClient = new QueryClient({
@@ -20,15 +21,15 @@ const queryClient = new QueryClient({
 });
 
 const PLACEHOLDER_PAGES = [
-  { path: 'apply',   title: 'Apply for Loan', icon: 'fa-file-contract' },
-  { path: 'profile', title: 'Profile',        icon: 'fa-user' }
+  { path: 'apply', title: 'Apply for Loan', icon: 'fa-file-contract' }
 ];
 
 const PORTAL_PAGES = [
   { path: 'calculator',   element: <LoanCalculatorPage /> },
   { path: 'support',      element: <SupportPage /> },
   { path: 'transcripts',  element: <TranscriptsPage /> },
-  { path: 'transactions', element: <TransactionsPage /> }
+  { path: 'transactions', element: <TransactionsPage /> },
+  { path: 'profile',      element: <ProfilePage /> }
 ];
 
 export default function App() {
