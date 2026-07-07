@@ -128,8 +128,7 @@ export function AuthPage() {
                 backgroundImage: `url('${src}')`,
                 backgroundSize: 'cover', backgroundPosition: 'center',
                 opacity: 0,
-                animation: `photoFade 20s linear infinite`,
-                animationDelay: `${i * 5}s`
+                animation: `photoFade 20s linear ${i * 5}s infinite`
               }}
             />
           ))}
@@ -178,8 +177,7 @@ export function AuthPage() {
                       position: i === 0 ? 'relative' : 'absolute',
                       top: 0, left: 0,
                       opacity: 0,
-                      animation: `textFade ${slides.length * 5}s linear infinite`,
-                      animationDelay: `${i * 5}s`
+                      animation: `textFade ${slides.length * 5}s linear ${i * 5}s infinite`
                     }}
                   >
                     <h2 style={{ fontSize: 36, fontWeight: 700, color: '#fff', lineHeight: 1.2, margin: '0 0 16px', letterSpacing: '-0.5px' }}>
