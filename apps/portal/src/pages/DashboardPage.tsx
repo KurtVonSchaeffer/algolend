@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../api/supabaseClient';
+import { Loader } from '../components/ui/loader';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -343,14 +344,8 @@ export function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={{ height: 36, width: 180, borderRadius: 12, background: '#eee', animation: 'pulse 1.5s ease-in-out infinite' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
-          {[...Array(4)].map((_, i) => (
-            <div key={i} style={{ height: 130, borderRadius: RADIUS, background: '#eee', animation: 'pulse 1.5s ease-in-out infinite' }} />
-          ))}
-        </div>
-        <div style={{ height: 200, borderRadius: RADIUS, background: '#eee', animation: 'pulse 1.5s ease-in-out infinite' }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <Loader size={140} />
       </div>
     );
   }

@@ -26,13 +26,22 @@ vi.mock('../lib/navigation', () => ({
   redirectTo: (...args: unknown[]) => mockRedirectTo(...args)
 }));
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ThemeProvider } from '../theme/ThemeProvider';
 import { AuthPage } from './AuthPage';
 
 function renderAuthPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } }
+  });
   return render(
-    <MemoryRouter>
-      <AuthPage />
-    </MemoryRouter>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <MemoryRouter>
+          <AuthPage />
+        </MemoryRouter>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Alert } from '../components/ui/alert';
+import { Loader } from '../components/ui/loader';
 
 type State = 'loading' | 'form' | 'success' | 'error';
 
@@ -96,7 +97,9 @@ export function SetPasswordPage() {
         <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
           {state === 'loading' && (
             <div className="py-4 text-center">
-              <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-purple-200 border-t-purple-500" />
+              <div className="mx-auto mb-4 flex justify-center">
+                <Loader size={80} />
+              </div>
               <p className="text-sm text-gray-500">Verifying your invite link…</p>
             </div>
           )}
