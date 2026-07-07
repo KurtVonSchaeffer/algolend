@@ -20,5 +20,12 @@
 }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #FDF9F6;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 10% 0%, rgba(91,33,182,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 100%, rgba(91,33,182,0.04) 0%, transparent 55%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  color: #1C1C1E;
 }
