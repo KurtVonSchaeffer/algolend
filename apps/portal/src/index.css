@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #7C3AED;
+  --color-primary-rgb: 124 58 237;
+  --color-primary-hover: #6D28D9;
+  --color-primary-soft: #A78BFA;
+  --color-primary-strong: #5B21B6;
+  --color-secondary: #4A0E8F;
+  --color-secondary-rgb: 74 14 143;
+  --color-secondary-soft: #6D28D9;
+  --color-tertiary: #11022A;
+  --color-tertiary-rgb: 17 2 42;
+  --gradient-brand: linear-gradient(120deg, var(--color-primary), var(--color-secondary), var(--color-tertiary));
+  --color-primary-contrast: #FFFFFF;
+  --auth-overlay-color: #1E0B3B;
+  --auth-overlay-enabled: 1;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+}
