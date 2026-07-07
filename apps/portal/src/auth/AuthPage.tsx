@@ -100,12 +100,17 @@ export function AuthPage() {
   return (
     <>
       <style>{`
-        @keyframes slideFade {
-          0%   { opacity: 0; transform: scale(1.05); }
-          5%   { opacity: 1; transform: scale(1.03); }
-          20%  { opacity: 1; transform: scale(1);    }
-          28%  { opacity: 0; transform: scale(1);    }
-          100% { opacity: 0; transform: scale(1);    }
+        @keyframes photoFade {
+          0%   { opacity: 1; transform: scale(1.03); }
+          22%  { opacity: 1; transform: scale(1.0);  }
+          25%  { opacity: 0; transform: scale(1.0);  }
+          100% { opacity: 0; transform: scale(1.0);  }
+        }
+        @keyframes textFade {
+          0%   { opacity: 1; transform: translateY(0);    }
+          27%  { opacity: 1; transform: translateY(0);    }
+          33%  { opacity: 0; transform: translateY(-6px); }
+          100% { opacity: 0; transform: translateY(0);    }
         }
       `}</style>
 
@@ -123,7 +128,7 @@ export function AuthPage() {
                 backgroundImage: `url('${src}')`,
                 backgroundSize: 'cover', backgroundPosition: 'center',
                 opacity: 0,
-                animation: `slideFade 20s ease-in-out infinite`,
+                animation: `photoFade 20s linear infinite`,
                 animationDelay: `${i * 5}s`
               }}
             />
@@ -132,7 +137,7 @@ export function AuthPage() {
           {/* Gradient overlay — vertical, matches reference repo exactly */}
           <div style={{
             position: 'absolute', inset: 0,
-            background: 'linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(43,21,81,0.45) 50%, rgba(15,23,42,0.70) 100%)'
+            background: 'linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(43,21,81,0.65) 50%, rgba(15,23,42,0.75) 100%)'
           }} />
 
           {/* Content */}
@@ -153,9 +158,9 @@ export function AuthPage() {
               {/* Badge */}
               <div style={{
                 display: 'inline-block',
-                background: 'rgba(88,42,168,0.25)',
+                background: 'rgba(176,38,255,0.20)',
                 color: 'rgba(255,255,255,0.9)',
-                border: '1px solid rgba(88,42,168,0.45)',
+                border: '1px solid rgba(176,38,255,0.55)',
                 fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
                 textTransform: 'uppercase',
                 padding: '5px 14px', borderRadius: 100,
@@ -173,7 +178,7 @@ export function AuthPage() {
                       position: i === 0 ? 'relative' : 'absolute',
                       top: 0, left: 0,
                       opacity: 0,
-                      animation: `slideFade 20s ease-in-out infinite`,
+                      animation: `textFade ${slides.length * 5}s linear infinite`,
                       animationDelay: `${i * 5}s`
                     }}
                   >
