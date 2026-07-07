@@ -29,7 +29,7 @@ export function SetPasswordPage() {
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+      if (!settled && session) {
         settled = true;
         setState('form');
       }
@@ -76,7 +76,8 @@ export function SetPasswordPage() {
     } = await supabase.auth.getUser();
     const role = user?.app_metadata?.role || user?.user_metadata?.role || 'borrower';
     const nextParam = searchParams.get('next');
-    const destination = nextParam
+    const isRelativeUrl = nextParam && (nextParam.startsWith('/') || nextParam.startsWith('?'));
+    const destination = isRelativeUrl
       ? decodeURIComponent(nextParam)
       : hasMinimumRole(role, 'base_admin')
         ? '/admin/dashboard'
