@@ -158,9 +158,9 @@ export function AuthPage() {
               {/* Badge */}
               <div style={{
                 display: 'inline-block',
-                background: 'rgba(176,38,255,0.20)',
+                background: 'rgba(91,33,182,0.30)',
                 color: 'rgba(255,255,255,0.9)',
-                border: '1px solid rgba(176,38,255,0.55)',
+                border: '1px solid rgba(91,33,182,0.65)',
                 fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
                 textTransform: 'uppercase',
                 padding: '5px 14px', borderRadius: 100,

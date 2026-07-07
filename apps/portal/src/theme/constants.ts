@@ -40,7 +40,7 @@ export const DEFAULT_CAROUSEL_SLIDES: CarouselSlide[] = [
 export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   id: 'global',
   company_name: '',
-  primary_color: '#B026FF',
+  primary_color: '#5B21B6',
   secondary_color: '#4A0E8F',
   tertiary_color: '#11022A',
   theme_mode: 'dark',
