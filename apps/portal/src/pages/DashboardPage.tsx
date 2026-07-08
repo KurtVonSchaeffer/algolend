@@ -1,80 +1,49 @@
+import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
+import { apiFetch } from '../api/apiClient';
 import { Loader } from '../components/ui/loader';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
 interface EnrichedLoan {
   id: string;
-  principal_amount: number;
-  term_months: number;
-  interest_rate: number;
-  status: string;
-  outstandingBalance: number;
-  nextDueAmount: number;
-  dueDateObj: Date | null;
+  displayId: string;
+  amount: string;
+  remaining: string;
+  nextPayment: string;
+  dueDate: string;
+  interestRate: string;
+  progress: number;
   daysUntilDue: number | null;
-  totalRepaymentCalc: number;
-  normalizedRate: number;
-  paidToDate: number;
 }
 
-interface Application {
-  id: string;
+interface AppItem {
+  rawId: string;
+  type: string;
+  amount: string;
+  date: string;
   status: string;
-  amount: number;
-  purpose: string | null;
-  created_at: string;
 }
 
-interface DashboardData {
-  totalBorrowed: number;
-  currentBalance: number;
-  totalRepaid: number;
-  nextPayment: { amount: number; date: string | null; hasUpcoming: boolean };
-  loans: EnrichedLoan[];
-  applications: Application[];
-  creditCheck: { credit_score: number; risk_category: string } | null;
-  unsignedOffer: { id: string; amount: number; purpose: string | null } | null;
+interface TxItem {
+  id: string;
+  description: string;
+  date: string;
+  amount: string;
 }
 
-// ─── constants ───────────────────────────────────────────────────────────────
-
-const ZAR = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', minimumFractionDigits: 2 });
-const fmt = (n: number) => ZAR.format(n);
-
-const SHADOW_SOFT = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03)';
-const RADIUS = 24;
-
-const RISK_COLOR: Record<string, string> = {
-  'very low risk':  '#10b981',
-  'low risk':       '#22c55e',
-  'medium risk':    '#f59e0b',
-  'high risk':      '#ef4444',
-  'very high risk': '#dc2626',
-};
-
-const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
-  PENDING:       { bg: '#fef3c7', text: '#92400e' },
-  APPROVED:      { bg: '#d1fae5', text: '#065f46' },
-  DECLINED:      { bg: '#fee2e2', text: '#991b1b' },
-  OFFERED:       { bg: '#dbeafe', text: '#1e40af' },
-  CONTRACT_SIGN: { bg: '#dbeafe', text: '#1e40af' },
-  DISBURSED:     { bg: '#d1fae5', text: '#065f46' },
-  CANCELLED:     { bg: '#f3f4f6', text: '#6b7280' },
-};
-
-const APP_ICON: Record<string, { icon: string; bg: string; color: string }> = {
-  PENDING:       { icon: 'fa-clock',          bg: '#fef3c7', color: '#d97706' },
-  APPROVED:      { icon: 'fa-circle-check',   bg: '#d1fae5', color: '#059669' },
-  DECLINED:      { icon: 'fa-circle-xmark',   bg: '#fee2e2', color: '#dc2626' },
-  OFFERED:       { icon: 'fa-file-signature', bg: '#dbeafe', color: '#2563eb' },
-  CONTRACT_SIGN: { icon: 'fa-file-signature', bg: '#dbeafe', color: '#2563eb' },
-  DISBURSED:     { icon: 'fa-money-bill-wave',bg: '#d1fae5', color: '#059669' },
-  CANCELLED:     { icon: 'fa-ban',            bg: '#f3f4f6', color: '#9ca3af' },
-};
+interface Eligibility {
+  eligible: boolean;
+  credit_score?: number;
+  band?: { label: string; color?: string; max_loan_amount: number; interest_rate_pa: number; max_term_months: number };
+  first_loan_restriction?: string;
+}
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
+
+const fmt = (n: number) => `R ${(Number(n) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 function calcMonthly(principal: number, rate: number, months: number): number {
   const r = rate / 12;
@@ -82,32 +51,20 @@ function calcMonthly(principal: number, rate: number, months: number): number {
   return (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-function fmtShortDate(d: Date) {
-  return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
-}
+const CREDIT_SCORE_MAX = 999;
 
-function nextPaymentSub(np: DashboardData['nextPayment']): { label: string; color: string } {
-  if (!np.date) return { label: 'No upcoming payment', color: '#9ca3af' };
-  if (!np.hasUpcoming) return { label: `Last paid ${fmtDate(np.date)}`, color: '#9ca3af' };
-  const now = new Date(); now.setHours(0, 0, 0, 0);
-  const days = Math.round((new Date(np.date).getTime() - now.getTime()) / 86400000);
-  if (days < 0)   return { label: `${Math.abs(days)} days overdue`, color: '#ef4444' };
-  if (days === 0) return { label: 'Due today!',                     color: '#f59e0b' };
-  if (days === 1) return { label: 'Due tomorrow',                   color: '#f59e0b' };
-  if (days <= 5)  return { label: `Due in ${days} days`,            color: '#f59e0b' };
-  return { label: `Due ${fmtDate(np.date)}`, color: '#6b7280' };
-}
+// ─── data ─────────────────────────────────────────────────────────────────────
 
-// ─── data fetcher ─────────────────────────────────────────────────────────────
-
-async function fetchDashboard(): Promise<DashboardData> {
+async function fetchDashboard() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const uid = session.user.id;
+  const userName = (session.user.user_metadata?.full_name as string) || '';
 
   const [
     { data: rawLoans },
@@ -119,8 +76,8 @@ async function fetchDashboard(): Promise<DashboardData> {
     supabase.from('loans').select('*').eq('user_id', uid).eq('status', 'active').order('created_at', { ascending: false }),
     supabase.from('payments').select('loan_id, amount, payment_date').eq('user_id', uid).order('payment_date', { ascending: false }),
     supabase.from('credit_checks').select('credit_score, risk_category').eq('user_id', uid).order('checked_at', { ascending: false }).limit(1),
-    supabase.from('loan_applications').select('id, status, amount, purpose, created_at').eq('user_id', uid).neq('status', 'OFFERED').neq('status', 'DISBURSED').order('created_at', { ascending: false }).limit(6),
-    supabase.from('loan_applications').select('id, amount, purpose').eq('user_id', uid).in('status', ['OFFERED', 'CONTRACT_SIGN']).is('contract_signed_at', null).order('created_at', { ascending: false }).limit(1),
+    supabase.from('loan_applications').select('id, status, amount, purpose, created_at').eq('user_id', uid).neq('status', 'OFFERED').neq('status', 'DISBURSED').order('created_at', { ascending: false }).limit(5),
+    supabase.from('loan_applications').select('id, amount').eq('user_id', uid).in('status', ['OFFERED', 'CONTRACT_SIGN']).is('contract_signed_at', null).order('created_at', { ascending: false }).limit(1),
   ]);
 
   const paidByLoan = (payments ?? []).reduce<Record<string, number>>((a, p) => {
@@ -128,8 +85,11 @@ async function fetchDashboard(): Promise<DashboardData> {
     return a;
   }, {});
   const totalRepaidAll = (payments ?? []).reduce((s, p) => s + Number(p.amount), 0);
-  const latestPaid = payments?.[0]?.payment_date ?? null;
   const now = new Date(); now.setUTCHours(0, 0, 0, 0);
+
+  let totalBorrowed = 0, currentBalance = 0, totalRepaid = 0;
+  let nextPayment = { amount: 0, date: null as string | null, hasUpcoming: false };
+  let bestDue: Date | null = null;
 
   const loans: EnrichedLoan[] = (rawLoans ?? []).map(l => {
     const principal = Number(l.principal_amount) || 0;
@@ -137,9 +97,9 @@ async function fetchDashboard(): Promise<DashboardData> {
     const rawRate   = Number(l.interest_rate) || 0;
     const rate      = rawRate > 1 ? rawRate / 100 : rawRate;
     const monthly   = Number(l.monthly_payment) || calcMonthly(principal, rate, months);
-    const totalRepaymentCalc = Number(l.total_repayment) || monthly * months || principal;
+    const totalRepayment = Number(l.total_repayment) || monthly * months || principal;
     const paid      = paidByLoan[l.id] ?? 0;
-    const outstanding = Math.max(totalRepaymentCalc - paid, 0);
+    const outstanding = Math.max(totalRepayment - paid, 0);
     const nextDue   = monthly > 0 ? Math.min(monthly, outstanding) : outstanding;
 
     const ds = l.next_payment_date || l.first_payment_date || l.repayment_start_date;
@@ -148,193 +108,224 @@ async function fetchDashboard(): Promise<DashboardData> {
     if (due && isNaN(due.getTime())) due = null;
     if (due) due.setUTCHours(0, 0, 0, 0);
 
+    totalBorrowed  += principal;
+    currentBalance += outstanding;
+    totalRepaid    += paid;
+
+    if (due && outstanding > 0 && (!bestDue || due < bestDue)) {
+      bestDue = due;
+      nextPayment = { amount: nextDue, date: due.toISOString(), hasUpcoming: true };
+    }
+
     return {
-      ...l,
-      outstandingBalance: outstanding,
-      nextDueAmount: nextDue,
-      dueDateObj: due,
+      id: l.id,
+      displayId: `LOAN-${String(l.id).slice(-6).toUpperCase()}`,
+      amount: fmt(totalRepayment),
+      remaining: fmt(outstanding),
+      nextPayment: fmt(nextDue),
+      dueDate: due ? due.toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' }) : 'TBD',
+      interestRate: `${(rate * 100).toFixed(2)}%`,
+      progress: totalRepayment > 0 ? Math.min(100, Math.round((paid / totalRepayment) * 100)) : 0,
       daysUntilDue: due ? Math.round((due.getTime() - now.getTime()) / 86400000) : null,
-      totalRepaymentCalc,
-      normalizedRate: rate,
-      paidToDate: paid,
     };
   });
 
-  const totals = loans.reduce((a, l) => ({ b: a.b + l.principal_amount, o: a.o + l.outstandingBalance, r: a.r + (paidByLoan[l.id] ?? 0) }), { b: 0, o: 0, r: 0 });
-  const upcoming = loans.reduce<EnrichedLoan | null>((best, l) => {
-    if (!l.dueDateObj || l.outstandingBalance <= 0) return best;
-    return !best?.dueDateObj || l.dueDateObj < best.dueDateObj ? l : best;
-  }, null);
+  if (!nextPayment.hasUpcoming) {
+    totalRepaid = totalRepaid || totalRepaidAll;
+    nextPayment.date = payments?.[0]?.payment_date ?? null;
+  }
+
+  const transactions: TxItem[] = (payments ?? []).slice(0, 5).map((p, i) => ({
+    id: `${p.loan_id}-${i}`,
+    description: 'Loan Repayment',
+    date: new Date(p.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    amount: fmt(Number(p.amount)),
+  }));
+
+  const applications: AppItem[] = (rawApps ?? []).map(a => ({
+    rawId: a.id,
+    type: a.purpose || 'Personal Loan',
+    amount: fmt(Number(a.amount)),
+    date: new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    status: a.status,
+  }));
+
+  // repayment series for the chart — payments bucketed by month (last 6)
+  const monthly: { label: string; total: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(); d.setMonth(d.getMonth() - i);
+    const label = d.toLocaleDateString('en-US', { month: 'short' });
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const total = (payments ?? []).filter(p => {
+      const pd = new Date(p.payment_date);
+      return `${pd.getFullYear()}-${pd.getMonth()}` === key;
+    }).reduce((s, p) => s + Number(p.amount), 0);
+    monthly.push({ label, total });
+  }
+
+  // eligibility via Express (optional — hide card if unavailable, like legacy)
+  let eligibility: Eligibility | null = null;
+  try {
+    const res = await apiFetch('/api/my-eligibility');
+    if (res.ok) eligibility = await res.json();
+  } catch { /* card stays hidden */ }
 
   return {
-    totalBorrowed:  totals.b,
-    currentBalance: totals.o,
-    totalRepaid:    totals.r || totalRepaidAll,
-    nextPayment: upcoming?.dueDateObj
-      ? { amount: upcoming.nextDueAmount, date: upcoming.dueDateObj.toISOString(), hasUpcoming: true }
-      : { amount: 0, date: latestPaid, hasUpcoming: false },
-    loans,
-    applications: rawApps ?? [],
-    creditCheck:  creditChecks?.[0] ?? null,
+    userName,
+    loans, transactions, applications,
+    totalBorrowed, currentBalance, totalRepaid, nextPayment,
+    creditScore: creditChecks?.[0]?.credit_score ?? 0,
     unsignedOffer: unsignedOffers?.[0] ?? null,
+    repaymentSeries: monthly,
+    eligibility: eligibility?.eligible ? eligibility : null,
   };
 }
 
-// ─── sub-components ───────────────────────────────────────────────────────────
+// ─── charts (canvas, matches legacy fallback painters) ───────────────────────
 
-function StatCard({ label, value, sub, subColor, icon, iconColor }: {
-  label: string; value: string; sub?: string; subColor?: string; icon: string; iconColor: string;
-}) {
+function primaryColor() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim() || '#7C3AED';
+}
+
+function LineChart({ series }: { series: { label: string; total: number }[] }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const W = canvas.width = canvas.offsetWidth * 2;
+    const H = canvas.height = canvas.offsetHeight * 2;
+    const pad = 40;
+    const color = primaryColor();
+    const max = Math.max(1, ...series.map(s => s.total));
+
+    ctx.clearRect(0, 0, W, H);
+
+    const pts = series.map((s, i) => ({
+      x: pad + ((W - pad * 2) / Math.max(1, series.length - 1)) * i,
+      y: H - pad - ((H - pad * 2) * (s.total / max)),
+    }));
+
+    // area fill
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, `${color}44`);
+    grad.addColorStop(1, `${color}00`);
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.lineTo(pts[pts.length - 1].x, H - pad);
+    ctx.lineTo(pts[0].x, H - pad);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // line
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 4;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // points + labels
+    ctx.font = '20px IBM Plex Sans, sans-serif';
+    ctx.fillStyle = '#8E8E93';
+    ctx.textAlign = 'center';
+    pts.forEach((p, i) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.fillStyle = '#8E8E93';
+      ctx.fillText(series[i].label, p.x, H - pad + 26);
+    });
+  }, [series]);
+
+  return <canvas ref={ref} style={{ width: '100%', height: '100%' }} />;
+}
+
+function DoughnutChart({ repaid, outstanding }: { repaid: number; outstanding: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const W = canvas.width = canvas.offsetWidth * 2;
+    const H = canvas.height = canvas.offsetHeight * 2;
+    const cx = W / 2, cy = H / 2;
+    const r = Math.min(W, H) / 2 - 30;
+    const color = primaryColor();
+    const total = Math.max(1, repaid + outstanding);
+    const repaidAngle = (repaid / total) * Math.PI * 2;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.lineWidth = r * 0.42;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + repaidAngle);
+    ctx.strokeStyle = color;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI / 2 + repaidAngle, Math.PI * 1.5);
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.stroke();
+
+    ctx.font = 'bold 30px IBM Plex Sans, sans-serif';
+    ctx.fillStyle = '#1C1C1E';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.round((repaid / total) * 100)}%`, cx, cy - 12);
+    ctx.font = '18px IBM Plex Sans, sans-serif';
+    ctx.fillStyle = '#8E8E93';
+    ctx.fillText('Repaid', cx, cy + 20);
+  }, [repaid, outstanding]);
+
+  return <canvas ref={ref} style={{ width: '100%', height: '100%' }} />;
+}
+
+// ─── ring progress (legacy buildRingProgress) ─────────────────────────────────
+
+function RingProgress({ progress, size = 52 }: { progress: number; size?: number }) {
+  const r = size / 2 - 5;
+  const circ = 2 * Math.PI * r;
   return (
-    <div style={{
-      background: '#fff', borderRadius: RADIUS, padding: 24,
-      boxShadow: SHADOW_SOFT, position: 'relative', overflow: 'hidden',
-      display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 130,
-      transition: 'transform 0.25s ease, box-shadow 0.25s ease',
-    }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-3px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 16px 40px rgba(0,0,0,0.08)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = SHADOW_SOFT; }}
-    >
-      {/* warm orb */}
-      <div style={{ position: 'absolute', top: -40, right: -40, width: 120, height: 120, borderRadius: '50%', background: `radial-gradient(circle, ${iconColor}18 0%, transparent 70%)`, pointerEvents: 'none' }} />
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <p style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8E8E93', margin: 0 }}>{label}</p>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: `${iconColor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <i className={`fa-solid ${icon}`} style={{ color: iconColor, fontSize: 15 }} />
-        </div>
-      </div>
-
-      <div>
-        <p style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-1px', color: '#1C1C1E', margin: '8px 0 4px', lineHeight: 1 }}>{value}</p>
-        {sub && <p style={{ fontSize: 12, fontWeight: 500, color: subColor ?? '#9ca3af', margin: 0 }}>{sub}</p>}
-      </div>
-    </div>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f1f5f9" strokeWidth={5} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none"
+        stroke="var(--color-primary)" strokeWidth={5} strokeLinecap="round"
+        strokeDasharray={`${(progress / 100) * circ} ${circ}`}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        style={{ transition: 'stroke-dasharray 0.8s ease' }}
+      />
+      <text x="50%" y="54%" textAnchor="middle" fontSize={size * 0.24} fontWeight={700} fill="var(--color-primary)">{progress}%</text>
+    </svg>
   );
 }
 
-function SignBanner({ offer }: { offer: NonNullable<DashboardData['unsignedOffer']> }) {
-  return (
-    <div style={{
-      background: 'linear-gradient(135deg,#fff7ed,#fef3c7)',
-      border: '2px solid #f97316', borderRadius: RADIUS,
-      padding: '20px 24px', display: 'flex', alignItems: 'center',
-      justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ width: 48, height: 48, background: '#f97316', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <i className="fa-solid fa-file-signature" style={{ fontSize: 20, color: '#fff' }} />
-        </div>
-        <div>
-          <p style={{ fontSize: 15, fontWeight: 800, color: '#9a3412', margin: '0 0 2px' }}>Action Required: Sign Your Agreement</p>
-          <p style={{ fontSize: 13, color: '#c2410c', margin: 0 }}>
-            Your loan offer of <strong>{fmt(Number(offer.amount))}</strong> is ready — sign to proceed.
-          </p>
-        </div>
-      </div>
-      <button style={{ background: '#f97316', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit' }}>
-        Sign Now <i className="fa-solid fa-arrow-right" style={{ marginLeft: 6 }} />
-      </button>
-    </div>
-  );
+// ─── loan health (legacy Feature 2) ───────────────────────────────────────────
+
+function loanHealth(days: number | null) {
+  if (days === null) return { label: 'Active', icon: 'fa-circle', color: 'var(--color-primary)', bg: 'rgba(124,58,237,0.1)' };
+  if (days < 0)  return { label: 'Overdue',  icon: 'fa-circle-exclamation', color: '#ef4444', bg: '#fee2e2' };
+  if (days <= 5) return { label: 'Due soon', icon: 'fa-clock', color: '#d97706', bg: '#fef3c7' };
+  return { label: 'On track', icon: 'fa-circle-check', color: '#059669', bg: '#d1fae5' };
 }
 
-function LoanCard({ loan }: { loan: EnrichedLoan }) {
-  const d = loan.daysUntilDue;
-  const dueColor = d !== null && d < 0 ? '#ef4444' : d !== null && d <= 5 ? '#f59e0b' : '#1C1C1E';
-  const dueLabel = loan.dueDateObj
-    ? (d !== null && d < 0 ? `${Math.abs(d)}d overdue` : d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : fmtShortDate(loan.dueDateObj))
-    : 'TBD';
-
-  const progress = loan.totalRepaymentCalc > 0
-    ? Math.min(100, Math.round((loan.paidToDate / loan.totalRepaymentCalc) * 100))
-    : 0;
-
-  return (
-    <div style={{
-      background: '#fff', borderRadius: RADIUS, padding: 24, boxShadow: SHADOW_SOFT,
-      display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', overflow: 'hidden',
-      transition: 'transform 0.25s ease, box-shadow 0.25s ease',
-    }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'; (e.currentTarget as HTMLDivElement).style.boxShadow = '0 16px 40px rgba(0,0,0,0.08)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)'; (e.currentTarget as HTMLDivElement).style.boxShadow = SHADOW_SOFT; }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: '#8E8E93', letterSpacing: '0.04em' }}>
-          LOAN-{loan.id.slice(-6).toUpperCase()}
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'rgba(91,33,182,0.10)', color: 'var(--color-primary)', letterSpacing: '0.04em' }}>
-          ACTIVE
-        </span>
-      </div>
-
-      <p style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-1px', color: '#1C1C1E', margin: 0 }}>
-        {fmt(loan.outstandingBalance)}
-      </p>
-
-      <div style={{ background: '#FAFAFA', borderRadius: 14, padding: '12px 14px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {[
-          { label: 'Next Payment', value: fmt(loan.nextDueAmount) },
-          { label: 'Due Date',     value: dueLabel, color: dueColor },
-          { label: 'Rate p.a.',    value: `${(loan.normalizedRate * 100).toFixed(2)}%` },
-          { label: 'Term',         value: `${loan.term_months} months` },
-        ].map(({ label, value, color }) => (
-          <div key={label}>
-            <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8E8E93', margin: '0 0 2px' }}>{label}</p>
-            <p style={{ fontSize: 14, fontWeight: 700, color: color ?? '#1C1C1E', margin: 0 }}>{value}</p>
-          </div>
-        ))}
-      </div>
-
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Repayment Progress</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#1C1C1E' }}>{progress}%</span>
-        </div>
-        <div style={{ height: 6, background: '#FAFAFA', borderRadius: 10, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${progress}%`, background: 'var(--color-primary)', borderRadius: 10, transition: 'width 0.6s ease' }} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AppItem({ app }: { app: Application }) {
-  const s = STATUS_STYLE[app.status] ?? { bg: '#f3f4f6', text: '#6b7280' };
-  const ic = APP_ICON[app.status] ?? { icon: 'fa-file', bg: '#f3f4f6', color: '#9ca3af' };
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 14,
-      padding: '14px 16px', borderRadius: 14,
-      background: '#FAFAFA', transition: 'background 0.2s',
-    }}
-      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = '#F0F0F0'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = '#FAFAFA'; }}
-    >
-      <div style={{ width: 38, height: 38, borderRadius: '50%', background: ic.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <i className={`fa-solid ${ic.icon}`} style={{ color: ic.color, fontSize: 14 }} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 14, fontWeight: 600, color: '#1C1C1E', margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {app.purpose ?? 'Personal Loan'}
-        </p>
-        <p style={{ fontSize: 11, color: '#8E8E93', margin: 0 }}>
-          APP-{app.id.slice(-6).toUpperCase()} · {fmtDate(app.created_at)}
-        </p>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#1C1C1E' }}>{fmt(Number(app.amount))}</span>
-        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: s.bg, color: s.text, letterSpacing: '0.04em' }}>
-          {app.status.replace(/_/g, ' ')}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ─── main ─────────────────────────────────────────────────────────────────────
+// ─── main page (legacy dashboard.html desktop-view markup) ───────────────────
 
 export function DashboardPage() {
+  const navigate = useNavigate();
+
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['dashboard'],
     queryFn: fetchDashboard,
@@ -342,110 +333,332 @@ export function DashboardPage() {
     retry: 1,
   });
 
+  // animate credit score meter like legacy
+  const scorePct = data ? Math.min(100, Math.round(((data.creditScore || 0) / CREDIT_SCORE_MAX) * 100)) : 0;
+
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-        <Loader size={140} />
+      <div className="page-container">
+        <div className="content-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <Loader size={140} />
+        </div>
       </div>
     );
   }
 
-  if (isError) {
+  if (isError || !data) {
     return (
-      <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: RADIUS, padding: 24, color: '#be123c', fontSize: 14 }}>
-        <i className="fa-solid fa-triangle-exclamation" style={{ marginRight: 8 }} />
-        Could not load dashboard: {error instanceof Error ? error.message : 'unknown error'}
-      </div>
-    );
-  }
-
-  if (!data) return null;
-
-  const { totalBorrowed, currentBalance, totalRepaid, nextPayment, loans, applications, creditCheck, unsignedOffer } = data;
-  const npSub = nextPaymentSub(nextPayment);
-  const riskKey = (creditCheck?.risk_category ?? '').toLowerCase();
-  const scoreColor = RISK_COLOR[riskKey] ?? '#6b7280';
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-
-      {/* Page header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-1px', color: '#1C1C1E', margin: 0 }}>Dashboard</h1>
-          <p style={{ fontSize: 14, color: '#8E8E93', margin: '4px 0 0', fontWeight: 500 }}>
-            Welcome back — here's your financial overview
+      <div className="page-container">
+        <div className="content-wrapper">
+          <p style={{ color: '#ef4444', padding: 24 }}>
+            Could not load dashboard: {error instanceof Error ? error.message : 'unknown error'}
           </p>
         </div>
-        {creditCheck && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            background: '#fff', borderRadius: 16, padding: '10px 18px',
-            boxShadow: SHADOW_SOFT,
-          }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: scoreColor, flexShrink: 0 }} />
-            <div>
-              <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8E8E93', margin: 0 }}>Credit Score</p>
-              <p style={{ fontSize: 18, fontWeight: 700, color: scoreColor, margin: 0, lineHeight: 1.1 }}>
-                {creditCheck.credit_score} <span style={{ fontSize: 12, fontWeight: 500, color: '#8E8E93', textTransform: 'capitalize' }}>· {creditCheck.risk_category}</span>
-              </p>
+      </div>
+    );
+  }
+
+  const np = data.nextPayment;
+  let npDateLabel = 'No upcoming payment';
+  let npDateColor = '';
+  if (np.hasUpcoming && np.date) {
+    const dueDate = new Date(np.date);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const daysLeft = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
+    npDateLabel = `Due ${dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    if (daysLeft < 0)       { npDateLabel = `${Math.abs(daysLeft)} days overdue`; npDateColor = '#ef4444'; }
+    else if (daysLeft === 0){ npDateLabel = 'Due today!';    npDateColor = '#f59e0b'; }
+    else if (daysLeft === 1){ npDateLabel = 'Due tomorrow';  npDateColor = '#f59e0b'; }
+    else if (daysLeft <= 5) { npDateLabel = `Due in ${daysLeft} days`; npDateColor = '#f59e0b'; }
+  } else if (np.date) {
+    npDateLabel = `Last paid ${new Date(np.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  }
+
+  const elig = data.eligibility;
+
+  return (
+    <div className="page-container">
+      <div className="content-wrapper">
+
+        {/* Sign agreement banner */}
+        {data.unsignedOffer && (
+          <div style={{ padding: '0 0 16px' }}>
+            <div style={{ background: 'linear-gradient(135deg,#fff7ed,#fef3c7)', border: '2px solid #f97316', borderRadius: 18, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 48, height: 48, background: '#f97316', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <i className="fas fa-file-signature" style={{ fontSize: 20, color: '#fff' }} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: '#9a3412', margin: '0 0 2px' }}>Action Required: Sign Your Agreement</p>
+                  <p style={{ fontSize: 13, color: '#c2410c', margin: 0 }}>
+                    Your loan offer of <strong>{fmt(Number(data.unsignedOffer.amount))}</strong> is ready — sign to proceed.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => navigate('/user-portal/apply')}
+                style={{ background: '#f97316', color: '#fff', border: 'none', padding: '12px 22px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'inherit' }}
+              >
+                Sign Now <i className="fas fa-arrow-right" style={{ marginLeft: 6 }} />
+              </button>
             </div>
           </div>
         )}
-      </div>
 
-      {/* Sign banner */}
-      {unsignedOffer && <SignBanner offer={unsignedOffer} />}
+        <div className="dashboard-wrapper">
+          <div className="dashboard-container">
+            <div id="desktop-view">
 
-      {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
-        <StatCard label="Total Borrowed"      value={fmt(totalBorrowed)}  icon="fa-arrow-up-from-bracket" iconColor="var(--color-primary)" />
-        <StatCard label="Outstanding Balance" value={fmt(currentBalance)} icon="fa-scale-balanced"        iconColor="#f59e0b" />
-        <StatCard label="Total Repaid"        value={fmt(totalRepaid)}    icon="fa-circle-check"          iconColor="#10b981" />
-        <StatCard
-          label="Next Payment"
-          value={nextPayment.hasUpcoming ? fmt(nextPayment.amount) : '—'}
-          icon="fa-calendar-days"
-          iconColor="#3b82f6"
-          sub={npSub.label}
-          subColor={npSub.color}
-        />
-      </div>
+              <div className="dashboard-header">
+                <div className="header-left">
+                  <p className="greeting-line">{greeting()}{data.userName ? `, ${data.userName.split(' ')[0]}` : ''}</p>
+                  <h1>Portfolio Overview</h1>
+                  <p>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                </div>
+              </div>
 
-      {/* Active loans */}
-      <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.5px', color: '#1C1C1E', margin: 0 }}>Active Loans</h2>
+              <div className="top-section">
+                <div className="metrics-grid">
+                  <div className="card ds-metric-card">
+                    <div className="ds-card-header">
+                      <span className="card-label">Outstanding Balance</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#7C3AED', ['--badge-bg' as string]: 'rgba(124,58,237,0.10)' }}><i className="fas fa-wallet" /></div>
+                    </div>
+                    <div className="card-value">{fmt(data.currentBalance)}</div>
+                    <div className="card-subtitle">Total principal remaining</div>
+                  </div>
+                  <div className="card ds-metric-card">
+                    <div className="ds-card-header">
+                      <span className="card-label">Next Payment Due</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#3b82f6', ['--badge-bg' as string]: 'rgba(59,130,246,0.10)' }}><i className="fas fa-calendar-alt" /></div>
+                    </div>
+                    <div className="card-value">{fmt(np.amount)}</div>
+                    <div className="card-subtitle" style={npDateColor ? { color: npDateColor } : undefined}>{npDateLabel}</div>
+                  </div>
+                  <div className="card ds-metric-card">
+                    <div className="ds-card-header">
+                      <span className="card-label">Total Borrowed</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#10b981', ['--badge-bg' as string]: 'rgba(16,185,129,0.10)' }}><i className="fas fa-arrow-trend-up" /></div>
+                    </div>
+                    <div className="card-value">{fmt(data.totalBorrowed)}</div>
+                    <div className="card-subtitle">Lifetime capacity</div>
+                  </div>
+                  <div className="card ds-metric-card">
+                    <div className="ds-card-header">
+                      <span className="card-label">Total Repaid</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#8b5cf6', ['--badge-bg' as string]: 'rgba(139,92,246,0.10)' }}><i className="fas fa-circle-check" /></div>
+                    </div>
+                    <div className="card-value">{fmt(data.totalRepaid)}</div>
+                    <div className="card-subtitle">Successfully settled</div>
+                  </div>
+                </div>
+
+                <div className="credit-score-card card ds-metric-card">
+                  <div className="ds-card-header">
+                    <span className="card-label">Credit Score</span>
+                    <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#7C3AED', ['--badge-bg' as string]: 'rgba(124,58,237,0.10)' }}><i className="fas fa-chart-line" /></div>
+                  </div>
+                  <div className="card-value">{data.creditScore || 0}</div>
+                  <div className="card-subtitle">Experian Financial Standing</div>
+                  <div className="score-meter">
+                    <div className="score-fill" style={{ width: `${scorePct}%` }} />
+                  </div>
+                </div>
+
+                {elig?.band && (
+                  <div className="card ds-metric-card" id="eligibilityCard">
+                    <div className="ds-card-header">
+                      <span className="card-label">My Eligibility</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: elig.band.color || '#10b981', ['--badge-bg' as string]: `${elig.band.color || '#10b981'}1a` }}><i className="fas fa-shield-halved" /></div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: elig.band.color || '#10b981', flexShrink: 0 }} />
+                      <span className="card-value" style={{ fontSize: 22 }}>{elig.band.label}</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+                      {[
+                        { label: 'Max Loan', value: `R ${Number(elig.band.max_loan_amount || 0).toLocaleString()}` },
+                        { label: 'Rate p.a.', value: `${elig.band.interest_rate_pa || 0}%` },
+                        { label: 'Max Term', value: `${elig.band.max_term_months || 0} mo` },
+                        { label: 'Score', value: String(elig.credit_score ?? '—') },
+                      ].map(i => (
+                        <div key={i.label} style={{ background: '#f8f8f8', borderRadius: 8, padding: '8px 10px' }}>
+                          <div style={{ fontSize: 10, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '.05em' }}>{i.label}</div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>{i.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {elig.first_loan_restriction && (
+                      <div style={{ background: '#fff8ed', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: '#d97706', fontWeight: 600 }}>
+                        <i className="fas fa-star" /> {elig.first_loan_restriction}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => navigate('/user-portal/apply')}
+                      style={{ marginTop: 10, width: '100%', padding: 10, border: 'none', borderRadius: 12, background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-soft))', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      Apply Now <i className="fas fa-arrow-right" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="quick-actions-section">
+                <div className="section-title-bar">
+                  <h2>Quick Actions</h2>
+                </div>
+                <div className="quick-actions-grid">
+                  <button className="action-card" onClick={() => navigate('/user-portal/apply')}>
+                    <div className="action-icon-wrapper"><i className="fas fa-plus" /></div>
+                    <div className="action-text-block">
+                      <div className="action-title">New Loan</div>
+                      <div className="action-subtitle">Apply for a new loan</div>
+                    </div>
+                  </button>
+                  <button className="action-card" onClick={() => navigate('/user-portal/transactions')}>
+                    <div className="action-icon-wrapper"><i className="fas fa-wallet" /></div>
+                    <div className="action-text-block">
+                      <div className="action-title">Make Payment</div>
+                      <div className="action-subtitle">Process a payment</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="loans-section">
+                <div className="section-title-bar">
+                  <h2>Active Loans</h2>
+                  <button className="btn-view-all" onClick={() => navigate('/user-portal/transactions')}>View All →</button>
+                </div>
+                <div id="activeLoansGridWrapper">
+                  <div className="loans-grid">
+                    {data.loans.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '60px 20px', gridColumn: '1/-1' }}>
+                        <div style={{ width: 72, height: 72, background: 'rgba(124,58,237,0.08)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                          <i className="fas fa-file-contract" style={{ fontSize: 28, color: 'var(--color-primary)' }} />
+                        </div>
+                        <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-main, #1C1C1E)', margin: '0 0 8px' }}>No active loans</h3>
+                        <p style={{ fontSize: 14, color: 'var(--text-muted, #8E8E93)', margin: '0 0 20px', lineHeight: 1.5 }}>
+                          Ready to apply? Get a decision in minutes.
+                        </p>
+                        <button
+                          onClick={() => navigate('/user-portal/apply')}
+                          style={{ background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-soft))', color: 'white', border: 'none', padding: '14px 28px', borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(124,58,237,0.3)', fontFamily: 'inherit' }}
+                        >
+                          Apply for a Loan <i className="fas fa-arrow-right" style={{ marginLeft: 8 }} />
+                        </button>
+                      </div>
+                    ) : data.loans.map(loan => {
+                      const health = loanHealth(loan.daysUntilDue);
+                      const urgent = loan.daysUntilDue !== null && loan.daysUntilDue < 0;
+                      return (
+                        <div className="loan-card" key={loan.id} style={urgent ? { border: '2px solid #fecaca' } : undefined}>
+                          <div className="loan-header">
+                            <span className="loan-id">{loan.displayId}</span>
+                            <span style={{ background: health.bg, color: health.color, padding: '5px 12px', borderRadius: 100, fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <i className={`fas ${health.icon}`} style={{ fontSize: 9 }} />{health.label}
+                            </span>
+                          </div>
+
+                          <div className="loan-amount">{loan.amount}</div>
+
+                          <div className="loan-details-grid">
+                            <div className="loan-detail"><div className="loan-detail-label">Remaining</div><div className="loan-detail-value">{loan.remaining}</div></div>
+                            <div className="loan-detail"><div className="loan-detail-label">Next Payment</div><div className="loan-detail-value">{loan.nextPayment}</div></div>
+                            <div className="loan-detail"><div className="loan-detail-label">Due Date</div><div className="loan-detail-value">{loan.dueDate}</div></div>
+                            <div className="loan-detail"><div className="loan-detail-label">Interest Rate</div><div className="loan-detail-value">{loan.interestRate}</div></div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0 4px' }}>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 52, height: 52, flexShrink: 0 }}>
+                              <RingProgress progress={loan.progress} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 600, color: 'var(--text-muted, #8E8E93)', marginBottom: 6 }}>
+                                <span>Repayment Progress</span><span>{loan.progress}%</span>
+                              </div>
+                              <div className="progress-bar"><div className="progress-fill" style={{ width: `${loan.progress}%` }} /></div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bottom-grid">
+                <div className="transactions-section">
+                  <div className="section-title-bar">
+                    <h2>Recent Transactions</h2>
+                    <button className="btn-view-all" onClick={() => navigate('/user-portal/transactions')}>View All →</button>
+                  </div>
+                  <div className="transaction-list">
+                    {data.transactions.length === 0 ? (
+                      <p style={{ color: 'var(--text-muted, #8E8E93)', textAlign: 'center', padding: 20 }}>No transactions yet</p>
+                    ) : data.transactions.map(tx => (
+                      <div className="transaction-item" key={tx.id}>
+                        <div className="transaction-icon outbound"><i className="fas fa-arrow-up" /></div>
+                        <div className="item-details">
+                          <div className="item-title">{tx.description}</div>
+                          <div className="item-date">{tx.date}</div>
+                        </div>
+                        <div className="item-amount outbound">{tx.amount}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="applications-section">
+                  <div className="section-title-bar">
+                    <h2>Recent Applications</h2>
+                    <button className="btn-view-all" onClick={() => navigate('/user-portal/transactions')}>View All →</button>
+                  </div>
+                  <div className="application-list">
+                    {data.applications.length === 0 ? (
+                      <p style={{ color: 'var(--text-muted, #8E8E93)', textAlign: 'center', padding: 20 }}>No applications yet</p>
+                    ) : data.applications.map(app => (
+                      <div className="application-item" key={app.rawId}>
+                        <div className={`application-icon ${app.status.toLowerCase()}`}>
+                          <i className={`fas fa-${app.status === 'APPROVED' ? 'check' : app.status === 'PENDING' ? 'clock' : 'file-alt'}`} />
+                        </div>
+                        <div className="item-details">
+                          <div className="item-title">{app.type}</div>
+                          <div className="item-date">{app.date}</div>
+                        </div>
+                        <span className="status-badge" style={{ background: 'rgba(124,58,237,0.1)', color: 'var(--color-primary)', padding: '4px 12px', borderRadius: 50, fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>
+                          {app.status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="charts-section">
+                <div className="chart-card">
+                  <div className="section-title-bar">
+                    <h2>Repayment Trends</h2>
+                  </div>
+                  <div className="chart-container">
+                    <LineChart series={data.repaymentSeries} />
+                  </div>
+                </div>
+
+                <div className="chart-card">
+                  <div className="section-title-bar">
+                    <h2>Loan Breakdown</h2>
+                  </div>
+                  <div className="chart-container">
+                    <DoughnutChart repaid={data.totalRepaid} outstanding={data.currentBalance} />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
         </div>
-        {loans.length === 0 ? (
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: '32px 24px', boxShadow: SHADOW_SOFT, textAlign: 'center' }}>
-            <i className="fa-solid fa-file-invoice-dollar" style={{ fontSize: 32, color: '#e5e7eb', marginBottom: 12, display: 'block' }} />
-            <p style={{ color: '#8E8E93', fontSize: 14, margin: 0 }}>No active loans at the moment.</p>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-            {loans.map(loan => <LoanCard key={loan.id} loan={loan} />)}
-          </div>
-        )}
-      </section>
-
-      {/* Recent applications */}
-      <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.5px', color: '#1C1C1E', margin: 0 }}>Recent Applications</h2>
-        </div>
-        {applications.length === 0 ? (
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: '32px 24px', boxShadow: SHADOW_SOFT, textAlign: 'center' }}>
-            <i className="fa-solid fa-folder-open" style={{ fontSize: 32, color: '#e5e7eb', marginBottom: 12, display: 'block' }} />
-            <p style={{ color: '#8E8E93', fontSize: 14, margin: 0 }}>No applications yet.</p>
-          </div>
-        ) : (
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: 20, boxShadow: SHADOW_SOFT, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {applications.map(app => <AppItem key={app.id} app={app} />)}
-          </div>
-        )}
-      </section>
-
+      </div>
     </div>
   );
 }

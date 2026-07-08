@@ -1,0 +1,438 @@
+/* Sidebar Styles - Modern Light Theme */
+.dashboard-container {
+  display: flex;
+}
+
+.sidebar {
+  width: 260px;
+  background: var(--color-surface-card);
+  border-right: 1px solid var(--color-border);
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  box-shadow: 2px 0 12px var(--color-shadow);
+}
+
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+}
+
+/* Sidebar Header/Branding */
+.sidebar-heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 64px;
+  background: var(--color-surface-card, #fff);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.sidebar-logo-text {
+  font-size: 18px;
+  font-weight: 700;
+  color: #6b7280;
+  
+  letter-spacing: 2px;
+  margin: 0;
+}
+
+.sidebar-logo-img {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
+  max-width: 85%;
+}
+
+/* Navigation */
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0;
+}
+
+.nav-list {
+  list-style: none;
+  padding: 0 16px;
+  margin: 0;
+}
+
+.nav-item {
+  margin: 8px 0;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+}
+
+.nav-link:hover {
+  background: var(--color-surface);
+  color: var(--color-primary);
+}
+
+.nav-link.active {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-soft) 100%);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgb(var(--color-primary-rgb) / 0.25);
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  font-size: 18px;
+  text-align: center;
+  color: inherit;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover .nav-icon {
+  color: var(--color-primary);
+}
+
+.nav-link.active .nav-icon {
+  color: #ffffff;
+}
+
+.nav-label {
+  flex: 1;
+}
+
+/* Scrollbar Styling for Light Theme */
+.sidebar-nav::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track,
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb,
+.sidebar::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 3px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover,
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: #d1d5db;
+}
+
+/* Sidebar Bottom */
+.sidebar-bottom {
+  border-top: 1px solid #e5e7eb;
+  padding: 16px;
+}
+
+.logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.logout-btn i {
+  font-size: 16px;
+}
+
+/* Main Content Area */
+#main-content {
+  flex: 1;
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: -260px;
+    top: 0;
+    height: 100vh;
+    z-index: 1400;
+    transition: left 0.3s ease;
+    width: 260px;
+  }
+
+  .sidebar.active {
+    left: 0;
+  }
+
+  .dashboard-container {
+    position: relative;
+  }
+
+  #main-content {
+    margin-left: 0;
+    min-height: 100vh;
+    padding-top: 0;
+  }
+}
+
+/* ── Luma Bar — hidden on desktop ─────────────────────────────── */
+.luma-nav-container { display: none; }
+.more-menu-overlay  { display: none; }
+
+/* ── Luma Bar — mobile only ────────────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar { display: none !important; }
+
+  /* Container */
+  .luma-nav-container {
+    display: block;
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9000;
+    pointer-events: none;
+  }
+
+  /* Sliding glow — positioned behind dock */
+  .luma-glow {
+    position: absolute;
+    bottom: 6px;
+    left: 0;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--color-primary, #E7762E) 0%, transparent 65%);
+    opacity: 0.55;
+    filter: blur(12px);
+    pointer-events: none;
+    transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: -1;
+  }
+
+  /* Pill dock — 6 items */
+  .luma-dock {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(24px) saturate(1.8);
+    -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    border-radius: 40px;
+    padding: 8px 12px;
+    box-shadow:
+      0 8px 32px rgba(0,0,0,0.35),
+      0 0 0 1px rgba(255,255,255,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  /* Each nav button */
+  .luma-item {
+    position: relative;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.40);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition:
+      color      0.25s ease,
+      transform  0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+      background 0.25s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .luma-item i {
+    font-size: 18px;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+  }
+
+  /* Hover — desktop fallback */
+  .luma-item:hover {
+    color: rgba(255,255,255,0.85);
+    transform: scale(1.15);
+  }
+
+  /* Active state */
+  .luma-item.active {
+    color: #ffffff;
+    transform: scale(1.35);
+    background: rgba(var(--color-primary-rgb, 231 118 46), 0.18);
+  }
+
+  .luma-item.active i {
+    filter: drop-shadow(0 0 8px var(--color-primary, #E7762E));
+  }
+
+  /* Tap ripple */
+  .luma-item:active {
+    transform: scale(0.9);
+    transition-duration: 0.1s;
+  }
+
+  /* Tooltip above each button */
+  .luma-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15,23,42,0.9);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 5px 10px;
+    border-radius: 8px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    transform: translateX(-50%) translateY(4px);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .luma-item:hover .luma-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Full Screen Overlay Styling */
+  .more-menu-overlay {
+    position: fixed;
+    inset: 0;
+    background: #ffffff;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .more-menu-overlay.open { transform: translateY(0); }
+
+  .menu-header-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 20px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .menu-title {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #111827;
+  }
+
+  .close-menu-btn, .menu-help-icon {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: #374151;
+  }
+
+  .menu-list-container {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .section-heading {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #9ca3af;
+    padding: 24px 20px 12px;
+    letter-spacing: 0.5px;
+  }
+
+  .menu-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f9fafb;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .menu-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .arrow-icon {
+    font-size: 12px;
+    color: #d1d5db;
+  }
+
+  /* SOLID HIGHLIGHT - Using Primary Color from your CSS */
+  .menu-list-item.active,
+  .menu-list-item:active {
+    background-color: var(--color-primary);
+    border-bottom: none;
+  }
+
+  .menu-list-item.active .menu-label,
+  .menu-list-item.active .arrow-icon,
+  .menu-list-item:active .menu-label,
+  .menu-list-item:active .arrow-icon {
+    color: #ffffff;
+  }
+
+  .menu-footer {
+    padding: 20px;
+    border-top: 1px solid #f3f4f6;
+  }
+
+  .menu-logout-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px;
+    background: #fef2f2;
+    color: #ef4444;
+    border: 1px solid #fee2e2;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+}

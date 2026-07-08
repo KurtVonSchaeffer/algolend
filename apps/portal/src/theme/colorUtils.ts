@@ -126,5 +126,7 @@ export const applyCssVariables = (theme: SystemSettings): void => {
   const root = document.documentElement;
   const vars = computeCssVariables(theme);
   Object.entries(vars).forEach(([key, value]) => root.style.setProperty(key, value));
-  root.setAttribute('data-theme', theme.theme_mode === 'dark' ? 'dark' : 'light');
+  // The user portal always renders light (matches legacy portal); the
+  // legacy [data-theme='dark'] variables would otherwise darken inputs/cards.
+  root.setAttribute('data-theme', 'light');
 };

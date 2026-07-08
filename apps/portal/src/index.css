@@ -19,13 +19,12 @@
   --auth-overlay-enabled: 1;
 }
 
-body {
-  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: #FDF9F6;
-  background-image:
-    radial-gradient(ellipse 80% 60% at 10% 0%, rgba(91,33,182,0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 90% 100%, rgba(91,33,182,0.04) 0%, transparent 55%);
-  background-attachment: fixed;
-  -webkit-font-smoothing: antialiased;
-  color: #1C1C1E;
+/* Body styling comes from the legacy stylesheets (src/legacy-css/) so the
+   React portal looks identical to the legacy user-portal. */
+
+/* Auth split-panel: media query instead of Tailwind's `hidden md:block`,
+   because legacy CSS defines .hidden { display: none !important }. */
+.auth-left-panel { display: none; }
+@media (min-width: 768px) {
+  .auth-left-panel { display: block; }
 }

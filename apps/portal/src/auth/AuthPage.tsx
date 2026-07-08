@@ -117,7 +117,7 @@ export function AuthPage() {
       <div style={{ display: 'flex', minHeight: '100vh', background: '#FDF9F6' }}>
 
         {/* ── Left panel ── */}
-        <div className="hidden md:block" style={{ position: 'relative', width: '52%', flexShrink: 0, overflow: 'hidden' }}>
+        <div className="auth-left-panel" style={{ position: 'relative', width: '52%', flexShrink: 0, overflow: 'hidden' }}>
 
           {/* 4 cycling slide backgrounds — pure CSS, staggered 5s each */}
           {SLIDE_PHOTOS.map((src, i) => (
