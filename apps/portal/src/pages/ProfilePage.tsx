@@ -1,15 +1,12 @@
-import { useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 
-const SHADOW_SOFT = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03)';
-const RADIUS = 24;
-
 type TabName = 'profile' | 'financial' | 'security' | 'declarations';
 
 const TABS: { id: TabName; icon: string; label: string }[] = [
-  { id: 'profile',      icon: 'fa-user-pen',        label: 'My Profile' },
+  { id: 'profile',      icon: 'fa-user-edit',       label: 'My Profile' },
   { id: 'financial',    icon: 'fa-money-bill-wave', label: 'Financial Info' },
   { id: 'security',     icon: 'fa-lock',            label: 'Security' },
   { id: 'declarations', icon: 'fa-clipboard-list',  label: 'Declarations' },
@@ -79,53 +76,7 @@ async function fetchProfileData() {
   };
 }
 
-// ── shared bits ───────────────────────────────────────────────────────────────
-
-const fieldStyle = { width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '10px 14px', fontSize: 14, outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const, background: '#fff', color: '#1C1C1E' };
-const labelStyle = { display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, color: '#6b7280', marginBottom: 6 };
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <label style={labelStyle}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function Card({ children, style }: { children: ReactNode; style?: React.CSSProperties }) {
-  return (
-    <div style={{ background: '#fff', borderRadius: RADIUS, padding: 28, boxShadow: SHADOW_SOFT, ...style }}>
-      {children}
-    </div>
-  );
-}
-
-function SaveButton({ saving, children }: { saving: boolean; children: ReactNode }) {
-  return (
-    <button
-      type="submit"
-      disabled={saving}
-      style={{ padding: '13px 28px', background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: 14, fontSize: 14, fontWeight: 800, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.7 : 1, fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(91,33,182,0.35)' }}
-    >
-      {saving ? <><i className="fas fa-spinner fa-spin" style={{ marginRight: 8 }} />Saving…</> : children}
-    </button>
-  );
-}
-
-function Notice({ notice }: { notice: { ok: boolean; text: string } | null }) {
-  if (!notice) return null;
-  return (
-    <div style={{
-      background: notice.ok ? '#f0fdf4' : '#fff1f2',
-      border: `1px solid ${notice.ok ? '#bbf7d0' : '#fecdd3'}`,
-      borderRadius: 12, padding: '12px 16px', fontSize: 13, fontWeight: 600,
-      color: notice.ok ? '#166534' : '#be123c', marginBottom: 16,
-    }}>
-      {notice.text}
-    </div>
-  );
-}
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 function getInitials(name: string) {
   const cleaned = name.trim();
@@ -133,7 +84,17 @@ function getInitials(name: string) {
   return cleaned.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase() ?? '').join('') || 'U';
 }
 
-// ── Profile tab ───────────────────────────────────────────────────────────────
+function Notification({ notice }: { notice: { ok: boolean; text: string } | null }) {
+  if (!notice) return null;
+  return (
+    <div className={`info-message ${notice.ok ? 'success' : 'error'}`} style={{ marginBottom: 16 }}>
+      <i className={`fa-solid ${notice.ok ? 'fa-circle-check' : 'fa-exclamation-triangle'}`} />
+      <span>{notice.text}</span>
+    </div>
+  );
+}
+
+// ── Profile tab (legacy renderProfileTab markup) ──────────────────────────────
 
 function ProfileTab({ profile, onSaved }: { profile: Profile; onSaved: () => void }) {
   const [form, setForm] = useState({
@@ -207,81 +168,124 @@ function ProfileTab({ profile, onSaved }: { profile: Profile; onSaved: () => voi
     }
   }
 
+  const roleClass = `role-${(profile.role || 'borrower').replace(/_/g, '-')}`;
   const initials = getInitials(form.full_name || 'User');
 
   return (
-    <Card>
-      <Notice notice={notice} />
-      <form onSubmit={save}>
-        {/* Avatar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 28 }}>
-          <button
-            type="button"
-            onClick={() => avatarInputRef.current?.click()}
-            style={{ position: 'relative', width: 88, height: 88, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer', overflow: 'hidden', flexShrink: 0, background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))' }}
-            title="Change avatar"
-          >
-            {profile.avatar_url ? (
-              <img src={`${profile.avatar_url}?t=${Date.now()}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ color: '#fff', fontSize: 30, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>{initials}</span>
-            )}
-            <span style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: uploadingAvatar ? 1 : 0, transition: 'opacity 0.2s', fontSize: 18 }}
-              onMouseEnter={e => { e.currentTarget.style.opacity = '1'; }}
-              onMouseLeave={e => { if (!uploadingAvatar) e.currentTarget.style.opacity = '0'; }}
-            >
-              <i className={`fas ${uploadingAvatar ? 'fa-spinner fa-spin' : 'fa-camera'}`} />
-            </span>
-          </button>
-          <input
-            ref={avatarInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/gif" style={{ display: 'none' }}
-            onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); e.target.value = ''; }}
-          />
-          <div>
-            <h4 style={{ fontSize: 18, fontWeight: 700, color: '#1C1C1E', margin: '0 0 2px' }}>{form.full_name || 'No Name Set'}</h4>
-            <p style={{ fontSize: 13, color: '#8E8E93', margin: '0 0 8px' }}>{profile.email || 'No Email'}</p>
-            <span style={{ background: '#F3F4F6', color: '#1F2937', fontSize: 11, fontWeight: 700, padding: '3px 12px', borderRadius: 20, textTransform: 'capitalize' }}>
-              {(profile.role || 'borrower').replace(/_/g, ' ')}
-            </span>
+    <>
+      <div className="section-header">
+        <h3>My Profile</h3>
+        <p>Manage your personal account details and information</p>
+      </div>
+
+      <Notification notice={notice} />
+
+      <div className="inner-card">
+        <form onSubmit={save}>
+          <div className="avatar-section">
+            <div className="avatar-container">
+              {profile.avatar_url ? (
+                <img id="avatar-preview" src={`${profile.avatar_url}?t=${Date.now()}`} alt="Profile" className="avatar-preview" />
+              ) : (
+                <div className="avatar-preview" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-primary)', color: '#fff', fontSize: 32, fontWeight: 700 }}>
+                  {initials}
+                </div>
+              )}
+              <label className="avatar-overlay" onClick={() => avatarInputRef.current?.click()}>
+                <i className={`fa-solid ${uploadingAvatar ? 'fa-spinner fa-spin' : 'fa-camera'}`} />
+              </label>
+              <input
+                ref={avatarInputRef} type="file" style={{ display: 'none' }}
+                accept="image/png, image/jpeg, image/jpg, image/gif"
+                onChange={e => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); e.target.value = ''; }}
+              />
+              {uploadingAvatar && (
+                <div className="avatar-spinner"><i className="fa-solid fa-spinner fa-spin" /></div>
+              )}
+            </div>
+            <div className="avatar-info">
+              <h4>{form.full_name || 'No Name Set'}</h4>
+              <p>{profile.email || 'No Email'}</p>
+              <span className={`role-badge ${roleClass}`}>{(profile.role || 'borrower').replace(/_/g, ' ')}</span>
+            </div>
           </div>
-        </div>
 
-        {/* Fields */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-          <Field label="First Name"><input type="text" required value={form.first_name} onChange={set('first_name')} placeholder="Enter your first name" style={fieldStyle} /></Field>
-          <Field label="Surname"><input type="text" required value={form.last_name} onChange={set('last_name')} placeholder="Enter your surname" style={fieldStyle} /></Field>
-          <Field label="Full Name"><input type="text" required value={form.full_name} onChange={set('full_name')} placeholder="Enter your full name" style={fieldStyle} /></Field>
-          <Field label="Email Address"><input type="email" disabled value={profile.email ?? ''} style={{ ...fieldStyle, background: '#f3f4f6', color: '#6b7280' }} /></Field>
-          <Field label="Contact Number"><input type="text" value={form.contact_number} onChange={set('contact_number')} placeholder="+27 XX XXX XXXX" style={fieldStyle} /></Field>
-          <Field label="ID Number"><input type="text" maxLength={20} autoComplete="off" value={form.identity_number} onChange={set('identity_number')} placeholder="Enter your SA ID number" style={fieldStyle} /></Field>
-          <Field label="Gender">
-            <select value={form.gender} onChange={set('gender')} style={fieldStyle}>
-              <option value="">Select gender</option>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-            </select>
-          </Field>
-          <Field label="Date of Birth"><input type="date" value={form.date_of_birth} onChange={set('date_of_birth')} style={fieldStyle} /></Field>
-          <Field label="Street Address"><input type="text" value={form.address} onChange={set('address')} placeholder="Street address" style={fieldStyle} /></Field>
-          <Field label="Postal Code"><input type="text" maxLength={4} value={form.postal_code} onChange={set('postal_code')} placeholder="e.g. 0123" style={fieldStyle} /></Field>
-          <Field label="Suburb / Area"><input type="text" value={form.suburb_area} onChange={set('suburb_area')} placeholder="Suburb or area" style={fieldStyle} /></Field>
-          <Field label="Cell Phone Number"><input type="text" maxLength={10} value={form.cell_tel_no} onChange={set('cell_tel_no')} placeholder="e.g. 0821234567" style={fieldStyle} /></Field>
-        </div>
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="first_name">First Name</label>
+              <input type="text" id="first_name" required value={form.first_name} onChange={set('first_name')} placeholder="Enter your first name" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="last_name">Surname</label>
+              <input type="text" id="last_name" required value={form.last_name} onChange={set('last_name')} placeholder="Enter your surname" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="full_name">Full Name</label>
+              <input type="text" id="full_name" required value={form.full_name} onChange={set('full_name')} placeholder="Enter your full name" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="email">Email Address</label>
+              <input type="email" id="email" value={profile.email ?? ''} placeholder="your@email.com" disabled />
+            </div>
+            <div className="form-group">
+              <label htmlFor="contact_number">Contact Number</label>
+              <input type="text" id="contact_number" value={form.contact_number} onChange={set('contact_number')} placeholder="+27 XX XXX XXXX" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="identity_number">ID Number</label>
+              <input type="text" id="identity_number" maxLength={20} autoComplete="off" value={form.identity_number} onChange={set('identity_number')} placeholder="Enter your SA ID number" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="gender">Gender</label>
+              <select id="gender" value={form.gender} onChange={set('gender')}>
+                <option value="">Select gender</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="date_of_birth">Date of Birth</label>
+              <input type="date" id="date_of_birth" value={form.date_of_birth} onChange={set('date_of_birth')} />
+            </div>
+            <div className="form-group">
+              <label htmlFor="address">Street Address</label>
+              <input type="text" id="address" value={form.address} onChange={set('address')} placeholder="Street address" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="postal_code">Postal Code</label>
+              <input type="text" id="postal_code" maxLength={4} value={form.postal_code} onChange={set('postal_code')} placeholder="e.g. 0123" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="suburb_area">Suburb / Area</label>
+              <input type="text" id="suburb_area" value={form.suburb_area} onChange={set('suburb_area')} placeholder="Suburb or area" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="cell_tel_no">Cell Phone Number</label>
+              <input type="text" id="cell_tel_no" maxLength={10} value={form.cell_tel_no} onChange={set('cell_tel_no')} placeholder="e.g. 0821234567" />
+            </div>
+            <div className="form-group">
+              <label htmlFor="user_id">User ID</label>
+              <input type="text" id="user_id" value={profile.id} disabled />
+            </div>
+          </div>
 
-        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '12px 16px', fontSize: 13, color: '#1e40af', margin: '20px 0' }}>
-          <i className="fas fa-info-circle" style={{ marginRight: 8 }} />
-          Your profile information is securely stored and can be updated at any time.
-        </div>
+          <div className="info-message">
+            <i className="fa-solid fa-info-circle" />
+            <span>Your profile information is securely stored and can be updated at any time.</span>
+          </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <SaveButton saving={saving}><i className="fas fa-save" style={{ marginRight: 8 }} />Save Changes</SaveButton>
-        </div>
-      </form>
-    </Card>
+          <div className="btn-container">
+            <button type="submit" disabled={saving} className="btn-primary">
+              <i className={`fa-solid ${saving ? 'fa-spinner fa-spin' : 'fa-save'}`} /> {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 }
 
-// ── Financial tab ─────────────────────────────────────────────────────────────
+// ── Financial tab (legacy renderFinancialTab markup) ──────────────────────────
 
 const EXPENSE_FIELDS: { key: string; label: string; icon: string; hint: string; required?: boolean }[] = [
   { key: 'housing_rent', label: 'Housing',     icon: 'fa-house',               hint: 'Rent or bond payment', required: true },
@@ -291,21 +295,6 @@ const EXPENSE_FIELDS: { key: string; label: string; icon: string; hint: string; 
   { key: 'groceries',    label: 'Groceries',   icon: 'fa-cart-shopping',       hint: 'Food and household supplies' },
   { key: 'other',        label: 'Other',       icon: 'fa-ellipsis',            hint: 'Insurance, medical, loans, etc.' },
 ];
-
-function CurrencyInput({ value, onChange, required, placeholder = '0.00' }: {
-  value: string; onChange: (v: string) => void; required?: boolean; placeholder?: string;
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', border: '2px solid #e5e7eb', borderRadius: 12, background: '#fff', overflow: 'hidden' }}>
-      <span style={{ padding: '0 0 0 14px', fontSize: 14, fontWeight: 700, color: '#8E8E93' }}>R</span>
-      <input
-        type="number" step="0.01" min={0} required={required}
-        value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{ flex: 1, border: 'none', outline: 'none', padding: '10px 14px', fontSize: 14, fontFamily: 'inherit', background: 'transparent' }}
-      />
-    </div>
-  );
-}
 
 function FinancialTab({ userId, financial, onSaved }: { userId: string; financial: FinancialProfile | null; onSaved: () => void }) {
   const parsed = financial?.parsed_data;
@@ -339,7 +328,6 @@ function FinancialTab({ userId, financial, onSaved }: { userId: string; financia
     setSaving(true);
     setNotice(null);
     try {
-      // DTI from active loans
       let dti: string | null = null;
       const { data: loans } = await supabase.from('loans').select('monthly_payment').eq('user_id', userId).eq('status', 'active');
       if (loans && loans.length > 0) {
@@ -347,7 +335,6 @@ function FinancialTab({ userId, financial, onSaved }: { userId: string; financia
         dti = totalIncome > 0 ? ((debt / totalIncome) * 100).toFixed(2) : null;
       }
 
-      // affordability: try backend, fall back to 20% amortised for 1 month at 20% APR
       let affordabilityRatio: string | null = null;
       let maxLoanAmount: string | null = null;
       try {
@@ -402,111 +389,151 @@ function FinancialTab({ userId, financial, onSaved }: { userId: string; financia
   }
 
   return (
-    <Card>
-      <Notice notice={notice} />
-      <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <>
+      <div className="section-header">
+        <h3><i className="fa-solid fa-chart-line" style={{ color: 'var(--color-primary)' }} /> Financial Overview</h3>
+        <p>Complete your financial profile to help us assess your loan eligibility</p>
+      </div>
 
-        {/* Income */}
-        <div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <i className="fas fa-money-bill-trend-up" style={{ color: '#059669' }} />
-            </div>
-            <div>
-              <h4 style={{ fontSize: 15, fontWeight: 700, color: '#1C1C1E', margin: 0 }}>Monthly Income</h4>
-              <p style={{ fontSize: 12, color: '#8E8E93', margin: 0 }}>All sources of regular income you receive each month</p>
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-            <div>
-              <label style={labelStyle}><i className="fas fa-briefcase" style={{ marginRight: 6 }} />Salary Income *</label>
-              <CurrencyInput required value={income.salary} onChange={v => setIncome(i => ({ ...i, salary: v }))} />
-              <small style={{ fontSize: 11, color: '#8E8E93', marginTop: 4, display: 'block' }}>Your monthly salary before deductions</small>
-            </div>
-            <div>
-              <label style={labelStyle}><i className="fas fa-coins" style={{ marginRight: 6 }} />Other Earnings</label>
-              <CurrencyInput value={income.other} onChange={v => setIncome(i => ({ ...i, other: v }))} />
-              <small style={{ fontSize: 11, color: '#8E8E93', marginTop: 4, display: 'block' }}>Freelance, bonuses, rental income, investments</small>
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 14, padding: '14px 18px', marginTop: 16 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#166534' }}><i className="fas fa-wallet" style={{ marginRight: 8 }} />Total Monthly Income</span>
-            <span style={{ fontSize: 18, fontWeight: 800, color: '#059669' }}>{fmtR(totalIncome)}</span>
-          </div>
-        </div>
+      <Notification notice={notice} />
 
-        {/* Expenses */}
-        <div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <i className="fas fa-receipt" style={{ color: '#dc2626' }} />
-            </div>
+      <div id="affordability-status-container" />
+
+      <div className="inner-card financial-card">
+        <form onSubmit={save}>
+
+          <div className="financial-section-header income-header">
+            <div className="section-icon"><i className="fa-solid fa-money-bill-trend-up" /></div>
             <div>
-              <h4 style={{ fontSize: 15, fontWeight: 700, color: '#1C1C1E', margin: 0 }}>Monthly Expenses</h4>
-              <p style={{ fontSize: 12, color: '#8E8E93', margin: 0 }}>Your regular monthly costs and financial obligations</p>
+              <h4>Monthly Income</h4>
+              <p>All sources of regular income you receive each month</p>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+
+          <div className="financial-input-grid">
+            <div className="financial-input-group">
+              <label htmlFor="income_salary">
+                <i className="fa-solid fa-briefcase" /> <span>Salary Income</span> <span className="required-badge">Required</span>
+              </label>
+              <div className="currency-input-wrapper">
+                <span className="currency-symbol">R</span>
+                <input type="number" id="income_salary" value={income.salary} onChange={e => setIncome(i => ({ ...i, salary: e.target.value }))} placeholder="0.00" step="0.01" min="0" className="currency-input" required />
+              </div>
+              <small className="input-hint"><i className="fa-solid fa-circle-info" /> Your monthly salary before deductions</small>
+            </div>
+
+            <div className="financial-input-group">
+              <label htmlFor="income_other"><i className="fa-solid fa-coins" /> <span>Other Earnings</span></label>
+              <div className="currency-input-wrapper">
+                <span className="currency-symbol">R</span>
+                <input type="number" id="income_other" value={income.other} onChange={e => setIncome(i => ({ ...i, other: e.target.value }))} placeholder="0.00" step="0.01" min="0" className="currency-input" />
+              </div>
+              <small className="input-hint"><i className="fa-solid fa-circle-info" /> Freelance, bonuses, rental income, investments</small>
+            </div>
+          </div>
+
+          <div className="financial-summary-card income-summary">
+            <div className="summary-icon"><i className="fa-solid fa-wallet" /></div>
+            <div className="summary-content">
+              <span className="summary-label">Total Monthly Income</span>
+              <span className="summary-amount">{fmtR(totalIncome)}</span>
+            </div>
+            <div className="summary-badge income-badge"><i className="fa-solid fa-arrow-trend-up" /></div>
+          </div>
+
+          <div className="financial-section-header expense-header">
+            <div className="section-icon"><i className="fa-solid fa-receipt" /></div>
+            <div>
+              <h4>Monthly Expenses</h4>
+              <p>Your regular monthly costs and financial obligations</p>
+            </div>
+          </div>
+
+          <div className="financial-input-grid expense-grid">
             {EXPENSE_FIELDS.map(f => (
-              <div key={f.key}>
-                <label style={labelStyle}><i className={`fas ${f.icon}`} style={{ marginRight: 6 }} />{f.label}{f.required ? ' *' : ''}</label>
-                <CurrencyInput required={f.required} value={expenses[f.key]} onChange={v => setExpenses(x => ({ ...x, [f.key]: v }))} />
-                <small style={{ fontSize: 11, color: '#8E8E93', marginTop: 4, display: 'block' }}>{f.hint}</small>
+              <div className="financial-input-group" key={f.key}>
+                <label htmlFor={f.key}>
+                  <i className={`fa-solid ${f.icon}`} /> <span>{f.label}</span> {f.required && <span className="required-badge">Required</span>}
+                </label>
+                <div className="currency-input-wrapper">
+                  <span className="currency-symbol">R</span>
+                  <input
+                    type="number" id={f.key} value={expenses[f.key]}
+                    onChange={e => setExpenses(x => ({ ...x, [f.key]: e.target.value }))}
+                    placeholder="0.00" step="0.01" min="0" className="currency-input" required={f.required}
+                  />
+                </div>
+                <small className="input-hint"><i className="fa-solid fa-circle-info" /> {f.hint}</small>
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 14, padding: '14px 18px', marginTop: 16 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#9f1239' }}><i className="fas fa-credit-card" style={{ marginRight: 8 }} />Total Monthly Expenses</span>
-            <span style={{ fontSize: 18, fontWeight: 800, color: '#dc2626' }}>{fmtR(totalExpenses)}</span>
+
+          <div className="financial-summary-card expense-summary">
+            <div className="summary-icon"><i className="fa-solid fa-credit-card" /></div>
+            <div className="summary-content">
+              <span className="summary-label">Total Monthly Expenses</span>
+              <span className="summary-amount">{fmtR(totalExpenses)}</span>
+            </div>
+            <div className="summary-badge expense-badge"><i className="fa-solid fa-arrow-trend-down" /></div>
+          </div>
+
+          <div className="financial-summary-card disposable-summary">
+            <div className="summary-icon-large"><i className="fa-solid fa-piggy-bank" /></div>
+            <div className="summary-content-large">
+              <span className="summary-label-large">{displayLabel}</span>
+              <span className="summary-amount-large" style={{ color: displayAmount >= 0 ? 'var(--color-primary)' : '#EF4444' }}>{fmtR(displayAmount)}</span>
+              <small className="summary-hint">
+                <i className="fa-solid fa-circle-info" />{' '}
+                {disposable > affordabilityThreshold
+                  ? 'Your disposable income exceeds the 20% affordability threshold'
+                  : 'Maximum 20% of your income can be used for loan repayments'}
+              </small>
+            </div>
+          </div>
+
+          <div className="financial-info-card">
+            <div className="info-icon"><i className="fa-solid fa-shield-halved" /></div>
+            <div className="info-content">
+              <strong>Why we need this information</strong>
+              <ul>
+                <li><i className="fa-solid fa-check" /> To assess your affordability and ensure responsible lending</li>
+                <li><i className="fa-solid fa-check" /> To determine appropriate loan amounts and repayment terms</li>
+                <li><i className="fa-solid fa-check" /> To comply with National Credit Regulator (NCR) requirements</li>
+                <li><i className="fa-solid fa-check" /> To protect you from over-indebtedness</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="btn-container">
+            <button type="submit" disabled={saving} className="btn-primary">
+              <i className={`fa-solid ${saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'}`} /> {saving ? 'Saving...' : 'Save Financial Information'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {financial && (
+        <div className="inner-card" style={{ marginTop: 24 }}>
+          <h4 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-primary)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <i className="fa-solid fa-clock-rotate-left" /> Update History
+          </h4>
+          <div style={{ color: '#9CA3AF', lineHeight: 1.6 }}>
+            <p style={{ marginBottom: 8 }}>
+              <strong style={{ color: 'var(--text-main, #1C1C1E)' }}>Last Updated:</strong>{' '}
+              {new Date(financial.updated_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              <strong style={{ color: 'var(--text-main, #1C1C1E)' }}>Created:</strong>{' '}
+              {new Date(financial.created_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
           </div>
         </div>
-
-        {/* Disposable */}
-        <div style={{ background: 'linear-gradient(135deg, rgba(91,33,182,0.06), rgba(91,33,182,0.02))', border: '1px solid rgba(91,33,182,0.15)', borderRadius: 18, padding: 22, display: 'flex', alignItems: 'center', gap: 18 }}>
-          <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(91,33,182,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <i className="fas fa-piggy-bank" style={{ color: 'var(--color-primary)', fontSize: 20 }} />
-          </div>
-          <div>
-            <p style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#8E8E93', margin: '0 0 2px' }}>{displayLabel}</p>
-            <p style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.5px', margin: 0, color: displayAmount >= 0 ? 'var(--color-primary)' : '#EF4444' }}>{fmtR(displayAmount)}</p>
-            <small style={{ fontSize: 11, color: '#8E8E93' }}>
-              {disposable > affordabilityThreshold
-                ? 'Your disposable income exceeds the 20% affordability threshold'
-                : 'Maximum 20% of your income can be used for loan repayments'}
-            </small>
-          </div>
-        </div>
-
-        {/* Why */}
-        <div style={{ background: '#FAFAFA', borderRadius: 14, padding: 18 }}>
-          <strong style={{ fontSize: 13, color: '#1C1C1E', display: 'block', marginBottom: 8 }}>
-            <i className="fas fa-shield-halved" style={{ marginRight: 8, color: 'var(--color-primary)' }} />Why we need this information
-          </strong>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: '#6b7280', lineHeight: 1.8 }}>
-            <li>To assess your affordability and ensure responsible lending</li>
-            <li>To determine appropriate loan amounts and repayment terms</li>
-            <li>To comply with National Credit Regulator (NCR) requirements</li>
-            <li>To protect you from over-indebtedness</li>
-          </ul>
-        </div>
-
-        {financial && (
-          <p style={{ fontSize: 12, color: '#8E8E93', margin: 0 }}>
-            <i className="fas fa-clock-rotate-left" style={{ marginRight: 6 }} />
-            Last updated {new Date(financial.updated_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-            {' · '}Created {new Date(financial.created_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
-        )}
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <SaveButton saving={saving}><i className="fas fa-floppy-disk" style={{ marginRight: 8 }} />Save Financial Information</SaveButton>
-        </div>
-      </form>
-    </Card>
+      )}
+    </>
   );
 }
 
-// ── Security tab ──────────────────────────────────────────────────────────────
+// ── Security tab (legacy renderSecurityTab markup) ────────────────────────────
 
 function passwordStrength(pw: string): number {
   let s = 0;
@@ -525,8 +552,7 @@ function SecurityTab({ profile }: { profile: Profile }) {
   const [notice, setNotice]       = useState<{ ok: boolean; text: string } | null>(null);
 
   const strength = passwordStrength(newPw);
-  const strengthColor = strength <= 2 ? '#ef4444' : strength <= 4 ? '#f59e0b' : '#10b981';
-  const strengthPct = newPw ? Math.min(100, (strength / 5) * 100) : 0;
+  const strengthClass = strength <= 2 ? 'strength-weak' : strength <= 4 ? 'strength-medium' : 'strength-strong';
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -548,102 +574,78 @@ function SecurityTab({ profile }: { profile: Profile }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <Card>
-        <h4 style={{ fontSize: 17, fontWeight: 700, color: '#1C1C1E', margin: '0 0 18px' }}>
-          <i className="fas fa-shield-halved" style={{ color: 'var(--color-primary)', marginRight: 10 }} />Change Password
+    <>
+      <div className="section-header">
+        <h3>Security Settings</h3>
+        <p>Manage your account security and password preferences</p>
+      </div>
+
+      <Notification notice={notice} />
+
+      <div className="inner-card">
+        <h4 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <i className="fa-solid fa-shield-halved" /> Change Password
         </h4>
-        <Notice notice={notice} />
-        <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-            <div>
-              <label style={labelStyle}><i className="fas fa-key" style={{ marginRight: 6 }} />New Password</label>
-              <input type="password" required minLength={6} value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Enter new password (min. 6 characters)" style={fieldStyle} />
-              <div style={{ height: 4, background: '#f1f5f9', borderRadius: 4, marginTop: 8, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${strengthPct}%`, background: strengthColor, borderRadius: 4, transition: 'width 0.3s, background 0.3s' }} />
+        <form onSubmit={save}>
+          <div className="form-grid">
+            <div className="form-group">
+              <label htmlFor="new_password"><i className="fa-solid fa-key" /> New Password</label>
+              <input type="password" id="new_password" required minLength={6} value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Enter new password (min. 6 characters)" />
+              <div className="password-strength">
+                <div className={`password-strength-bar ${newPw ? strengthClass : ''}`} />
               </div>
             </div>
-            <div>
-              <label style={labelStyle}><i className="fas fa-check-double" style={{ marginRight: 6 }} />Confirm Password</label>
-              <input type="password" required minLength={6} value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="Re-enter your new password" style={fieldStyle} />
+            <div className="form-group">
+              <label htmlFor="confirm_password"><i className="fa-solid fa-check-double" /> Confirm Password</label>
+              <input type="password" id="confirm_password" required minLength={6} value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="Re-enter your new password" />
             </div>
           </div>
-          <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '12px 16px', fontSize: 12.5, color: '#92400e' }}>
-            <strong><i className="fas fa-exclamation-triangle" style={{ marginRight: 6 }} />Password Requirements:</strong>
-            <ul style={{ margin: '6px 0 0 18px', lineHeight: 1.7 }}>
-              <li>Minimum 6 characters</li>
-              <li>Use a mix of letters, numbers, and symbols for stronger security</li>
-              <li>Don't use common words or personal information</li>
-            </ul>
+
+          <div className="info-message">
+            <i className="fa-solid fa-exclamation-triangle" />
+            <div>
+              <strong>Password Requirements:</strong>
+              <ul style={{ margin: '0.5rem 0 0 1.25rem', color: '#9CA3AF' }}>
+                <li>Minimum 6 characters</li>
+                <li>Use a mix of letters, numbers, and symbols for stronger security</li>
+                <li>Don't use common words or personal information</li>
+              </ul>
+            </div>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-            <button type="button" onClick={() => { setNewPw(''); setConfirmPw(''); }} style={{ padding: '13px 24px', background: '#FAFAFA', border: '1px solid #E5E5EA', color: '#1C1C1E', borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              <i className="fas fa-times" style={{ marginRight: 6 }} />Cancel
+
+          <div className="btn-container">
+            <button type="button" className="btn-secondary" onClick={() => { setNewPw(''); setConfirmPw(''); }}>
+              <i className="fa-solid fa-times" /> Cancel
             </button>
-            <SaveButton saving={saving}><i className="fas fa-lock" style={{ marginRight: 8 }} />Update Password</SaveButton>
+            <button type="submit" disabled={saving} className="btn-primary">
+              <i className={`fa-solid ${saving ? 'fa-spinner fa-spin' : 'fa-lock'}`} /> {saving ? 'Updating...' : 'Update Password'}
+            </button>
           </div>
         </form>
-      </Card>
+      </div>
 
-      <Card>
-        <h4 style={{ fontSize: 17, fontWeight: 700, color: '#1C1C1E', margin: '0 0 18px' }}>
-          <i className="fas fa-user-shield" style={{ color: 'var(--color-primary)', marginRight: 10 }} />Account Security
+      <div className="inner-card" style={{ marginTop: 24 }}>
+        <h4 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-primary)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <i className="fa-solid fa-user-shield" /> Account Security
         </h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {[
-            { label: 'Account Created', value: new Date(profile.created_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' }) },
-            { label: 'Account Status', value: 'Active', active: true },
-          ].map(m => (
-            <div key={m.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FAFAFA', borderRadius: 12, padding: '13px 16px' }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#8E8E93' }}>{m.label}</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: m.active ? '#10b981' : '#1C1C1E' }}>
-                {m.active && <i className="fas fa-check-circle" style={{ marginRight: 6 }} />}{m.value}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-// ── Declarations tab ──────────────────────────────────────────────────────────
-
-function RadioPill({ name, value, checked, onChange, icon, label }: {
-  name: string; value: string; checked: boolean; onChange: (v: string) => void; icon: string; label: string;
-}) {
-  return (
-    <label style={{
-      display: 'flex', alignItems: 'center', gap: 8, padding: '11px 18px',
-      borderRadius: 12, cursor: 'pointer', fontSize: 13.5, fontWeight: 600,
-      border: `2px solid ${checked ? 'var(--color-primary)' : '#e5e7eb'}`,
-      background: checked ? 'rgba(91,33,182,0.06)' : '#fff',
-      color: checked ? 'var(--color-primary)' : '#6b7280',
-      transition: 'all 0.15s',
-    }}>
-      <input type="radio" name={name} value={value} checked={checked} onChange={() => onChange(value)} style={{ display: 'none' }} />
-      <i className={`fas ${icon}`} />
-      {label}
-    </label>
-  );
-}
-
-function DeclCard({ icon, title, sub, children }: { icon: string; title: string; sub: string; children: ReactNode }) {
-  return (
-    <div style={{ background: '#FAFAFA', borderRadius: 18, padding: 22 }}>
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(91,33,182,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <i className={`fas ${icon}`} style={{ color: 'var(--color-primary)' }} />
-        </div>
-        <div>
-          <h4 style={{ fontSize: 14, fontWeight: 700, color: '#1C1C1E', margin: 0 }}>{title}</h4>
-          <p style={{ fontSize: 12, color: '#8E8E93', margin: '2px 0 0' }}>{sub}</p>
+        <div className="security-metric-list">
+          <div className="security-metric">
+            <span className="security-metric-label">Account Created</span>
+            <span className="security-metric-value">
+              {new Date(profile.created_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </span>
+          </div>
+          <div className="security-metric">
+            <span className="security-metric-label">Account Status</span>
+            <span className="security-metric-value security-status"><i className="fa-solid fa-check-circle" /> Active</span>
+          </div>
         </div>
       </div>
-      {children}
-    </div>
+    </>
   );
 }
+
+// ── Declarations tab (legacy renderDeclarationsTab markup) ────────────────────
 
 function DeclarationsTab({ userId, declarations, onSaved, onComplete }: {
   userId: string; declarations: Declarations | null; onSaved: () => void; onComplete: () => void;
@@ -702,83 +704,177 @@ function DeclarationsTab({ userId, declarations, onSaved, onComplete }: {
   }
 
   return (
-    <Card>
-      <Notice notice={notice} />
-      <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <>
+      <div className="section-header">
+        <h3>Declarations</h3>
+        <p>Please complete the declarations below. These help us with compliance and assessment.</p>
+      </div>
 
-        <DeclCard icon="fa-user-shield" title="Historically Disadvantaged Status" sub="Are you historically disadvantaged in South Africa?">
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <RadioPill name="hd" value="yes" checked={hd === 'yes'} onChange={setHd} icon="fa-circle-check" label="Yes" />
-            <RadioPill name="hd" value="no"  checked={hd === 'no'}  onChange={setHd} icon="fa-circle-xmark" label="No" />
-          </div>
-        </DeclCard>
+      <Notification notice={notice} />
 
-        <DeclCard icon="fa-file-contract" title="Standard Conditions" sub="Credit agreement terms and conditions">
-          <label style={{ display: 'flex', gap: 12, alignItems: 'flex-start', cursor: 'pointer', fontSize: 13, color: '#4b5563', lineHeight: 1.6 }}>
-            <input type="checkbox" checked={acceptedStd} onChange={e => setStd(e.target.checked)} style={{ width: 20, height: 20, accentColor: 'var(--color-primary)', cursor: 'pointer', flexShrink: 0, marginTop: 2 }} />
-            <span>
-              I confirm that I have read and accepted the <strong>Standard Conditions of Credit Agreement</strong>.
-              I understand all terms, fees, and obligations associated with this loan application.
-            </span>
-          </label>
-        </DeclCard>
+      <form className="declarations-form" onSubmit={save}>
 
-        <DeclCard icon="fa-house" title="Home Ownership" sub="Do you own or rent your primary residence?">
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <RadioPill name="home" value="own"  checked={home === 'own'}  onChange={setHome} icon="fa-house-user" label="Own" />
-            <RadioPill name="home" value="rent" checked={home === 'rent'} onChange={setHome} icon="fa-key" label="Rent" />
-          </div>
-        </DeclCard>
-
-        <DeclCard icon="fa-heart" title="Marital Status" sub="Your current marital status">
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {[
-              { v: 'single',    icon: 'fa-user',                      label: 'Single' },
-              { v: 'married',   icon: 'fa-heart',                     label: 'Married' },
-              { v: 'divorced',  icon: 'fa-heart-crack',               label: 'Divorced' },
-              { v: 'widowed',   icon: 'fa-ribbon',                    label: 'Widowed' },
-              { v: 'separated', icon: 'fa-arrows-split-up-and-left',  label: 'Separated' },
-            ].map(o => (
-              <RadioPill key={o.v} name="marital" value={o.v} checked={marital === o.v} onChange={setMarital} icon={o.icon} label={o.label} />
-            ))}
-          </div>
-        </DeclCard>
-
-        <DeclCard icon="fa-graduation-cap" title="Highest Qualification" sub="Your highest level of education">
-          <select value={qual} onChange={e => setQual(e.target.value)} style={fieldStyle}>
-            <option value="">Please select your highest qualification</option>
-            {['N/A', 'Matric', 'Degree', 'Honours', 'Masters', 'PhD'].map(q => (
-              <option key={q} value={q}>{q === 'Honours' ? 'Honours Degree' : q === 'PhD' ? 'PhD / Doctorate' : q}</option>
-            ))}
-          </select>
-        </DeclCard>
-
-        <DeclCard icon="fa-user-plus" title="Referral / Next of Kin" sub="Would you like to provide a referral or next of kin contact?">
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: refProvided ? 16 : 0 }}>
-            <RadioPill name="ref" value="yes" checked={refProvided}  onChange={() => setRefProvided(true)}  icon="fa-circle-check" label="Yes, I'll provide details" />
-            <RadioPill name="ref" value="no"  checked={!refProvided} onChange={() => setRefProvided(false)} icon="fa-circle-xmark" label="No, skip this" />
-          </div>
-          {refProvided && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, background: '#fff', borderRadius: 12, padding: 16 }}>
-              <Field label="Full Name"><input type="text" value={refName} onChange={e => setRefName(e.target.value)} placeholder="Enter full name" style={fieldStyle} /></Field>
-              <Field label="Cellphone Number"><input type="text" value={refPhone} onChange={e => setRefPhone(e.target.value)} placeholder="e.g., 0821234567" style={fieldStyle} /></Field>
+        <div className="declaration-card">
+          <div className="declaration-card-header">
+            <div className="declaration-icon"><i className="fa-solid fa-user-shield" /></div>
+            <div>
+              <h4>Historically Disadvantaged Status</h4>
+              <p>Are you historically disadvantaged in South Africa?</p>
             </div>
-          )}
-        </DeclCard>
+          </div>
+          <div className="radio-group">
+            <div className="radio-option">
+              <input type="radio" id="hd_yes" name="hd_status" value="yes" checked={hd === 'yes'} onChange={() => setHd('yes')} />
+              <label htmlFor="hd_yes" className="radio-label"><i className="fa-solid fa-circle-check" /><span>Yes</span></label>
+            </div>
+            <div className="radio-option">
+              <input type="radio" id="hd_no" name="hd_status" value="no" checked={hd === 'no'} onChange={() => setHd('no')} />
+              <label htmlFor="hd_no" className="radio-label"><i className="fa-solid fa-circle-xmark" /><span>No</span></label>
+            </div>
+          </div>
+        </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <p style={{ fontSize: 12, color: '#8E8E93', margin: 0, maxWidth: 480 }}>
-            <i className="fas fa-shield-heart" style={{ marginRight: 6, color: 'var(--color-primary)' }} />
-            All declarations are securely stored and used solely for compliance and assessment purposes.
-          </p>
-          <SaveButton saving={saving}><i className="fas fa-floppy-disk" style={{ marginRight: 8 }} />Save Declarations</SaveButton>
+        <div className="declaration-card">
+          <div className="declaration-card-header">
+            <div className="declaration-icon"><i className="fa-solid fa-file-contract" /></div>
+            <div>
+              <h4>Standard Conditions</h4>
+              <p>Credit agreement terms and conditions</p>
+            </div>
+          </div>
+          <div className="checkbox-group">
+            <div className="checkbox-option">
+              <input type="checkbox" id="std_conditions" checked={acceptedStd} onChange={e => setStd(e.target.checked)} />
+              <label htmlFor="std_conditions" className="checkbox-label">
+                <div className="checkbox-icon"><i className="fa-solid fa-check" /></div>
+                <div className="checkbox-text">
+                  I confirm that I have read and accepted the <strong>Standard Conditions of Credit Agreement</strong>.
+                  I understand all terms, fees, and obligations associated with this loan application.
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="declaration-card">
+          <div className="declaration-card-header">
+            <div className="declaration-icon"><i className="fa-solid fa-house" /></div>
+            <div>
+              <h4>Home Ownership</h4>
+              <p>Do you own or rent your primary residence?</p>
+            </div>
+          </div>
+          <div className="radio-group">
+            <div className="radio-option">
+              <input type="radio" id="home_own" name="home_ownership" value="own" checked={home === 'own'} onChange={() => setHome('own')} />
+              <label htmlFor="home_own" className="radio-label"><i className="fa-solid fa-house-user" /><span>Own</span></label>
+            </div>
+            <div className="radio-option">
+              <input type="radio" id="home_rent" name="home_ownership" value="rent" checked={home === 'rent'} onChange={() => setHome('rent')} />
+              <label htmlFor="home_rent" className="radio-label"><i className="fa-solid fa-key" /><span>Rent</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div className="declaration-card">
+          <div className="declaration-card-header">
+            <div className="declaration-icon"><i className="fa-solid fa-heart" /></div>
+            <div>
+              <h4>Marital Status</h4>
+              <p>Your current marital status</p>
+            </div>
+          </div>
+          <div className="radio-group" style={{ flexWrap: 'wrap' }}>
+            {[
+              { v: 'single',    icon: 'fa-user',                     label: 'Single' },
+              { v: 'married',   icon: 'fa-heart',                    label: 'Married' },
+              { v: 'divorced',  icon: 'fa-heart-crack',              label: 'Divorced' },
+              { v: 'widowed',   icon: 'fa-ribbon',                   label: 'Widowed' },
+              { v: 'separated', icon: 'fa-arrows-split-up-and-left', label: 'Separated' },
+            ].map(o => (
+              <div className="radio-option" style={{ flex: '0 0 calc(33.33% - 0.67rem)' }} key={o.v}>
+                <input type="radio" id={`marital_${o.v}`} name="marital_status" value={o.v} checked={marital === o.v} onChange={() => setMarital(o.v)} />
+                <label htmlFor={`marital_${o.v}`} className="radio-label"><i className={`fa-solid ${o.icon}`} /><span>{o.label}</span></label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="declaration-card">
+          <div className="declaration-card-header">
+            <div className="declaration-icon"><i className="fa-solid fa-graduation-cap" /></div>
+            <div>
+              <h4>Highest Qualification</h4>
+              <p>Your highest level of education</p>
+            </div>
+          </div>
+          <div className="select-group">
+            <div className="select-wrapper">
+              <select value={qual} onChange={e => setQual(e.target.value)}>
+                <option value="">Please select your highest qualification</option>
+                <option value="N/A">N/A</option>
+                <option value="Matric">Matric</option>
+                <option value="Degree">Degree</option>
+                <option value="Honours">Honours Degree</option>
+                <option value="Masters">Masters</option>
+                <option value="PhD">PhD / Doctorate</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="declaration-card">
+          <div className="declaration-card-header">
+            <div className="declaration-icon"><i className="fa-solid fa-user-plus" /></div>
+            <div>
+              <h4>Referral / Next of Kin</h4>
+              <p>Would you like to provide a referral or next of kin contact?</p>
+            </div>
+          </div>
+          <div className="radio-group">
+            <div className="radio-option">
+              <input type="radio" id="referral_yes" name="referral_provided" value="yes" checked={refProvided} onChange={() => setRefProvided(true)} />
+              <label htmlFor="referral_yes" className="radio-label"><i className="fa-solid fa-circle-check" /><span>Yes, I'll provide details</span></label>
+            </div>
+            <div className="radio-option">
+              <input type="radio" id="referral_no" name="referral_provided" value="no" checked={!refProvided} onChange={() => setRefProvided(false)} />
+              <label htmlFor="referral_no" className="radio-label"><i className="fa-solid fa-circle-xmark" /><span>No, skip this</span></label>
+            </div>
+          </div>
+
+          <div className="conditional-fields" style={{ display: refProvided ? 'block' : 'none' }}>
+            <div className="conditional-fields-header">
+              <i className="fa-solid fa-address-card" />
+              <span>Contact Details</span>
+            </div>
+            <div className="conditional-field">
+              <label htmlFor="referral_name">Full Name</label>
+              <input type="text" id="referral_name" value={refName} onChange={e => setRefName(e.target.value)} placeholder="Enter full name" />
+            </div>
+            <div className="conditional-field">
+              <label htmlFor="referral_phone">Cellphone Number</label>
+              <input type="text" id="referral_phone" value={refPhone} onChange={e => setRefPhone(e.target.value)} placeholder="e.g., 0821234567" />
+            </div>
+          </div>
+        </div>
+
+        <div className="declarations-submit">
+          <div className="declarations-info">
+            <i className="fa-solid fa-shield-heart" />
+            <h5>Your Privacy Matters</h5>
+            <p>All declarations are securely stored and used solely for compliance and assessment purposes.
+              Your information is protected under our privacy policy.</p>
+          </div>
+          <button type="submit" disabled={saving} className="btn-primary">
+            <i className={`fa-solid ${saving ? 'fa-spinner fa-spin' : 'fa-floppy-disk'}`} /> {saving ? 'Saving...' : 'Save Declarations'}
+          </button>
         </div>
       </form>
-    </Card>
+    </>
   );
 }
 
-// ── main page ─────────────────────────────────────────────────────────────────
+// ── main page (legacy profile.html markup) ────────────────────────────────────
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -801,73 +897,69 @@ export function ProfilePage() {
   }, [data]);
 
   function handleComplete() {
-    // Both financial + declarations done → return to dashboard (legacy unlock flow)
     if ((data?.financial?.monthly_income ?? 0) > 0) {
       setTimeout(() => navigate('/user-portal/dashboard'), 800);
     }
   }
 
   if (isLoading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}><i className="fas fa-circle-notch fa-spin" style={{ fontSize: 28, color: 'var(--color-primary)' }} /></div>;
+    return (
+      <div className="page-container">
+        <div className="content-wrapper" style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+          <i className="fa-solid fa-circle-notch fa-spin" style={{ fontSize: 28, color: 'var(--color-primary)' }} />
+        </div>
+      </div>
+    );
   }
 
   if (isError || !data) {
     return (
-      <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: RADIUS, padding: 24, color: '#be123c', fontSize: 14 }}>
-        <i className="fas fa-exclamation-triangle" style={{ marginRight: 8 }} />
-        {error instanceof Error ? error.message : 'Failed to load profile.'}
+      <div className="page-container">
+        <div className="content-wrapper">
+          <p style={{ color: '#ef4444', padding: 24 }}>{error instanceof Error ? error.message : 'Failed to load profile.'}</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 900 }}>
+    <div className="page-container">
+      <div className="content-wrapper">
+        <div className="profile-page-wrapper">
+          <div className="profile-header">
+            {!isComplete && (
+              <div className="info-message" style={{ marginBottom: 16 }}>
+                <i className="fa-solid fa-circle-exclamation" />
+                <span>Complete both <strong>Financial Info</strong> and <strong>Declarations</strong> to unlock the full portal.</span>
+              </div>
+            )}
+          </div>
 
-      <div>
-        <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-1px', color: '#1C1C1E', margin: 0 }}>Profile &amp; Settings</h1>
-        <p style={{ fontSize: 14, color: '#8E8E93', margin: '4px 0 0', fontWeight: 500 }}>
-          Manage your personal details, financial info, and account security
-        </p>
-      </div>
+          <div className="profile-card-container">
+            <nav className="profile-tabs">
+              {TABS.map(t => (
+                <button
+                  key={t.id}
+                  className={`tab-button${tab === t.id ? ' active' : ''}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  <i className={`fa-solid ${t.icon}`} />
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </nav>
 
-      {!isComplete && (
-        <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 14, padding: '12px 16px', fontSize: 13, color: '#92400e', fontWeight: 600 }}>
-          <i className="fas fa-circle-exclamation" style={{ marginRight: 8 }} />
-          Complete both <strong>Financial Info</strong> and <strong>Declarations</strong> to unlock the full portal.
+            <div className="tab-content">
+              {tab === 'profile' && <ProfileTab profile={data.profile} onSaved={refresh} />}
+              {tab === 'financial' && <FinancialTab userId={data.profile.id} financial={data.financial} onSaved={refresh} />}
+              {tab === 'security' && <SecurityTab profile={data.profile} />}
+              {tab === 'declarations' && (
+                <DeclarationsTab userId={data.profile.id} declarations={data.declarations} onSaved={refresh} onComplete={handleComplete} />
+              )}
+            </div>
+          </div>
         </div>
-      )}
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {TABS.map(t => {
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '11px 20px',
-                borderRadius: 12, border: 'none', fontSize: 13.5, fontWeight: 700,
-                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-                background: active ? 'var(--color-primary)' : '#fff',
-                color: active ? '#fff' : '#6b7280',
-                boxShadow: active ? '0 4px 16px rgba(91,33,182,0.30)' : SHADOW_SOFT,
-              }}
-            >
-              <i className={`fas ${t.icon}`} />
-              {t.label}
-            </button>
-          );
-        })}
       </div>
-
-      {/* Tab content */}
-      {tab === 'profile' && <ProfileTab profile={data.profile} onSaved={refresh} />}
-      {tab === 'financial' && <FinancialTab userId={data.profile.id} financial={data.financial} onSaved={refresh} />}
-      {tab === 'security' && <SecurityTab profile={data.profile} />}
-      {tab === 'declarations' && (
-        <DeclarationsTab userId={data.profile.id} declarations={data.declarations} onSaved={refresh} onComplete={handleComplete} />
-      )}
     </div>
   );
 }

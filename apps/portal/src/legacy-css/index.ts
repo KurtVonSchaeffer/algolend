@@ -14,4 +14,8 @@ import './14-documents.css';
 import './14b-payments.css';
 import './15-profile.css';
 import './16-apply-loan.css';
+import './20-apply-loan-inline.css';
+import './17-credit-check.css';
+import './18-loan-config.css';
+import './19-confirmation.css';
 import './99-design-system.css';

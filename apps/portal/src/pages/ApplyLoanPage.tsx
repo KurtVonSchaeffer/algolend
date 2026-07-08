@@ -4,9 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 import { apiFetch } from '../api/apiClient';
 
-const SHADOW_SOFT = '0 1px 2px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03)';
-const RADIUS = 24;
-
 // NCA-compliant rates (matches legacy loan-config.js)
 const INTEREST_RATE_MONTHLY     = 0.05;   // 5% per month
 const INITIATION_FEE_RATE       = 0.15;   // 15% one-time (standard)
@@ -17,11 +14,6 @@ const VAT_RATE                  = 0.15;
 const MAX_ONLINE_TERM           = 6;      // online cap regardless of history
 const MAX_ONLINE_AMOUNT         = 10_000;
 
-const LOAN_PURPOSES = [
-  'Personal / Family Expenses', 'Medical', 'Education / School Fees', 'Funeral Costs',
-  'Home Improvements', 'Vehicle Repairs', 'Business / Working Capital', 'Debt Consolidation', 'Other',
-];
-
 const BRANCH_CODES: Record<string, string> = {
   'FNB': '250655', 'Standard Bank': '051001', 'ABSA': '632005', 'Nedbank': '198765',
   'Capitec': '470010', 'Investec': '580105', 'TymeBank': '678910', 'Discovery Bank': '679000', 'African Bank': '430000',
@@ -29,7 +21,7 @@ const BRANCH_CODES: Record<string, string> = {
 
 const fmt = (v: number) => `R ${(Number(v) || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
-// ── loan summary calc (verbatim from legacy) ─────────────────────────────────
+// ── loan summary calc (verbatim from legacy loan-config.js) ──────────────────
 
 function loanSummary(amount: number, period: number, isFirstLoanOfYear: boolean, startDate: string | null) {
   const initiationRate = isFirstLoanOfYear ? INITIATION_FEE_RATE_FIRST : INITIATION_FEE_RATE;
@@ -92,7 +84,7 @@ async function fetchApplyData() {
   };
 }
 
-// ── signature pad ─────────────────────────────────────────────────────────────
+// ── signature pad (legacy signature-canvas markup) ────────────────────────────
 
 function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -116,11 +108,12 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
   }
 
   return (
-    <div>
+    <div className="signature-canvas-container">
       <canvas
+        id="signatureCanvas"
         ref={canvasRef}
-        width={400} height={140}
-        style={{ width: '100%', maxWidth: 400, height: 140, border: '2px dashed #d1d5db', borderRadius: 12, background: '#fff', touchAction: 'none', cursor: 'crosshair' }}
+        className="signature-canvas"
+        width={600} height={160}
         onPointerDown={e => {
           drawing.current = true;
           const ctx = canvasRef.current?.getContext('2d');
@@ -144,6 +137,7 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
       />
       <button
         type="button"
+        className="clear-signature-btn"
         onClick={() => {
           const canvas = canvasRef.current;
           const ctx = canvas?.getContext('2d');
@@ -151,55 +145,40 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
           hasInk.current = false;
           onChange(null);
         }}
-        style={{ marginTop: 8, background: 'transparent', border: 'none', color: '#8E8E93', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
       >
-        <i className="fas fa-eraser" style={{ marginRight: 6 }} />Clear signature
+        <i className="fas fa-eraser" /> Clear
       </button>
     </div>
   );
 }
 
-// ── step indicator ────────────────────────────────────────────────────────────
+// ── step indicator (legacy .steps / .step markup) ─────────────────────────────
 
 const STEPS = ['Documents', 'Credit Check', 'Select Amount', 'Confirmation'];
 
 function StepBar({ current, maxReached, onGo }: { current: number; maxReached: number; onGo: (s: number) => void }) {
   return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div className="steps">
       {STEPS.map((label, i) => {
         const n = i + 1;
-        const state = n === current ? 'active' : n <= maxReached ? 'done' : 'todo';
+        const cls = n === current ? 'active' : n < current || n <= maxReached ? 'completed' : 'inactive';
         return (
-          <button
+          <div
             key={label}
+            className={`step ${cls}`}
+            style={{ cursor: n <= maxReached ? 'pointer' : 'default' }}
             onClick={() => n <= maxReached && onGo(n)}
-            disabled={n > maxReached}
-            style={{
-              flex: '1 1 140px', display: 'flex', alignItems: 'center', gap: 10,
-              padding: '12px 16px', borderRadius: 14, border: 'none',
-              cursor: n <= maxReached ? 'pointer' : 'default', fontFamily: 'inherit',
-              background: state === 'active' ? 'var(--color-primary)' : '#fff',
-              boxShadow: SHADOW_SOFT,
-              opacity: state === 'todo' ? 0.55 : 1,
-            }}
           >
-            <span style={{
-              width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 12, fontWeight: 800, flexShrink: 0,
-              background: state === 'active' ? 'rgba(255,255,255,0.2)' : state === 'done' ? '#d1fae5' : '#f3f4f6',
-              color: state === 'active' ? '#fff' : state === 'done' ? '#059669' : '#9ca3af',
-            }}>
-              {state === 'done' ? <i className="fas fa-check" /> : `0${n}`}
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: state === 'active' ? '#fff' : '#1C1C1E' }}>{label}</span>
-          </button>
+            <span className="step-number">{`0${n}`}</span>
+            <span>{label}</span>
+          </div>
         );
       })}
     </div>
   );
 }
 
-// ── main wizard ───────────────────────────────────────────────────────────────
+// ── main wizard (legacy apply-loan.html / -2 / -3 / confirmation.html) ───────
 
 export function ApplyLoanPage() {
   const navigate = useNavigate();
@@ -216,18 +195,20 @@ export function ApplyLoanPage() {
   const [checkResult, setCheckResult] = useState<{ score: number; riskType: string } | null>(null);
   const [applicationId, setApplicationId] = useState<string | null>(null);
 
-  // loan config state
-  const [amount, setAmount]         = useState(1000);
+  // loan config modal + state
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [amount, setAmount]         = useState(5000);
   const [period, setPeriod]         = useState(1);
-  const [purpose, setPurpose]       = useState('');
   const [startDate, setStartDate]   = useState('');
   const [signature, setSignature]   = useState<string | null>(null);
   const [termsOk, setTermsOk]       = useState(false);
 
-  // confirmation state
+  // confirmation / banking modal + state
+  const [showBankingModal, setShowBankingModal] = useState(false);
   const [bankChoice, setBankChoice] = useState<'saved' | 'new'>('saved');
   const [savedAccountId, setSavedAccountId] = useState<number | null>(null);
   const [newBank, setNewBank]       = useState({ bankName: '', holder: '', accountNumber: '', branchCode: '', accountType: '' });
+  const [finalConsent, setFinalConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
 
@@ -239,6 +220,7 @@ export function ApplyLoanPage() {
   const kycComplete = !!(data?.profile?.identity_number && data?.profile?.first_name && data?.profile?.last_name && data?.profile?.date_of_birth && data?.profile?.address && data?.profile?.postal_code);
   const docsReady = kycComplete && !!data?.hasPayslip && !!data?.hasBankStatement;
   const summary = loanSummary(amount, period, data?.isFirstLoanOfYear ?? false, startDate || null);
+  const existingScore = checkResult?.score ?? data?.existingCheck?.credit_score ?? null;
 
   function goTo(n: number) {
     setStep(n);
@@ -259,7 +241,6 @@ export function ApplyLoanPage() {
       const { error: dbErr } = await supabase.from('document_uploads').insert([{ user_id: data.userId, file_name: file.name, file_type: type, file_path: publicUrl }]);
       if (dbErr) throw dbErr;
       await queryClient.invalidateQueries({ queryKey: ['apply-loan'] });
-      setNotice({ ok: true, text: 'Document uploaded successfully!' });
     } catch (e) {
       setNotice({ ok: false, text: e instanceof Error ? e.message : 'Upload failed' });
     } finally {
@@ -285,14 +266,12 @@ export function ApplyLoanPage() {
     setChecking(true);
     setNotice(null);
     try {
-      // persist credit-check consent
       await supabase.from('declarations').upsert([{
         user_id: data.userId,
         credit_check_consent_accepted: true,
         updated_at: new Date().toISOString(),
       }], { onConflict: 'user_id' });
 
-      // get or create application
       let appId = applicationId;
       if (!appId) {
         const { data: newApp, error: appErr } = await supabase.from('loan_applications').insert([{
@@ -335,7 +314,6 @@ export function ApplyLoanPage() {
 
       await supabase.from('loan_applications').update({ bureau_score_band: score, status: 'BUREAU_OK' }).eq('id', appId);
 
-      // rules engine evaluation (non-blocking)
       try {
         await apiFetch(`/api/applications/${appId}/evaluate`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
       } catch { /* non-blocking */ }
@@ -359,7 +337,6 @@ export function ApplyLoanPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Session expired');
 
-      // resolve bank account
       let bankAccountId: number | null = null;
       if (bankChoice === 'saved' && savedAccountId) {
         bankAccountId = savedAccountId;
@@ -406,7 +383,7 @@ export function ApplyLoanPage() {
       let app;
       if (applicationId) {
         const { data: updated, error: updErr } = await supabase.from('loan_applications').update({
-          amount, term_months: period, purpose: purpose || 'Personal Loan', status: 'STARTED',
+          amount, term_months: period, purpose: 'Personal Loan', status: 'STARTED',
           bank_account_id: bankAccountId, repayment_start_date: firstPaymentIso,
           ...offerFields, offer_details: offerDetails,
         }).eq('id', applicationId).eq('user_id', data.userId).select().single();
@@ -414,7 +391,7 @@ export function ApplyLoanPage() {
         app = updated;
       } else {
         const { data: created, error: createErr } = await supabase.from('loan_applications').insert([{
-          user_id: data.userId, amount, term_months: period, purpose: purpose || 'Personal Loan',
+          user_id: data.userId, amount, term_months: period, purpose: 'Personal Loan',
           status: 'STARTED', bank_account_id: bankAccountId, repayment_start_date: firstPaymentIso,
           ...offerFields, offer_details: offerDetails,
         }]).select().single();
@@ -422,17 +399,16 @@ export function ApplyLoanPage() {
         app = created;
       }
 
-      // loan_reference + agreement_number
       const clientRef = `C${data.userId.substring(0, 8).toUpperCase()}`;
       const loanRef = `${clientRef}-L${String(app.id).padStart(6, '0')}`;
       await supabase.from('loan_applications').update({ loan_reference: loanRef, agreement_number: `AGR${app.id}` }).eq('id', app.id).eq('user_id', data.userId);
 
-      // route to head office (non-blocking)
       try {
         await apiFetch(`/api/applications/${app.id}/route-to-head-office`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
       } catch { /* non-blocking */ }
 
       setSubmittedId(loanRef);
+      setShowBankingModal(false);
     } catch (e) {
       setNotice({ ok: false, text: e instanceof Error ? e.message : 'Submission failed' });
     } finally {
@@ -441,145 +417,105 @@ export function ApplyLoanPage() {
   }
 
   if (isLoading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}><i className="fas fa-circle-notch fa-spin" style={{ fontSize: 28, color: 'var(--color-primary)' }} /></div>;
+    return (
+      <div className="page-container">
+        <div className="content-wrapper" style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+          <i className="fas fa-circle-notch fa-spin" style={{ fontSize: 28, color: 'var(--color-primary)' }} />
+        </div>
+      </div>
+    );
   }
-
-  const existingScore = checkResult?.score ?? data?.existingCheck?.credit_score ?? null;
 
   // ── success screen ──
   if (submittedId) {
     return (
-      <div style={{ maxWidth: 560, margin: '40px auto', textAlign: 'center' }}>
-        <div style={{ background: '#fff', borderRadius: RADIUS, padding: 40, boxShadow: SHADOW_SOFT }}>
-          <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-            <i className="fas fa-check" style={{ fontSize: 28, color: '#059669' }} />
+      <div className="container with-border">
+        <div className="content" style={{ justifyContent: 'center' }}>
+          <div className="right-section" style={{ margin: '0 auto', textAlign: 'center', maxWidth: 480 }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#d1fae5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <i className="fas fa-check" style={{ fontSize: 28, color: '#059669' }} />
+            </div>
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main, #1C1C1E)', margin: '0 0 8px' }}>Application Submitted!</h2>
+            <p style={{ fontSize: 14, color: 'var(--text-muted, #8E8E93)', margin: '0 0 6px' }}>Your reference number is</p>
+            <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-primary)', margin: '0 0 20px', letterSpacing: '0.02em' }}>{submittedId}</p>
+            <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7, margin: '0 0 28px' }}>
+              Your application is being reviewed. You'll be notified once it's approved,
+              and your repayment date will be confirmed by our team.
+            </p>
+            <button className="next-btn" onClick={() => navigate('/user-portal/dashboard')}>
+              <span>Back to Dashboard</span>
+            </button>
           </div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: '#1C1C1E', margin: '0 0 8px' }}>Application Submitted!</h2>
-          <p style={{ fontSize: 14, color: '#8E8E93', margin: '0 0 6px' }}>Your reference number is</p>
-          <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-primary)', margin: '0 0 20px', letterSpacing: '0.02em' }}>{submittedId}</p>
-          <p style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.7, margin: '0 0 28px' }}>
-            Your application is being reviewed. You'll be notified once it's approved,
-            and your repayment date will be confirmed by our team.
-          </p>
-          <button
-            onClick={() => navigate('/user-portal/dashboard')}
-            style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', padding: '14px 32px', borderRadius: 14, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(91,33,182,0.35)' }}
-          >
-            Back to Dashboard
-          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 920 }}>
-
-      <div>
-        <h1 style={{ fontSize: 32, fontWeight: 700, letterSpacing: '-1px', color: '#1C1C1E', margin: 0 }}>Apply for Loan</h1>
-        <p style={{ fontSize: 14, color: '#8E8E93', margin: '4px 0 0', fontWeight: 500 }}>
-          Complete the four steps below to submit your application
-        </p>
-      </div>
-
+    <div className="container with-border">
       <StepBar current={step} maxReached={maxReached} onGo={goTo} />
 
       {notice && (
-        <div style={{
-          background: notice.ok ? '#f0fdf4' : '#fff1f2',
-          border: `1px solid ${notice.ok ? '#bbf7d0' : '#fecdd3'}`,
-          borderRadius: 14, padding: '12px 16px', fontSize: 13, fontWeight: 600,
-          color: notice.ok ? '#166534' : '#be123c',
-        }}>
-          {notice.text}
+        <div className="minimal-notice" style={{ margin: '16px 0' }}>
+          <i className="fas fa-exclamation-triangle" /> {notice.text}
         </div>
       )}
 
-      {/* ══ STEP 1 — Documents ══ */}
+      {/* ══ STEP 1 — Documents (legacy apply-loan.html) ══ */}
       {step === 1 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: 28, boxShadow: SHADOW_SOFT }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1C1C1E', margin: '0 0 14px' }}>Consent &amp; Privacy</h3>
-            <button
-              onClick={() => setConsent(c => !c)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 10, padding: '12px 20px',
-                background: consent ? '#111827' : '#fff', color: consent ? '#f9fafb' : '#1C1C1E',
-                border: `1px solid ${consent ? '#111827' : '#d1d5db'}`, borderRadius: 10,
-                fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 16,
-              }}
-            >
-              <i className={`fas ${consent ? 'fa-check-square' : 'fa-square'}`} style={{ fontSize: 16 }} />
-              I Consent to Privacy Policy
-            </button>
-            <p style={{ fontSize: 13.5, lineHeight: 1.7, color: '#666', margin: '0 0 8px' }}>
-              I consent to the collection and processing of my documents and personal information for
-              loan application and verification purposes, in accordance with POPIA and the Privacy Policy.
-            </p>
-            <span style={{ color: '#888', fontSize: 12.5 }}>You must give consent before proceeding.</span>
+        <div className="content">
+          <div className="left-section">
+            <div className="left-title">Consent &amp; Privacy</div>
+            <div className="left-subtitle">
+              <button className={`consent-btn${consent ? ' active' : ''}`} onClick={() => setConsent(c => !c)}>
+                <i className={`fas ${consent ? 'fa-check-square' : 'fa-square'}`} />
+                <span>I Consent to Privacy Policy</span>
+              </button>
+              <p style={{ fontSize: '1rem', lineHeight: 1.6, color: '#666' }}>
+                I consent to the collection and processing of my documents and personal information for loan application
+                and verification purposes. I have read and agree to the <a href="#" className="privacy-link">Privacy Policy</a>.
+              </p>
+              <span style={{ color: '#888', fontSize: '0.95rem' }}>You must give consent before proceeding.</span>
+            </div>
           </div>
-
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: 28, boxShadow: SHADOW_SOFT }}>
-            {!consent ? (
-              <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
-                <i className="fas fa-lock" style={{ fontSize: 32, marginBottom: 12, display: 'block' }} />
-                <p style={{ fontSize: 14, margin: 0 }}>Give consent to unlock the document checklist</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  {
-                    key: 'kyc', icon: 'fa-user-check', label: 'KYC Verification', sub: 'Confirm your personal details',
-                    done: kycComplete,
-                    action: () => navigate('/user-portal/profile'),
-                    actionLabel: kycComplete ? 'Complete' : 'Start',
-                  },
-                  {
-                    key: 'till_slip', icon: 'fa-receipt', label: 'Payslip', sub: 'Latest payslip/salary slip',
-                    done: !!data?.hasPayslip,
-                    action: () => { pendingDocType.current = 'till_slip'; fileInputRef.current?.click(); },
-                    actionLabel: data?.hasPayslip ? 'Uploaded' : uploading === 'till_slip' ? 'Uploading…' : 'Upload',
-                  },
-                  {
-                    key: 'bank_statement', icon: 'fa-landmark', label: 'Bank Statement', sub: 'Latest 3-month statement',
-                    done: !!data?.hasBankStatement,
-                    action: () => { pendingDocType.current = 'bank_statement'; fileInputRef.current?.click(); },
-                    actionLabel: data?.hasBankStatement ? 'Uploaded' : uploading === 'bank_statement' ? 'Uploading…' : 'Upload',
-                  },
-                ].map(doc => (
-                  <button
-                    key={doc.key}
-                    onClick={doc.action}
-                    style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 16, borderRadius: 16, border: 'none', background: '#FAFAFA', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}
-                  >
-                    <div style={{ width: 44, height: 44, borderRadius: 12, background: doc.done ? '#d1fae5' : 'rgba(91,33,182,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <i className={`fas ${doc.done ? 'fa-check' : doc.icon}`} style={{ color: doc.done ? '#059669' : 'var(--color-primary)', fontSize: 16 }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: 'block', fontSize: 14, fontWeight: 700, color: '#1C1C1E' }}>{doc.label}</span>
-                      <small style={{ fontSize: 12, color: '#8E8E93' }}>{doc.sub}</small>
-                    </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: doc.done ? '#d1fae5' : 'rgba(91,33,182,0.10)', color: doc.done ? '#059669' : 'var(--color-primary)', flexShrink: 0 }}>
-                      {doc.actionLabel}
-                    </span>
-                  </button>
-                ))}
-
-                <button
-                  onClick={() => goTo(2)}
-                  disabled={!docsReady}
-                  style={{
-                    marginTop: 8, padding: 14, borderRadius: 14, border: 'none',
-                    background: docsReady ? 'var(--color-primary)' : '#e5e7eb',
-                    color: docsReady ? '#fff' : '#9ca3af',
-                    fontSize: 15, fontWeight: 800, cursor: docsReady ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
-                    boxShadow: docsReady ? '0 4px 16px rgba(91,33,182,0.35)' : 'none',
-                  }}
-                >
-                  Next <i className="fas fa-arrow-right" style={{ marginLeft: 8 }} />
+          <div className="right-section">
+            <ul className={`document-list${!consent ? ' hidden-consent' : ''}`}>
+              <li>
+                <button className="document-btn" onClick={() => navigate('/user-portal/profile')}>
+                  <span className="document-icon-pill"><i className="fas fa-user-check document-icon" /></span>
+                  <div className="document-copy">
+                    <span className="document-label">KYC Verification</span>
+                    <small>Confirm your personal details</small>
+                  </div>
+                  <span className="document-status">{kycComplete ? 'Complete' : 'Start'}</span>
                 </button>
-              </div>
-            )}
+              </li>
+              <li>
+                <button className="document-btn" onClick={() => { pendingDocType.current = 'till_slip'; fileInputRef.current?.click(); }}>
+                  <span className="document-icon-pill"><i className="fas fa-receipt document-icon" /></span>
+                  <div className="document-copy">
+                    <span className="document-label">Payslip</span>
+                    <small>Latest payslip/salary slip</small>
+                  </div>
+                  <span className="document-status">{data?.hasPayslip ? 'Uploaded' : uploading === 'till_slip' ? 'Uploading…' : 'Pending'}</span>
+                </button>
+              </li>
+              <li>
+                <button className="document-btn" onClick={() => { pendingDocType.current = 'bank_statement'; fileInputRef.current?.click(); }}>
+                  <span className="document-icon-pill"><i className="fas fa-landmark document-icon" /></span>
+                  <div className="document-copy">
+                    <span className="document-label">Bank Statement</span>
+                    <small>Latest 3-month statement</small>
+                  </div>
+                  <span className="document-status">{data?.hasBankStatement ? 'Uploaded' : uploading === 'bank_statement' ? 'Uploading…' : 'Pending'}</span>
+                </button>
+              </li>
+            </ul>
+            <div className="module-status" />
+            <button className="next-btn" disabled={!docsReady} onClick={() => goTo(2)}>
+              <span>Next</span>
+              <i className="fas fa-arrow-right" />
+            </button>
           </div>
 
           <input
@@ -589,311 +525,448 @@ export function ApplyLoanPage() {
         </div>
       )}
 
-      {/* ══ STEP 2 — Credit Check ══ */}
+      {/* ══ STEP 2 — Credit Check (legacy apply-loan-2.html) ══ */}
       {step === 2 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: 28, boxShadow: SHADOW_SOFT }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1C1C1E', margin: '0 0 8px' }}>Credit Check Required</h3>
-            <p style={{ fontSize: 13.5, color: '#666', lineHeight: 1.6, margin: '0 0 20px' }}>
+        <div className="content">
+          <div className="left-section">
+            <div className="left-title">Credit Check Required</div>
+            <div className="left-subtitle">
               We need to verify your credit information to proceed with your loan application.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            </div>
+            <div className="steps-guide">
               {[
                 { n: 1, t: 'Provide ID Number', s: '13-digit South African ID' },
                 { n: 2, t: 'Personal Information', s: 'Name, date of birth, and gender' },
                 { n: 3, t: 'Address Details', s: 'Residential address and postal code' },
                 { n: 4, t: 'Verify & Submit', s: 'Review information and consent' },
               ].map(g => (
-                <div key={g.n} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'rgba(91,33,182,0.08)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, flexShrink: 0 }}>{g.n}</div>
-                  <div>
-                    <strong style={{ fontSize: 13.5, color: '#1C1C1E', display: 'block' }}>{g.t}</strong>
-                    <span style={{ fontSize: 12, color: '#8E8E93' }}>{g.s}</span>
+                <div className="guide-step" key={g.n}>
+                  <div className="guide-number">{g.n}</div>
+                  <div className="guide-text">
+                    <strong>{g.t}</strong>
+                    <span>{g.s}</span>
                   </div>
                 </div>
               ))}
             </div>
-            <p style={{ fontSize: 12, color: '#8E8E93', marginTop: 20, lineHeight: 1.6 }}>
-              <i className="fas fa-shield-alt" style={{ marginRight: 8, color: 'var(--color-primary)' }} />
-              Your information is protected with bank-level encryption. We use Experian, South Africa's leading credit bureau.
-            </p>
+            <div className="privacy-note">
+              <i className="fas fa-shield-alt" />
+              <span>Your information is protected with bank-level encryption.<br />We use Experian, South Africa's leading credit bureau.</span>
+            </div>
           </div>
+          <div className="right-section">
+            <div className="credit-circle-outer">
+              {checkResult || data?.existingCheck ? (
+                <button id="start-credit-check-btn" className="is-done" onClick={() => goTo(3)}>
+                  <span className="scc-label">Next&nbsp;<i className="fas fa-arrow-right" /></span>
+                </button>
+              ) : (
+                <button id="start-credit-check-btn" className={checking ? 'is-loading' : ''} onClick={runCreditCheck} disabled={checking}>
+                  <span className="scc-label" style={{ display: checking ? 'none' : undefined }}>Start<br />Credit<br />Check</span>
+                  <span className="scc-spinner" style={{ display: checking ? undefined : 'none' }}><i className="fas fa-sync-alt fa-spin fa-2x" /></span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: 28, boxShadow: SHADOW_SOFT, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-            {checkResult ? (
-              <>
-                <div style={{ width: 140, height: 140, borderRadius: '50%', border: '6px solid #10b981', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 36, fontWeight: 900, color: '#1C1C1E', lineHeight: 1 }}>{checkResult.score}</span>
-                  <span style={{ fontSize: 11, color: '#8E8E93', fontWeight: 700 }}>pts</span>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <span style={{ display: 'inline-block', background: '#d1fae5', color: '#059669', fontSize: 12, fontWeight: 800, padding: '5px 16px', borderRadius: 20, textTransform: 'capitalize' }}>{checkResult.riskType}</span>
-                  <p style={{ fontSize: 13, color: '#8E8E93', margin: '10px 0 0' }}>Credit check complete</p>
-                </div>
-                <button
-                  onClick={() => goTo(3)}
-                  style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', padding: '14px 32px', borderRadius: 14, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(91,33,182,0.35)' }}
-                >
-                  Continue to Loan Selection <i className="fas fa-arrow-right" style={{ marginLeft: 6 }} />
-                </button>
-              </>
-            ) : data?.existingCheck ? (
-              <>
-                <div style={{ width: 140, height: 140, borderRadius: '50%', border: '6px solid #10b981', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 36, fontWeight: 900, color: '#1C1C1E', lineHeight: 1 }}>{data.existingCheck.credit_score}</span>
-                  <span style={{ fontSize: 11, color: '#8E8E93', fontWeight: 700 }}>pts</span>
-                </div>
-                <p style={{ fontSize: 13, color: '#8E8E93', margin: 0, textAlign: 'center' }}>
-                  Credit check already completed
-                  {data.existingCheck.risk_category ? <> · <span style={{ textTransform: 'capitalize' }}>{data.existingCheck.risk_category}</span></> : null}
-                </p>
-                <button
-                  onClick={() => goTo(3)}
-                  style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', padding: '14px 32px', borderRadius: 14, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(91,33,182,0.35)' }}
-                >
-                  Next <i className="fas fa-arrow-right" style={{ marginLeft: 6 }} />
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={runCreditCheck}
-                disabled={checking}
-                style={{
-                  width: 170, height: 170, borderRadius: '50%', border: 'none',
-                  background: 'var(--color-primary)', color: '#fff',
-                  fontSize: 17, fontWeight: 800, lineHeight: 1.4, cursor: checking ? 'default' : 'pointer',
-                  fontFamily: 'inherit', boxShadow: '0 8px 32px rgba(91,33,182,0.40)',
-                }}
-              >
-                {checking
-                  ? <i className="fas fa-sync-alt fa-spin" style={{ fontSize: 28 }} />
-                  : <>Start<br />Credit<br />Check</>}
+      {/* Credit result popup (legacy #credit-result-popup) */}
+      {step === 2 && checkResult && (
+        <div className="credit-result-popup">
+          <div className="cr-card">
+            <div className="cr-banner" style={{ background: '#10B981' }}>
+              <div className="cr-banner-icon"><i className="fas fa-shield-check" /></div>
+            </div>
+            <button className="cr-close" onClick={() => setCheckResult(null)} title="Close"><i className="fas fa-times" /></button>
+            <div className="cr-body">
+              <p className="cr-subtitle">Credit Check Complete</p>
+              <h2 className="cr-headline">Bureau Score</h2>
+              <div className="cr-score-ring">
+                <span className="cr-score-number">{checkResult.score}</span>
+                <span className="cr-score-unit">pts</span>
+              </div>
+              <div className="cr-risk-badge">{checkResult.riskType}</div>
+              <p className="cr-risk-desc" />
+              <div className="cr-divider" />
+              <button className="cr-continue-btn" onClick={() => goTo(3)}>
+                Continue to Loan Selection&nbsp;<i className="fas fa-arrow-right" />
               </button>
-            )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* ══ STEP 3 — Select Amount ══ */}
+      {/* ══ STEP 3 — Select Amount (legacy apply-loan-3.html) ══ */}
       {step === 3 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: 28, boxShadow: SHADOW_SOFT, display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1C1C1E', margin: 0 }}>Configure Your Loan</h3>
-
-            <div>
-              <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
-                <span>Loan Amount</span>
-                <strong style={{ color: 'var(--color-primary)' }}>{fmt(amount)}</strong>
-              </label>
-              <input type="range" min={100} max={MAX_ONLINE_AMOUNT} step={100} value={amount} onChange={e => setAmount(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#8E8E93', marginTop: 4 }}>
-                <span>R 100</span><span>R {MAX_ONLINE_AMOUNT.toLocaleString()}</span>
-              </div>
+        <div className="content">
+          <div className="left-section">
+            <div className="left-title">Apply for loan</div>
+            <div className="left-subtitle">
+              Configure your loan amount, repayment period, and review the terms before proceeding.
             </div>
-
-            <div>
-              <label style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>
-                <span>Repayment Period</span>
-                <strong style={{ color: 'var(--color-primary)' }}>{period} month{period > 1 ? 's' : ''}</strong>
-              </label>
-              <input type="range" min={1} max={MAX_ONLINE_TERM} step={1} value={period} onChange={e => setPeriod(Number(e.target.value))} style={{ width: '100%', accentColor: 'var(--color-primary)' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#8E8E93', marginTop: 4 }}>
-                <span>1 month</span><span>{MAX_ONLINE_TERM} months</span>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Purpose of Loan *</label>
-              <select value={purpose} onChange={e => setPurpose(e.target.value)} style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '10px 14px', fontSize: 14, fontFamily: 'inherit', background: '#fff', outline: 'none' }}>
-                <option value="">— Select purpose —</option>
-                {LOAN_PURPOSES.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>First Repayment Date *</label>
-              <input
-                type="date" value={startDate}
-                min={new Date(Date.now() + 86400000).toISOString().substring(0, 10)}
-                onChange={e => setStartDate(e.target.value)}
-                style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '10px 14px', fontSize: 14, fontFamily: 'inherit', background: '#fff', outline: 'none', boxSizing: 'border-box' }}
-              />
-              <small style={{ fontSize: 11, color: '#8E8E93', marginTop: 4, display: 'block' }}>The final date is confirmed by our team after review</small>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Digital Signature *</label>
-              <SignaturePad onChange={setSignature} />
-            </div>
-
-            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', fontSize: 12.5, color: '#4b5563', lineHeight: 1.6 }}>
-              <input type="checkbox" checked={termsOk} onChange={e => setTermsOk(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--color-primary)', flexShrink: 0, marginTop: 2 }} />
-              <span>I agree to the <strong>Terms and Conditions</strong> and confirm the loan details above are correct.</span>
-            </label>
-          </div>
-
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: 28, boxShadow: SHADOW_SOFT, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1C1C1E', margin: 0 }}>Loan Summary</h3>
-            {data?.isFirstLoanOfYear && (
-              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: '10px 14px', fontSize: 12.5, fontWeight: 600, color: '#166534' }}>
-                🎉 First loan of the year — initiation fee reduced to 5%
-              </div>
-            )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="steps-guide">
               {[
-                { label: 'Principal', value: fmt(amount) },
-                { label: 'Interest (5%/month)', value: fmt(summary.totalInterest) },
-                { label: `Initiation fee (${(summary.initiationRate * 100).toFixed(0)}%)`, value: fmt(summary.totalInitiationFees) },
-                { label: 'Service fees (R60/month)', value: fmt(summary.totalServiceFees) },
-                { label: 'Credit life insurance', value: fmt(summary.totalCreditLife) },
-                { label: 'VAT (15% on fees)', value: fmt(summary.vatAmount) },
-              ].map(r => (
-                <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
-                  <span style={{ color: '#6b7280' }}>{r.label}</span>
-                  <span style={{ fontWeight: 600, color: '#1C1C1E' }}>{r.value}</span>
+                { n: 1, t: 'Enter Loan Amount', s: 'Between R100 - R10,000' },
+                { n: 2, t: 'Choose Repayment Period', s: '1-6 months (online cap)' },
+                { n: 3, t: 'Review & Sign', s: 'Confirm loan terms and authorize' },
+                { n: 4, t: 'Admin Schedules Date', s: 'Repayment date is set after review' },
+              ].map(g => (
+                <div className="guide-step" key={g.n}>
+                  <div className="guide-number">{g.n}</div>
+                  <div className="guide-text">
+                    <strong>{g.t}</strong>
+                    <span>{g.s}</span>
+                  </div>
                 </div>
               ))}
             </div>
-            <div style={{ background: '#FAFAFA', borderRadius: 14, padding: 16 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#1C1C1E' }}>Monthly Repayment</span>
-                <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--color-primary)' }}>{fmt(summary.monthlyPayment)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#1C1C1E' }}>Total Repayment</span>
-                <span style={{ fontSize: 15, fontWeight: 800, color: '#1C1C1E' }}>{fmt(summary.totalRepayment)}</span>
-              </div>
+            <div className="privacy-note">
+              <i className="fas fa-shield-alt" />
+              <span>All loan calculations are based on a 5% monthly interest rate.<br />Review your terms carefully before signing.</span>
             </div>
-            <button
-              onClick={() => {
-                if (!purpose) { setNotice({ ok: false, text: 'Please select a purpose for your loan.' }); return; }
-                if (!startDate) { setNotice({ ok: false, text: 'Please select a first repayment date.' }); return; }
-                if (!signature) { setNotice({ ok: false, text: 'Please provide your digital signature to continue.' }); return; }
-                if (!termsOk) { setNotice({ ok: false, text: 'Please agree to the Terms and Conditions.' }); return; }
-                goTo(4);
-              }}
-              style={{ marginTop: 'auto', padding: 14, borderRadius: 14, border: 'none', background: 'var(--color-primary)', color: '#fff', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 16px rgba(91,33,182,0.35)' }}
-            >
-              Continue to Confirmation <i className="fas fa-arrow-right" style={{ marginLeft: 6 }} />
+          </div>
+          <div className="right-section">
+            <button className="next-btn" onClick={() => setShowConfigModal(true)}>
+              <span>Configure Loan Amount</span>
+              <i className="fas fa-arrow-right" />
             </button>
           </div>
         </div>
       )}
 
-      {/* ══ STEP 4 — Confirmation ══ */}
+      {/* Loan configuration modal (legacy loan-config.html markup) */}
+      {showConfigModal && (
+        <div className="module-overlay">
+          <div className="module-content loan-modal-content">
+            <div className="loan-selection-card">
+              <div className="card-header">
+                <h2><i className="fas fa-money-bill-wave" /> Loan Amount Selection</h2>
+                <p>Configure your loan terms and review the details</p>
+              </div>
+
+              <div className="loan-config-section">
+                <div className="config-group">
+                  <label className="config-label"><i className="fas fa-hand-holding-usd" /> Loan Amount</label>
+                  <div className="input-with-prefix" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+                    <span style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--color-primary)' }}>R</span>
+                    <input
+                      type="number" step={1} value={amount}
+                      onChange={e => setAmount(Math.min(MAX_ONLINE_AMOUNT, Math.max(100, Number(e.target.value) || 100)))}
+                      style={{ flex: 1, padding: '1rem', border: '2px solid #333', borderRadius: 8, fontSize: '1.5rem', fontWeight: 600, textAlign: 'center', background: '#0f0f0f', color: '#fff' }}
+                    />
+                  </div>
+                  <div className="slider-labels" style={{ marginTop: '0.5rem' }}>
+                    <span style={{ fontSize: '0.85rem', color: '#999' }}>Min: R100</span>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--color-primary)', fontWeight: 600 }}>Max: R{MAX_ONLINE_AMOUNT.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="config-group">
+                  <label className="config-label"><i className="fas fa-calendar-alt" /> Loan Period (Months)</label>
+                  <div className="amount-display">
+                    <span>{period}</span>
+                    <span style={{ fontSize: '1.5rem', color: '#999', marginLeft: '0.5rem' }}>month{period > 1 ? 's' : ''}</span>
+                  </div>
+                  <input
+                    type="range" min={1} max={MAX_ONLINE_TERM} step={1} value={period}
+                    onChange={e => setPeriod(Number(e.target.value))}
+                    className="loan-slider"
+                  />
+                  <div className="slider-labels">
+                    <span>1 month</span>
+                    <span>{MAX_ONLINE_TERM} months</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="loan-summary">
+                <h3><i className="fas fa-file-invoice-dollar" /> Loan Summary</h3>
+                {data?.isFirstLoanOfYear && (
+                  <div className="fee-notice" style={{ background: 'rgb(var(--color-primary-rgb) / 0.1)', border: '1px solid rgb(var(--color-primary-rgb) / 0.3)', padding: '1rem', borderRadius: 8, marginBottom: '1.5rem', color: 'var(--color-primary)' }}>
+                    <i className="fas fa-info-circle" /> First loan of the year — initiation fee reduced to 5%
+                  </div>
+                )}
+                <div className="summary-grid">
+                  <div className="summary-item">
+                    <span className="summary-label">Loan Amount</span>
+                    <span className="summary-value">{fmt(amount)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Interest Rate (Monthly)</span>
+                    <span className="summary-value">5.0%</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Loan Period</span>
+                    <span className="summary-value">{period} Month{period > 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Total Interest</span>
+                    <span className="summary-value">{fmt(summary.totalInterest)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Service Fee (R60/month)</span>
+                    <span className="summary-value">{fmt(summary.totalServiceFees)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Initiation Fee ({(summary.initiationRate * 100).toFixed(0)}%)</span>
+                    <span className="summary-value">{fmt(summary.totalInitiationFees)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Credit Life (0.45%/mo)</span>
+                    <span className="summary-value">{fmt(summary.totalCreditLife)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">VAT (15% on fees)</span>
+                    <span className="summary-value">{fmt(summary.vatAmount)}</span>
+                  </div>
+                  <div className="summary-item highlight">
+                    <span className="summary-label">Monthly Repayment</span>
+                    <span className="summary-value">{fmt(summary.monthlyPayment)}</span>
+                  </div>
+                  <div className="summary-item highlight">
+                    <span className="summary-label">Total Repayment</span>
+                    <span className="summary-value">{fmt(summary.totalRepayment)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="config-group">
+                <label className="config-label"><i className="fas fa-calendar-day" /> First Repayment Date</label>
+                <input
+                  type="date" value={startDate}
+                  min={new Date(Date.now() + 86400000).toISOString().substring(0, 10)}
+                  onChange={e => setStartDate(e.target.value)}
+                  style={{ width: '100%', padding: '0.85rem 1rem', border: '2px solid #333', borderRadius: 8, fontSize: '1rem', marginTop: '0.5rem' }}
+                />
+                <small className="helper-text"><i className="fas fa-info-circle" /> The final date is confirmed by our team after review</small>
+              </div>
+
+              <div className="signature-section">
+                <h3><i className="fas fa-signature" /> Digital Signature</h3>
+                <p className="signature-disclaimer">
+                  By signing below, I acknowledge that I have read and understood the loan terms and conditions.
+                  I agree to repay the loan amount plus interest according to the schedule provided.
+                </p>
+                <SignaturePad onChange={setSignature} />
+                <small className="helper-text"><i className="fas fa-info-circle" /> Draw your signature in the box above</small>
+
+                <div className="terms-checkbox">
+                  <label className="checkbox-container">
+                    <input type="checkbox" checked={termsOk} onChange={e => setTermsOk(e.target.checked)} />
+                    <span className="checkmark" />
+                    <span className="checkbox-label">
+                      I agree to the <a href="#" className="link">Terms and Conditions</a> and <a href="#" className="link">Privacy Policy</a>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="action-buttons">
+                <button className="btn-secondary" onClick={() => setShowConfigModal(false)}>
+                  <i className="fas fa-arrow-left" /> Back
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    if (!startDate) { setNotice({ ok: false, text: 'Please select a first repayment date.' }); return; }
+                    if (!signature) { setNotice({ ok: false, text: 'Please provide your digital signature to continue.' }); return; }
+                    if (!termsOk) { setNotice({ ok: false, text: 'Please agree to the Terms and Conditions.' }); return; }
+                    setShowConfigModal(false);
+                    goTo(4);
+                  }}
+                >
+                  Continue to Confirmation <i className="fas fa-arrow-right" />
+                </button>
+              </div>
+            </div>
+          </div>
+          <button className="close-btn" onClick={() => setShowConfigModal(false)}><i className="fas fa-times" /></button>
+        </div>
+      )}
+
+      {/* ══ STEP 4 — Confirmation (legacy confirmation.html) ══ */}
       {step === 4 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
-          {/* Summary recap */}
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: 28, boxShadow: SHADOW_SOFT }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1C1C1E', margin: '0 0 16px' }}>Review Your Application</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, background: '#FAFAFA', borderRadius: 14, padding: 16 }}>
+        <div className="content">
+          <div className="left-section">
+            <div className="left-title">Confirm &amp; Submit</div>
+            <div className="left-subtitle">
+              Review your loan offer and provide banking details to complete your application.
+            </div>
+            <div className="steps-guide">
               {[
-                { label: 'Amount', value: fmt(amount) },
-                { label: 'Period', value: `${period} month${period > 1 ? 's' : ''}` },
-                { label: 'Purpose', value: purpose || 'Personal Loan' },
-                { label: 'First Payment', value: startDate || '—' },
-                { label: 'Monthly Repayment', value: fmt(summary.monthlyPayment) },
-                { label: 'Total Repayment', value: fmt(summary.totalRepayment) },
-                ...(existingScore != null ? [{ label: 'Bureau Score', value: String(existingScore) }] : []),
-              ].map(({ label, value }) => (
-                <div key={label}>
-                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: '#8E8E93' }}>{label}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#1C1C1E', marginTop: 2 }}>{value}</div>
+                { n: 1, t: 'Review Loan Terms', s: 'Check amount, term, and repayment schedule' },
+                { n: 2, t: 'Banking Details', s: 'Account for payout and repayments' },
+                { n: 3, t: 'Authorize & Submit', s: 'Consent to debit order agreement' },
+              ].map(g => (
+                <div className="guide-step" key={g.n}>
+                  <div className="guide-number">{g.n}</div>
+                  <div className="guide-text">
+                    <strong>{g.t}</strong>
+                    <span>{g.s}</span>
+                  </div>
                 </div>
               ))}
             </div>
-            {signature && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', color: '#8E8E93', marginBottom: 6 }}>Signature</div>
-                <img src={signature} alt="Signature" style={{ height: 60, border: '1px solid #f1f5f9', borderRadius: 8, background: '#fff' }} />
-              </div>
-            )}
+            <div className="privacy-note">
+              <i className="fas fa-shield-alt" />
+              <span>Your banking details are encrypted and secure.<br />We use bank-level security for all financial information.</span>
+            </div>
           </div>
-
-          {/* Banking details */}
-          <div style={{ background: '#fff', borderRadius: RADIUS, padding: 28, boxShadow: SHADOW_SOFT, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1C1C1E', margin: 0 }}>Banking Details</h3>
-            <p style={{ fontSize: 12.5, color: '#8E8E93', margin: 0 }}>Where should we pay out your loan?</p>
-
-            {(data?.bankAccounts.length ?? 0) > 0 && (
-              <div style={{ display: 'flex', gap: 10 }}>
-                {(['saved', 'new'] as const).map(c => (
-                  <button
-                    key={c}
-                    onClick={() => setBankChoice(c)}
-                    style={{
-                      flex: 1, padding: '10px 14px', borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                      border: `2px solid ${bankChoice === c ? 'var(--color-primary)' : '#e5e7eb'}`,
-                      background: bankChoice === c ? 'rgba(91,33,182,0.06)' : '#fff',
-                      color: bankChoice === c ? 'var(--color-primary)' : '#6b7280',
-                    }}
-                  >
-                    {c === 'saved' ? 'Saved Account' : 'New Account'}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {bankChoice === 'saved' && (data?.bankAccounts.length ?? 0) > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {data!.bankAccounts.map(a => (
-                  <label key={a.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, cursor: 'pointer',
-                    border: `2px solid ${savedAccountId === a.id ? 'var(--color-primary)' : '#f1f5f9'}`,
-                    background: savedAccountId === a.id ? 'rgba(91,33,182,0.04)' : '#FAFAFA',
-                  }}>
-                    <input type="radio" name="bank" checked={savedAccountId === a.id} onChange={() => setSavedAccountId(a.id)} style={{ accentColor: 'var(--color-primary)' }} />
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#1C1C1E' }}>{a.bank_name}</div>
-                      <div style={{ fontSize: 12, color: '#8E8E93', textTransform: 'capitalize' }}>{a.account_type || 'Account'} •••• {String(a.account_number).slice(-4)}</div>
-                    </div>
-                    {a.is_primary && <span style={{ marginLeft: 'auto', background: 'rgba(91,33,182,0.10)', color: 'var(--color-primary)', fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20 }}>Primary</span>}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <select
-                  value={newBank.bankName}
-                  onChange={e => setNewBank(b => ({ ...b, bankName: e.target.value, branchCode: BRANCH_CODES[e.target.value] ?? '' }))}
-                  style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '10px 14px', fontSize: 14, fontFamily: 'inherit', background: '#fff', outline: 'none' }}
-                >
-                  <option value="">Select your bank</option>
-                  {Object.keys(BRANCH_CODES).map(b => <option key={b} value={b}>{b === 'FNB' ? 'First National Bank (FNB)' : b}</option>)}
-                </select>
-                <input type="text" placeholder="Account holder name" value={newBank.holder} onChange={e => setNewBank(b => ({ ...b, holder: e.target.value }))}
-                  style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '10px 14px', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
-                <input type="text" placeholder="Account number" value={newBank.accountNumber} onChange={e => setNewBank(b => ({ ...b, accountNumber: e.target.value }))}
-                  style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '10px 14px', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
-                <input type="text" placeholder="Branch code" value={newBank.branchCode} readOnly={!!BRANCH_CODES[newBank.bankName]}
-                  onChange={e => setNewBank(b => ({ ...b, branchCode: e.target.value }))}
-                  style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '10px 14px', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', background: BRANCH_CODES[newBank.bankName] ? '#f3f4f6' : '#fff' }} />
-                <select value={newBank.accountType} onChange={e => setNewBank(b => ({ ...b, accountType: e.target.value }))}
-                  style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '10px 14px', fontSize: 14, fontFamily: 'inherit', background: '#fff', outline: 'none' }}>
-                  <option value="">Select account type</option>
-                  <option value="cheque">Cheque / Current</option>
-                  <option value="savings">Savings</option>
-                  <option value="transmission">Transmission</option>
-                </select>
-              </div>
-            )}
-
-            <button
-              onClick={submitApplication}
-              disabled={submitting || (bankChoice === 'saved' && (data?.bankAccounts.length ?? 0) > 0 && !savedAccountId)}
-              style={{
-                marginTop: 'auto', padding: 15, borderRadius: 14, border: 'none',
-                background: 'var(--color-primary)', color: '#fff',
-                fontSize: 15, fontWeight: 800, cursor: submitting ? 'default' : 'pointer',
-                opacity: submitting ? 0.7 : 1, fontFamily: 'inherit',
-                boxShadow: '0 4px 16px rgba(91,33,182,0.35)',
-              }}
-            >
-              {submitting
-                ? <><i className="fas fa-spinner fa-spin" style={{ marginRight: 8 }} />Submitting…</>
-                : <><i className="fas fa-paper-plane" style={{ marginRight: 8 }} />Submit Application</>}
+          <div className="right-section">
+            <button className="next-btn" onClick={() => setShowBankingModal(true)}>
+              <span>Review &amp; Submit Application</span>
+              <i className="fas fa-arrow-right" />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Banking form modal (legacy banking-form.html markup) */}
+      {showBankingModal && (
+        <div className="module-overlay">
+          <div className="module-content banking-modal-content">
+            <div className="banking-form-module">
+              <div className="module-header">
+                <h2><i className="fas fa-file-contract" /> Loan Application Summary</h2>
+                <p className="module-subtitle">Review your loan terms and provide banking details</p>
+              </div>
+
+              <div className="module-body">
+                <div className="form-section loan-summary-section">
+                  <h3><i className="fas fa-circle-info" /> Your Loan Offer</h3>
+                  <div className="summary-grid">
+                    <div className="summary-item">
+                      <span className="summary-label">Loan Amount</span>
+                      <strong className="summary-value">{fmt(amount)}</strong>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Loan Term</span>
+                      <strong className="summary-value">{period} month{period > 1 ? 's' : ''}</strong>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Monthly Payment</span>
+                      <strong className="summary-value">{fmt(summary.monthlyPayment)}</strong>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Total Repayment</span>
+                      <strong className="summary-value">{fmt(summary.totalRepayment)}</strong>
+                    </div>
+                    <div className="summary-item">
+                      <span className="summary-label">Repayment Date</span>
+                      <strong className="summary-value">{startDate || 'Set by admin after review'}</strong>
+                    </div>
+                    {existingScore != null && (
+                      <div className="summary-item">
+                        <span className="summary-label">Bureau Score</span>
+                        <strong className="summary-value">{existingScore}</strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="form-divider"><span>Banking Information</span></div>
+
+                <form onSubmit={e => e.preventDefault()}>
+                  <div className="form-section">
+                    <h3><i className="fas fa-university" /> Select Bank Account</h3>
+                    <p className="section-hint">Choose a saved account or enter new details below</p>
+                    <div className="saved-accounts-row">
+                      <select
+                        className="saved-select" style={{ width: '100%' }}
+                        value={bankChoice === 'saved' ? (savedAccountId ?? '') : 'new'}
+                        onChange={e => {
+                          if (e.target.value === 'new') { setBankChoice('new'); setSavedAccountId(null); }
+                          else { setBankChoice('saved'); setSavedAccountId(Number(e.target.value)); }
+                        }}
+                      >
+                        <option value="">-- Select an account or add new --</option>
+                        {(data?.bankAccounts ?? []).map(a => (
+                          <option key={a.id} value={a.id}>{a.bank_name} (•••• {String(a.account_number).slice(-4)})</option>
+                        ))}
+                        <option value="new">+ Add new bank account</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {bankChoice === 'new' && (
+                    <>
+                      <div className="form-divider"><span>Bank Account Details</span></div>
+                      <div className="form-section">
+                        <div className="form-row">
+                          <label className="form-field">
+                            <span>Bank name</span>
+                            <select
+                              value={newBank.bankName}
+                              onChange={e => setNewBank(b => ({ ...b, bankName: e.target.value, branchCode: BRANCH_CODES[e.target.value] ?? '' }))}
+                            >
+                              <option value="">Select your bank</option>
+                              {Object.keys(BRANCH_CODES).map(b => <option key={b} value={b}>{b === 'FNB' ? 'First National Bank (FNB)' : b}</option>)}
+                            </select>
+                          </label>
+                        </div>
+                        <div className="form-row">
+                          <label className="form-field">
+                            <span>Account holder name</span>
+                            <input type="text" placeholder="Full name as per bank" value={newBank.holder} onChange={e => setNewBank(b => ({ ...b, holder: e.target.value }))} />
+                          </label>
+                        </div>
+                        <div className="form-row">
+                          <label className="form-field">
+                            <span>Account number</span>
+                            <input type="text" inputMode="numeric" maxLength={20} placeholder="e.g. 62123456789" value={newBank.accountNumber} onChange={e => setNewBank(b => ({ ...b, accountNumber: e.target.value }))} />
+                          </label>
+                          <label className="form-field">
+                            <span>Branch code</span>
+                            <input type="text" inputMode="numeric" maxLength={8} placeholder="e.g. 250655" value={newBank.branchCode} onChange={e => setNewBank(b => ({ ...b, branchCode: e.target.value }))} />
+                          </label>
+                        </div>
+                        <div className="form-row">
+                          <label className="form-field">
+                            <span>Account type</span>
+                            <select value={newBank.accountType} onChange={e => setNewBank(b => ({ ...b, accountType: e.target.value }))}>
+                              <option value="">Select type</option>
+                              <option value="cheque">Cheque / Current</option>
+                              <option value="savings">Savings</option>
+                              <option value="transmission">Transmission</option>
+                            </select>
+                          </label>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  <div className="form-section consent-section">
+                    <h3><i className="fas fa-shield-check" /> Authorization</h3>
+                    <label className="checkbox-field">
+                      <input type="checkbox" checked={finalConsent} onChange={e => setFinalConsent(e.target.checked)} />
+                      <span>I confirm that the banking details provided are accurate and belong to me. I authorize the lender to deposit
+                        the loan amount into this account and collect repayments via debit order.</span>
+                    </label>
+                  </div>
+
+                  {notice && (
+                    <div className="submission-status" style={{ color: notice.ok ? '#059669' : '#ef4444' }}>{notice.text}</div>
+                  )}
+
+                  <div className="module-actions">
+                    <button type="button" className="btn-secondary" onClick={() => setShowBankingModal(false)}>
+                      <i className="fas fa-arrow-left" /> <span>Cancel</span>
+                    </button>
+                    <button
+                      type="button" className="btn-primary"
+                      disabled={submitting || !finalConsent || (bankChoice === 'saved' && !savedAccountId)}
+                      onClick={submitApplication}
+                    >
+                      <span>{submitting ? 'Submitting…' : 'Submit application'}</span>
+                      <i className="fas fa-arrow-right" />
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <button className="close-btn" onClick={() => setShowBankingModal(false)}><i className="fas fa-times" /></button>
         </div>
       )}
     </div>
