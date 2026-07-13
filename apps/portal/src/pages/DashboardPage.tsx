@@ -5,6 +5,7 @@ import { supabase } from '../api/supabaseClient';
 import { Loader } from '../components/ui/loader';
 import { usePageCSS } from '../hooks/usePageCSS';
 import dashboardCssUrl from '../legacy-css/10-dashboard.css?url';
+import LoanApplyExplainer, { LOAN_EXPLAINER_KEY } from '../components/LoanApplyExplainer';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -386,6 +387,8 @@ export function DashboardPage() {
   const [mobileModal, setMobileModal] = useState<'transactions' | 'applications' | null>(null);
   const [activeDot, setActiveDot] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const applyBtnRef = useRef<HTMLButtonElement>(null);
+  const [showExplainer, setShowExplainer] = useState(() => !localStorage.getItem(LOAN_EXPLAINER_KEY));
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['dashboard'],
@@ -441,6 +444,7 @@ export function DashboardPage() {
   const elig = data.eligibility;
 
   return (
+    <>
     <div className="page-container">
       <div className="content-wrapper">
 
@@ -742,7 +746,7 @@ export function DashboardPage() {
                   <h2>Quick Actions</h2>
                 </div>
                 <div className="quick-actions-grid">
-                  <button className="action-card" onClick={() => navigate('/user-portal/apply')}>
+                  <button ref={applyBtnRef} data-coach-apply="true" className="action-card" onClick={() => navigate('/user-portal/apply')}>
                     <div className="action-icon-wrapper"><i className="fas fa-plus" /></div>
                     <div className="action-text-block">
                       <div className="action-title">New Loan</div>
@@ -894,5 +898,13 @@ export function DashboardPage() {
         </div>
       </div>
     </div>
+
+      {showExplainer && (
+        <LoanApplyExplainer
+          targetRef={applyBtnRef}
+          onDone={() => setShowExplainer(false)}
+        />
+      )}
+    </>
   );
 }
