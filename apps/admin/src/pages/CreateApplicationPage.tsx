@@ -44,7 +44,7 @@ export function CreateApplicationPage() {
         }])
         .select().single();
       if (appErr) throw new Error(appErr.message);
-      navigate(`/admin/applications/${app.id}`);
+      navigate(`/applications/${app.id}`);
     } catch (e: any) {
       setError(e.message ?? 'Failed to create application');
       setSubmitting(false);
@@ -55,7 +55,7 @@ export function CreateApplicationPage() {
     <>
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="admin-icon-btn" onClick={() => navigate('/admin/applications')}>
+          <button className="admin-icon-btn" onClick={() => navigate('/applications')}>
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
           </button>
           <div>

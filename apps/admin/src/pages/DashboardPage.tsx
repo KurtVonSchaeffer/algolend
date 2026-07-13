@@ -89,7 +89,7 @@ export function DashboardPage() {
           <h1 className="page-title">Dashboard</h1>
           <p className="page-subtitle">Overview of AlgoLend operations</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/admin/create-application')}>
+        <button className="btn btn-primary" onClick={() => navigate('/create-application')}>
           <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
           New Application
         </button>
@@ -141,7 +141,7 @@ export function DashboardPage() {
                     <div
                       key={app.id}
                       className="pipeline-card"
-                      onClick={() => navigate(`/admin/applications/${app.id}`)}
+                      onClick={() => navigate(`/applications/${app.id}`)}
                     >
                       <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 4, color: 'var(--color-text)' }}>
                         {(app.profiles as any)?.full_name ?? 'Unknown'}
@@ -178,7 +178,7 @@ export function DashboardPage() {
                   {pipeline.length === 0 ? (
                     <tr><td colSpan={5} className="empty-state"><p>No active applications</p></td></tr>
                   ) : pipeline.map(app => (
-                    <tr key={app.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/applications/${app.id}`)}>
+                    <tr key={app.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/applications/${app.id}`)}>
                       <td>{(app.profiles as any)?.full_name ?? '—'}</td>
                       <td>{fmt(Number(app.amount) || 0)}</td>
                       <td>

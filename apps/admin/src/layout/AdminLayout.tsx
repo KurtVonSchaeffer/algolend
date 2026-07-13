@@ -18,63 +18,63 @@ interface NavGroup {
 const NAV: NavGroup[] = [
   {
     section: 'Overview',
-    items: [{ href: '/admin/dashboard', icon: 'dashboard', label: 'Dashboard' }],
+    items: [{ href: '/dashboard', icon: 'dashboard', label: 'Dashboard' }],
     submenu: {
       id: 'analytics',
       label: 'Analytics',
       icon: 'bar_chart',
       children: [
-        { href: '/admin/analytics', label: 'Customer Analytics' },
-        { href: '/admin/financials', label: 'Financials' },
+        { href: '/analytics', label: 'Customer Analytics' },
+        { href: '/financials', label: 'Financials' },
       ],
     },
   },
   {
     section: 'Applications',
     items: [
-      { href: '/admin/applications', icon: 'assignment', label: 'Applications' },
-      { href: '/admin/create-application', icon: 'add_circle', label: 'New Application' },
+      { href: '/applications', icon: 'assignment', label: 'Applications' },
+      { href: '/create-application', icon: 'add_circle', label: 'New Application' },
     ],
   },
   {
     section: 'Finance',
     items: [
-      { href: '/admin/users', icon: 'group', label: 'Users' },
-      { href: '/admin/mandates', icon: 'receipt_long', label: 'Mandates' },
+      { href: '/users', icon: 'group', label: 'Users' },
+      { href: '/mandates', icon: 'receipt_long', label: 'Mandates' },
     ],
     submenu: {
       id: 'payments',
       label: 'Payments',
       icon: 'payments',
       children: [
-        { href: '/admin/incoming-payments', label: 'Incoming' },
-        { href: '/admin/outgoing-payments', label: 'Outgoing' },
+        { href: '/incoming-payments', label: 'Incoming' },
+        { href: '/outgoing-payments', label: 'Outgoing' },
       ],
     },
   },
   {
     section: 'Tools',
     items: [
-      { href: '/admin/credit-rules',  icon: 'rule',                    label: 'Credit Rules' },
-      { href: '/admin/portfolio',     icon: 'analytics',               label: 'Portfolio' },
-      { href: '/admin/loan-book',     icon: 'menu_book',               label: 'Loan Book' },
-      { href: '/admin/cash-ledger',   icon: 'account_balance_wallet',  label: 'Cash Ledger' },
+      { href: '/credit-rules',  icon: 'rule',                    label: 'Credit Rules' },
+      { href: '/portfolio',     icon: 'analytics',               label: 'Portfolio' },
+      { href: '/loan-book',     icon: 'menu_book',               label: 'Loan Book' },
+      { href: '/cash-ledger',   icon: 'account_balance_wallet',  label: 'Cash Ledger' },
     ],
   },
   {
     section: 'Compliance',
     items: [
-      { href: '/admin/sacrra',             icon: 'verified_user',    label: 'SACRRA' },
-      { href: '/admin/sacrra-validator',   icon: 'rule_folder',      label: 'Migration Validator' },
-      { href: '/admin/ncr-reporting',      icon: 'assignment',       label: 'NCR Reporting' },
-      { href: '/admin/ncr-registers',      icon: 'manage_accounts',  label: 'NCR Registers' },
-      { href: '/admin/compliance-tracker', icon: 'checklist',        label: 'Compliance Tracker' },
-      { href: '/admin/goaml',              icon: 'security',         label: 'FIC goAML' },
+      { href: '/sacrra',             icon: 'verified_user',    label: 'SACRRA' },
+      { href: '/sacrra-validator',   icon: 'rule_folder',      label: 'Migration Validator' },
+      { href: '/ncr-reporting',      icon: 'assignment',       label: 'NCR Reporting' },
+      { href: '/ncr-registers',      icon: 'manage_accounts',  label: 'NCR Registers' },
+      { href: '/compliance-tracker', icon: 'checklist',        label: 'Compliance Tracker' },
+      { href: '/goaml',              icon: 'security',         label: 'FIC goAML' },
     ],
   },
   {
     section: 'System',
-    items: [{ href: '/admin/settings', icon: 'settings', label: 'Settings' }],
+    items: [{ href: '/settings', icon: 'settings', label: 'Settings' }],
   },
 ];
 
@@ -252,7 +252,7 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{userName}</div>
                     <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>Administrator</div>
                   </div>
-                  <button className="dropdown-item" onClick={() => { setDropOpen(false); navigate('/admin/settings'); }}>
+                  <button className="dropdown-item" onClick={() => { setDropOpen(false); navigate('/settings'); }}>
                     <span className="material-symbols-outlined" style={{ fontSize: 16 }}>settings</span>
                     Settings
                   </button>

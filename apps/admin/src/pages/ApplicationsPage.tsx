@@ -48,7 +48,7 @@ export function ApplicationsPage() {
           <h1 className="page-title">Applications</h1>
           <p className="page-subtitle">{apps.length} total applications</p>
         </div>
-        <button className="btn btn-primary" onClick={() => navigate('/admin/create-application')}>
+        <button className="btn btn-primary" onClick={() => navigate('/create-application')}>
           <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
           New Application
         </button>
@@ -111,7 +111,7 @@ export function ApplicationsPage() {
                 <tr
                   key={app.id}
                   style={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/admin/applications/${app.id}`)}
+                  onClick={() => navigate(`/applications/${app.id}`)}
                 >
                   <td style={{ fontWeight: 600 }}>{(app.profiles as any)?.full_name ?? '—'}</td>
                   <td style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{(app.profiles as any)?.identity_number ?? '—'}</td>

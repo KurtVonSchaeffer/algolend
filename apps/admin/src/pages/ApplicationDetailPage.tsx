@@ -51,7 +51,7 @@ export function ApplicationDetailPage() {
       <div className="empty-state">
         <i className="fa-solid fa-circle-exclamation" />
         <p>Application not found</p>
-        <button className="btn btn-secondary" style={{ marginTop: 16 }} onClick={() => navigate('/admin/applications')}>Back to Applications</button>
+        <button className="btn btn-secondary" style={{ marginTop: 16 }} onClick={() => navigate('/applications')}>Back to Applications</button>
       </div>
     );
   }
@@ -64,7 +64,7 @@ export function ApplicationDetailPage() {
     <>
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="admin-icon-btn" onClick={() => navigate('/admin/applications')} title="Back">
+          <button className="admin-icon-btn" onClick={() => navigate('/applications')} title="Back">
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>arrow_back</span>
           </button>
           <div>

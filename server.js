@@ -2826,6 +2826,32 @@ if (adminBuildExists) {
     app.use('/admin', express.static(adminSourcePath));
 }
 
+// 5b-portal. Serve the React user portal (apps/portal/dist) at /portal + SPA routes
+const reactPortalDist = path.join(__dirname, 'apps', 'portal', 'dist');
+if (fs.existsSync(reactPortalDist)) {
+    // Static assets (hashed filenames, safe to cache forever)
+    app.use('/portal', express.static(reactPortalDist));
+    // SPA fallback for all portal + auth routes
+    const portalSpaRoutes = ['/user-portal', '/user-portal/*', '/auth/login', '/auth/set-password'];
+    app.get(portalSpaRoutes, (_req, res) => {
+        res.sendFile(path.join(reactPortalDist, 'index.html'));
+    });
+}
+
+// 5b-react. Serve the React admin SPA (apps/admin/dist) at /admin-panel
+const reactAdminDist = path.join(__dirname, 'apps', 'admin', 'dist');
+if (fs.existsSync(reactAdminDist)) {
+    app.use('/admin-panel', express.static(reactAdminDist));
+    // SPA fallback — any non-asset /admin-panel/* request serves index.html
+    app.get('/admin-panel/*', (req, res) => {
+        res.sendFile(path.join(reactAdminDist, 'index.html'));
+    });
+} else {
+    app.get('/admin-panel', (req, res) => {
+        res.status(503).send('React admin not built. Run: npm run build --prefix apps/admin');
+    });
+}
+
 // 5c. Serve the REST of the 'public' folder (for login.html, etc.)
 const publicStaticOptions = process.env.NODE_ENV === 'production'
     ? {}
