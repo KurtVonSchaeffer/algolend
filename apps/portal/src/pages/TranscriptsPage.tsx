@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
+import { usePageCSS } from '../hooks/usePageCSS';
+import transcriptsCssUrl from '../legacy-css/13-transcripts.css?url';
 
 // ── risk colours (verbatim from legacy transcripts.js) ────────────────────────
 
@@ -212,6 +214,7 @@ function improvementTips(score: number | null, latest: CreditCheck | null) {
 // ── main page (legacy transcripts.html markup) ────────────────────────────────
 
 export function TranscriptsPage() {
+  usePageCSS(transcriptsCssUrl);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);

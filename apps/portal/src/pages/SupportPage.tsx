@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { apiFetch } from '../api/apiClient';
+import { usePageCSS } from '../hooks/usePageCSS';
+import supportCssUrl from '../legacy-css/12-support.css?url';
 
 // ── data (verbatim from legacy support.js) ────────────────────────────────────
 
@@ -163,6 +165,7 @@ function TicketModal({ onClose }: { onClose: () => void }) {
 // ── main page (legacy support.html markup) ────────────────────────────────────
 
 export function SupportPage() {
+  usePageCSS(supportCssUrl);
   const [openFaq, setOpenFaq]           = useState<number | null>(null);
   const [showBranches, setShowBranches] = useState(false);
   const [showTicket, setShowTicket]     = useState(false);

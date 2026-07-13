@@ -1,11 +1,26 @@
 # Node
 node_modules/
 
-# Built admin bundle — never commit, Vercel rebuilds it fresh on each deploy
+# Built bundles — never commit, Vercel rebuilds fresh on each deploy
 public/admin/dist/
+apps/admin/dist/
+apps/portal/dist/
 
-# Logs
+# TypeScript build info / generated files
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+
+# Logs — never commit any log files
+logs/
+*.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+vite.log*
+.pnpm-debug.log*
 
 # Env - never commit secrets
 .env

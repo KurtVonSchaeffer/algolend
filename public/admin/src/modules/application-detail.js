@@ -338,6 +338,7 @@ const pageTemplate = `
                 </div>
                 <div id="credit-check-content" class="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 overflow-hidden">
                    </div>
+                <div id="credit-score-trend" class="mt-4 hidden"></div>
              </div>
           </div>
 
@@ -700,7 +701,7 @@ window.viewTruidReport = () => {
     const employer = sp.employment || sp.employer || {};
 
     const row = (label, val, highlight = false) => val
-        ? `<tr><td style="color:#888;font-size:12px;padding:5px 10px;width:35%">${label}</td><td style="font-weight:${highlight?'700':'500'};font-size:13px;padding:5px 10px;color:${highlight?'#7C3AED':'#1a1a1a'}">${val}</td></tr>`
+        ? `<tr><td style="color:#888;font-size:12px;padding:5px 10px;width:35%">${label}</td><td style="font-weight:${highlight?'700':'500'};font-size:13px;padding:5px 10px;color:${highlight?'#E7762E':'#1a1a1a'}">${val}</td></tr>`
         : '';
 
     const x = window.open('', '_blank');
@@ -1810,6 +1811,113 @@ const renderComplianceDetails = async (userId) => {
     container.appendChild(complianceDiv);
 };
 
+// Credit score trend — a compact single-series line chart plotting every
+// historical credit_checks row for this borrower (not just the latest one).
+// The data has always existed (every check inserts a new row rather than
+// overwriting), it just wasn't rendered — this is the first place it's shown.
+function renderScoreTrend(creditChecks) {
+  const el = document.getElementById('credit-score-trend');
+  if (!el) return;
+
+  const points = (creditChecks || [])
+    .filter(c => Number.isFinite(c.credit_score) || Number.isFinite(Number(c.credit_score)))
+    .map(c => ({
+      score: Number(c.credit_score),
+      date: new Date(c.checked_at || c.created_at),
+    }))
+    .filter(p => Number.isFinite(p.score) && !isNaN(p.date.getTime()))
+    .sort((a, b) => a.date - b.date);
+
+  // A single point has nothing to trend — hide the section entirely rather
+  // than show an empty/degenerate chart.
+  if (points.length < 2) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+  el.classList.remove('hidden');
+
+  const W = 600, H = 140, PAD_L = 34, PAD_R = 16, PAD_T = 16, PAD_B = 24;
+  const plotW = W - PAD_L - PAD_R;
+  const plotH = H - PAD_T - PAD_B;
+
+  const scores = points.map(p => p.score);
+  const dataMin = Math.min(...scores);
+  const dataMax = Math.max(...scores);
+  // Pad the range so the line never touches the top/bottom edge, clamped to
+  // the real bureau score domain (300-999) so padding never invents a
+  // misleading floor/ceiling.
+  const yMin = Math.max(300, dataMin - 20);
+  const yMax = Math.min(999, Math.max(dataMax + 20, yMin + 40));
+
+  const tMin = points[0].date.getTime();
+  const tMax = points[points.length - 1].date.getTime();
+  const tSpan = Math.max(1, tMax - tMin);
+
+  const xAt = (p) => PAD_L + ((p.date.getTime() - tMin) / tSpan) * plotW;
+  const yAt = (score) => PAD_T + (1 - (score - yMin) / (yMax - yMin)) * plotH;
+
+  const coords = points.map(p => ({ x: xAt(p), y: yAt(p.score), ...p }));
+
+  // Single points get spread evenly on the x-axis if every check happened on
+  // the same timestamp (tSpan would otherwise collapse every x to PAD_L).
+  if (tMax === tMin) {
+    coords.forEach((c, i) => { c.x = PAD_L + (points.length === 1 ? 0 : (i / (points.length - 1)) * plotW); });
+  }
+
+  const linePath = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)} ${H - PAD_B} L ${coords[0].x.toFixed(1)} ${H - PAD_B} Z`;
+
+  // 3 evenly spaced y gridlines/ticks, rounded to clean-ish score values.
+  const tickCount = 3;
+  const ticks = Array.from({ length: tickCount }, (_, i) => {
+    const v = yMin + (i / (tickCount - 1)) * (yMax - yMin);
+    return Math.round(v / 10) * 10;
+  });
+
+  const first = coords[0];
+  const last = coords[coords.length - 1];
+  const delta = last.score - first.score;
+  const deltaColor = delta > 0 ? '#16a34a' : (delta < 0 ? '#dc2626' : 'var(--color-outline)');
+  const deltaLabel = delta > 0 ? `+${delta}` : `${delta}`;
+
+  el.innerHTML = `
+    <div class="flex justify-between items-center mb-2">
+      <h5 class="text-xs font-bold text-outline uppercase tracking-widest">Score History</h5>
+      <span class="text-xs font-bold" style="color:${deltaColor}">
+        ${deltaLabel} since ${formatDate(first.date)}
+      </span>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/10 p-3">
+      <svg viewBox="0 0 ${W} ${H}" class="w-full" style="height:${H}px" role="img" aria-label="Credit score history from ${first.score} to ${last.score}">
+        ${ticks.map(t => {
+          const y = yAt(t);
+          return `
+            <line x1="${PAD_L}" y1="${y.toFixed(1)}" x2="${W - PAD_R}" y2="${y.toFixed(1)}" stroke="var(--color-outline-variant, #e5e7eb)" stroke-width="1" opacity="0.5" />
+            <text x="${PAD_L - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--color-outline, #9ca3af)">${t}</text>
+          `;
+        }).join('')}
+        <path d="${areaPath}" fill="var(--color-primary)" opacity="0.08" />
+        <path d="${linePath}" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        ${coords.map((c, i) => `
+          <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4" fill="var(--color-primary)" stroke="var(--color-surface-container-lowest, #fff)" stroke-width="2">
+            <title>${formatDate(c.date)} — score ${c.score}</title>
+          </circle>
+        `).join('')}
+        <text x="${first.x.toFixed(1)}" y="${H - 6}" text-anchor="start" font-size="9" fill="var(--color-outline, #9ca3af)">${formatDate(first.date)}</text>
+        <text x="${last.x.toFixed(1)}" y="${H - 6}" text-anchor="end" font-size="9" fill="var(--color-outline, #9ca3af)">${formatDate(last.date)}</text>
+      </svg>
+    </div>
+    <div class="flex gap-2 mt-2 overflow-x-auto pb-1">
+      ${coords.map(c => `
+        <div class="shrink-0 px-2.5 py-1 rounded-lg bg-surface-container text-[10px] font-semibold text-outline border border-outline-variant/10">
+          ${formatDate(c.date)} · <span class="text-on-surface">${c.score}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 const renderFinancials = (financials, creditChecks) => {
   // 1. Fetch Financial Profile Data
   const profile = (financials && financials[0]) ? financials[0] : {};
@@ -1983,6 +2091,8 @@ const renderFinancials = (financials, creditChecks) => {
       if(reportBtn) reportBtn.classList.add('hidden');
       creditContainer.innerHTML = `<div class="py-12 text-center text-gray-400"><p>No bureau data available.</p></div>`;
   }
+
+  renderScoreTrend(creditChecks);
 
   // ── Decline reasons ───────────────────────────────────────────
   const declineReasons = currentApplication?.credit_decline_reasons;

@@ -276,7 +276,7 @@ function renderSummary() {
         { label: `Cash In (${rangeLabel})`,  value: formatCurrency(cashIn),     color: '#10b981', bg: '#d1fae5', icon: 'arrow_downward'  },
         { label: `Cash Out (${rangeLabel})`, value: formatCurrency(cashOut),    color: '#ef4444', bg: '#fee2e2', icon: 'arrow_upward'    },
         { label: 'Net Position',             value: formatCurrency(net),        color: net >= 0 ? '#10b981' : '#ef4444', bg: net >= 0 ? '#d1fae5' : '#fee2e2', icon: 'balance' },
-        { label: 'Loans Disbursed',          value: formatCurrency(disbursed),  color: '#7C3AED', bg: '#fff3ea', icon: 'payments'        },
+        { label: 'Loans Disbursed',          value: formatCurrency(disbursed),  color: '#E7762E', bg: '#fff3ea', icon: 'payments'        },
         { label: 'Repayments Collected',     value: formatCurrency(repaid),     color: '#6366f1', bg: '#eef2ff', icon: 'savings'         },
         { label: 'Entries',                  value: entries.length,             color: '#6b7280', bg: '#f3f4f6', icon: 'receipt_long'    }
     ].map(c => `

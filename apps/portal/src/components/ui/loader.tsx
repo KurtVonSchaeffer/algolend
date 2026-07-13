@@ -1,14 +1,12 @@
 interface LoaderProps {
   /** Pixel size of the spinner (default 200) */
   size?: number;
+  /** Render as a fixed full-screen overlay — always dead-center */
+  screen?: boolean;
 }
 
-/**
- * Brand loader — gooey ring spinner with the AlgoLend purple gradient.
- * Colours come from the theme CSS variables so admin theme changes apply.
- */
-export function Loader({ size = 200 }: LoaderProps) {
-  return (
+export function Loader({ size = 200, screen = false }: LoaderProps) {
+  const spinner = (
     <div style={{ position: 'relative', width: size, height: size }}>
       <style>{`
         .brand-loader-snurra { filter: url(#brand-loader-goo); }
@@ -88,6 +86,25 @@ export function Loader({ size = 200 }: LoaderProps) {
       </svg>
     </div>
   );
+
+  if (screen) {
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        background: 'rgba(255,255,255,0.85)',
+        backdropFilter: 'blur(4px)',
+      }}>
+        {spinner}
+      </div>
+    );
+  }
+
+  return spinner;
 }
 
 export default Loader;

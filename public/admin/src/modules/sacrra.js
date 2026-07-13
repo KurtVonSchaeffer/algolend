@@ -1017,26 +1017,34 @@ async function buildSacrraFileContent(settings) {
     const monthEnd     = dt(lastDay.toISOString().slice(0,10).replace(/-/g,''));
     const creationDate = dt(new Date().toISOString().slice(0,10).replace(/-/g,''));
 
-    // Supplier Reference Number — 10 chars, LEFT-aligned (alpha field per SACRRA Layout 700v2)
+    // Supplier Reference Number — 10 chars, RIGHT-aligned (leading spaces).
+    // Confirmed against SACRRA's own dummy sample file
+    // (TT0109_ALL_T702_M_20230302_1_01 1 - Dummy Data Examples_Monthly file):
+    // the header record reads "H    TT0109..." — 4 leading spaces then TT0109,
+    // not "TT0109    " as this previously assumed. This was almost certainly
+    // the cause of "header SRN in file is still being populated incorrectly"
+    // in the bureau's rejection feedback — every field after the SRN (month-end,
+    // version, creation date, trading name) was 10 bytes further left than the
+    // bureau's parser expected relative to a right-justified SRN.
     const srnRaw = (sacrraState.members[0]?.f02_supplier_ref || '').trim();
-    const srn    = srnRaw.padEnd(10, ' ').slice(0, 10);
+    const srn    = srnRaw.padStart(10, ' ').slice(-10);
 
     // Trading name — pulled from theme (same source as sidebar/navbar branding)
     const _theme = await ensureThemeLoaded().catch(() => null);
     const tradingName = aL(
-        (getCompanyName(_theme) || 'ALGOLEND').toUpperCase(),
+        (getCompanyName(_theme) || 'ZWANE FINANCIAL SERVICES').toUpperCase(),
         60
     );
 
     // ── HEADER (700 chars) ────────────────────────────────────────────────
     // Pos 1:     H
-    // Pos 2-11:  SRN (A10, LEFT-aligned, e.g. "TT0109    ")
+    // Pos 2-11:  SRN (A10, RIGHT-aligned, e.g. "    TT0109")
     // Pos 12-19: MONTH END DATE (N8, CCYYMMDD)
     // Pos 20-21: VERSION NUMBER (N2) = "06" for Layout 700v2
     // Pos 22-29: FILE CREATION DATE (N8, CCYYMMDD)
     // Pos 30-89: TRADING NAME/BRAND NAME (A60)
     // Pos 90-700: FILLER spaces
-    // Expected (after H): TT0109    202606030620260603ALGOLEND
+    // Expected (after H):     TT0109202606030620260603ZWANE FINANCIAL SERVICES
     let content = ('H' + srn + monthEnd + '06' + creationDate + tradingName).padEnd(700, ' ').slice(0,700) + '\r\n';
 
     // Branch code (pos 40-47, 8 chars): SACRRA explicitly flagged that SRN must NOT appear here.
@@ -1165,7 +1173,15 @@ async function buildSacrraFileContent(settings) {
         r += nR(lastPayStr || '0', 8);         // 386-393:  DATE LAST PAYMENT (capped to monthEnd, validated vs opened)
         r += openBal;                          // 394-402:  OPENING BALANCE (N9 whole rands)
         r += currBal;                          // 403-411:  CURRENT BALANCE (N9 whole rands)
-        r += aL(isPositive ? 'C' : 'D', 1);   // 412:      BALANCE INDICATOR — only D or C allowed (C=paid/credit)
+        // BALANCE INDICATOR — D=debit balance (money owed by borrower), C=credit balance
+        // (borrower is owed money, e.g. overpayment). This book has no credit-balance
+        // accounts, so it's always D. Using isPositive here was wrong: the bureau requires
+        // that whenever indicator=C the Status Code must be C/P/T (not V) AND the balance
+        // must be > 0 — but this code forces balance to 0 for every isPositive record and
+        // also applies 'C' to V (cancelled/declined), which fails both bureau rules at once
+        // (V07830, V07831 rejections) and triggers the balance=0-with-indicator=C warning
+        // (V08427) on nearly every closed/settled record in the file.
+        r += aL('D', 1);                      // 412:      BALANCE INDICATOR — always D for this book
         r += amtOverdue;                       // 413-421:  AMOUNT OVERDUE (N9)
         r += instalment;                       // 422-430:  INSTALMENT (N9)
         r += mthsArr;                          // 431-432:  MONTHS IN ARREARS (capped to account age)

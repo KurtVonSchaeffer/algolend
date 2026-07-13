@@ -275,7 +275,7 @@ function renderSummary() {
     const nplRatio = total > 0 ? ((inArrears + inDefault) / total * 100).toFixed(1) : '0.0';
 
     el.innerHTML = [
-        { label: 'Total Loans',      value: total,                     color: '#7C3AED', bg: '#fff3ea', icon: 'receipt_long' },
+        { label: 'Total Loans',      value: total,                     color: '#E7762E', bg: '#fff3ea', icon: 'receipt_long' },
         { label: 'Loan Book Value',  value: formatCurrency(totalBook), color: '#10b981', bg: '#d1fae5', icon: 'payments' },
         { label: 'In Arrears',       value: inArrears,                 color: '#f59e0b', bg: '#fef3c7', icon: 'warning' },
         { label: 'In Default',       value: inDefault,                 color: '#ef4444', bg: '#fee2e2', icon: 'error' },

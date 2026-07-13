@@ -179,6 +179,23 @@ header.navbar-desktop {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Mobile carousel snap cards — use scale instead of translateY.
+   overflow-x:auto on .hero-carousel implicitly sets overflow-y:auto
+   which clips the translateY start position, breaking the animation. */
+@keyframes dsSnapCardIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.snap-card.ds-metric-card {
+  transform: scale(0.95);
+  animation: dsSnapCardIn 0.45s var(--ds-ease) both;
+}
+.snap-card.ds-metric-card:nth-child(1) { animation-delay: 0.05s; }
+.snap-card.ds-metric-card:nth-child(2) { animation-delay: 0.14s; }
+.snap-card.ds-metric-card:nth-child(3) { animation-delay: 0.23s; }
+.snap-card.ds-metric-card:nth-child(4) { animation-delay: 0.32s; }
+.snap-card.ds-metric-card:nth-child(5) { animation-delay: 0.41s; }
+
 /* ── Card header row — label left, icon right ────────────────── */
 .ds-card-header {
   display: flex !important;
@@ -255,45 +272,21 @@ header.navbar-desktop {
   line-height: 1.1 !important;
 }
 
-/* ── 8. HERO SNAP-CARDS (mobile) ─────────────────────────────── */
+/* ── 8. DASHBOARD VIEW SWITCHING — ensure correct view shows before page CSS loads ── */
+@media (max-width: 768px) {
+  #desktop-view { display: none !important; }
+  #mobile-view  { display: flex !important; flex-direction: column; }
+}
+@media (min-width: 769px) {
+  #mobile-view  { display: none !important; }
+  #desktop-view { display: block !important; }
+}
+
+/* ── 8b. HERO SNAP-CARDS (mobile carousel) ────────────────────── */
+/* Visual styling comes from .card + .ds-metric-card — only carousel mechanics here */
 .snap-card {
-  background: linear-gradient(135deg, var(--color-primary, #7C3AED) 0%, color-mix(in srgb, var(--color-primary, #7C3AED) 80%, #fff) 45%, color-mix(in srgb, var(--color-primary, #7C3AED) 70%, #fff) 100%) !important;
-  border: none !important;
-  box-shadow:
-    0 4px 16px rgba(var(--color-primary-rgb, 124 58 237)/0.40),
-    0 12px 40px rgba(var(--color-primary-rgb, 124 58 237)/0.20),
-    inset 0 1px 0 rgba(255,255,255,0.25) !important;
-  overflow: hidden !important;
+  border-radius: 20px !important;
 }
-
-/* Shine sweep */
-.snap-card::before {
-  content: '' !important;
-  position: absolute !important;
-  top: -60% !important;
-  left: -60% !important;
-  width: 60% !important;
-  height: 200% !important;
-  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%) !important;
-  transform: skewX(-15deg) !important;
-  animation: snapCardShine 4s ease-in-out infinite !important;
-  pointer-events: none !important;
-  z-index: 1 !important;
-}
-
-@keyframes snapCardShine {
-  0%   { left: -60%; opacity: 0; }
-  10%  { opacity: 1; }
-  40%  { left: 130%; opacity: 1; }
-  41%  { opacity: 0; }
-  100% { left: 130%; opacity: 0; }
-}
-
-.snap-card > * { position: relative !important; z-index: 2 !important; }
-.snap-card .card-label  { color: rgba(255,255,255,0.78) !important; font-size: 12px !important; font-weight: 600 !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; }
-.snap-card .card-value  { color: #fff !important; font-weight: 700 !important; text-shadow: 0 2px 12px rgba(0,0,0,0.18) !important; }
-.snap-card .card-detail { color: rgba(255,255,255,0.68) !important; }
-.snap-card .hide-eye-btn { background: rgba(255,255,255,0.22) !important; backdrop-filter: blur(8px) !important; border: 1px solid rgba(255,255,255,0.35) !important; color: white !important; }
 
 /* ── 9. QUICK ACTION CIRCLES ─────────────────────────────────── */
 .action-icon-circle {
@@ -316,17 +309,26 @@ header.navbar-desktop {
 .minimal-header h1,
 .notifications-header h1,
 .transcripts-header h1 {
-  background: linear-gradient(110deg, #0F172A 0%, #0F172A 35%, var(--color-primary, #7C3AED) 50%, #0F172A 65%, #0F172A 100%) !important;
-  background-size: 300% 100% !important;
+  background: linear-gradient(110deg,
+    var(--text-main, #1C1C1E) 0%,
+    var(--text-main, #1C1C1E) 25%,
+    var(--color-primary-soft, #A78BFA) 40%,
+    var(--color-primary, #7C3AED) 50%,
+    var(--color-primary-soft, #A78BFA) 60%,
+    var(--text-main, #1C1C1E) 75%,
+    var(--text-main, #1C1C1E) 100%
+  ) !important;
+  background-size: 250% 100% !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
-  animation: dsShimmer 5s ease-in-out infinite !important;
+  animation: dsShimmer 3s ease-in-out infinite !important;
 }
 
 @keyframes dsShimmer {
-  0%, 100% { background-position: 100% 0; }
-  50%       { background-position:   0% 0; }
+  0%   { background-position: 100% 0; }
+  50%  { background-position:   0% 0; }
+  100% { background-position: 100% 0; }
 }
 
 /* ── 11. PRIMARY BUTTONS ──────────────────────────────────────── */

@@ -391,6 +391,25 @@ async function loadSystemSettings(forceRefresh = false) {
 // Alias used throughout this file
 const getSystemTheme = loadSystemSettings;
 
+// The company's real NCR registration number must come from configured
+// settings (system_settings.ncr_number or COMPANY_NCR env var) — never from
+// a hardcoded fallback. This number appears on legally binding documents
+// (credit provider contracts, Section 129 notices, signed loan agreements,
+// NCR compliance filings), so a silent wrong/placeholder value here is a
+// real compliance and legal risk, not a cosmetic bug. Throws instead of
+// falling back, so misconfiguration fails loudly at the point of use.
+function requireNcrNumber(settings) {
+    const ncrNumber = settings?.ncr_number || process.env.COMPANY_NCR || '';
+    if (!ncrNumber.trim()) {
+        throw new Error(
+            'NCR registration number is not configured (system_settings.ncr_number ' +
+            'and COMPANY_NCR are both empty). Set the real NCR number in Settings ' +
+            'before generating any document, notice, or report that carries it.'
+        );
+    }
+    return ncrNumber.trim();
+}
+
 async function docuSealRequest(method, endpoint, data) {
     if (!isDocuSealReady()) {
         throw new Error('DocuSeal configuration missing');               
@@ -448,7 +467,7 @@ function buildDocuSealSubmission(applicationData = {}, profileData = {}, branchD
                 email: creditProviderEmail,
                 values: {
                     provider_name: settings.company_name || process.env.COMPANY_NAME || "AlgoLend",
-                    provider_ncr: settings.ncr_number || process.env.COMPANY_NCR || "NCRCP13510",
+                    provider_ncr: requireNcrNumber(settings),
                     provider_branch_code: settings.provider_branch_code || process.env.COMPANY_BRANCH_CODE || "ZFS",
                     provider_reg_no: settings.company_reg_number || process.env.COMPANY_REG_NUMBER || "",
                     provider_vat_no: settings.company_vat_number || process.env.COMPANY_VAT_NUMBER || "",
@@ -959,15 +978,27 @@ app.get('/api/compliance/form40', async (req, res) => {
             .lte('updated_at', toIso);
 
         // Branches
-        const { data: branches } = await supabaseService.from('branches').select('id');
+        const { data: branches, error: branchesErr } = await supabaseService.from('branches').select('id');
+        if (branchesErr) throw branchesErr;
+
+        // Manually-tracked figures (staff count, complaints, debt review
+        // referrals, submission tracking) stored in ncr_statutory_registers.
+        const { data: register, error: registerErr } = await supabaseService
+            .from('ncr_statutory_registers')
+            .select('staff_count, complaints_received, complaints_resolved, debt_review_referrals, submitted_to_ncr, submitted_at, submission_reference, notes')
+            .eq('financial_year', Number(year))
+            .maybeSingle();
+        if (registerErr) throw registerErr;
 
         const sum = (arr, field) => (arr || []).reduce((acc, r) => acc + Number(r[field] || 0), 0);
-        const totalBook    = sum(activeAtYearEnd, 'offer_principal');
-        const totalNpl     = sum(nplAccounts, 'offer_principal');
-        const nplRatio     = totalBook > 0 ? ((totalNpl / totalBook) * 100).toFixed(2) : '0.00';
+        const totalBook     = sum(activeAtYearEnd, 'offer_principal');
+        const totalNpl      = sum(nplAccounts, 'offer_principal');
+        const nplRatio      = totalBook > 0 ? ((totalNpl / totalBook) * 100).toFixed(2) : '0.00';
+        const isCurrentYear = Number(year) === new Date().getFullYear();
 
         return res.json({
             year,
+            is_live_snapshot: !isCurrentYear,
             credit_book: {
                 total_principal_outstanding: totalBook,
                 npl_amount:  totalNpl,
@@ -988,12 +1019,74 @@ app.get('/api/compliance/form40', async (req, res) => {
                 total_principal: sum(writtenOff, 'offer_principal'),
             },
             operational: {
-                branches: (branches || []).length,
-                // staff_count is entered manually on the reporting screen
+                branches:    (branches || []).length,
+                staff_count: register?.staff_count ?? null,
+            },
+            compliance: {
+                complaints_received:   register?.complaints_received ?? null,
+                complaints_resolved:   register?.complaints_resolved ?? null,
+                debt_review_referrals: register?.debt_review_referrals ?? null,
+                submitted_to_ncr:      register?.submitted_to_ncr ?? false,
+                submitted_at:          register?.submitted_at ?? null,
+                submission_reference:  register?.submission_reference ?? null,
+                notes:                 register?.notes ?? null,
             },
         });
     } catch (err) {
         console.error('[form40]', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/compliance/form39/log-export — audit trail for Form 39 exports.
+// The CSV is generated client-side; this records who exported what period.
+app.post('/api/compliance/form39/log-export', async (req, res) => {
+    try {
+        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+            (req.headers.authorization || '').replace('Bearer ', '')
+        );
+        if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { from, to, figures } = req.body || {};
+        if (!from || !to) return res.status(400).json({ error: 'from and to are required' });
+
+        await writeAudit({
+            entityType:  'ncr_form39_export',
+            entityId:    `${from}_${to}`,
+            action:      'exported',
+            newValue:    figures ?? null,
+            description: `Form 39 exported for period ${from} to ${to}`,
+            req,
+        });
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('[form39/log-export]', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /api/compliance/form40/log-export — audit trail for Form 40 exports.
+app.post('/api/compliance/form40/log-export', async (req, res) => {
+    try {
+        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(
+            (req.headers.authorization || '').replace('Bearer ', '')
+        );
+        if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
+
+        const { year, figures } = req.body || {};
+        if (!year) return res.status(400).json({ error: 'year is required' });
+
+        await writeAudit({
+            entityType:  'ncr_form40_export',
+            entityId:    String(year),
+            action:      'exported',
+            newValue:    figures ?? null,
+            description: `Form 40 exported for financial year ${year}`,
+            req,
+        });
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('[form40/log-export]', err.message);
         return res.status(500).json({ error: err.message });
     }
 });
@@ -4759,7 +4852,7 @@ app.get('/api/contracts/:applicationId/preview', async (req, res) => {
 
         const settings  = await getSystemTheme();
         const company   = settings?.company_name   || process.env.COMPANY_NAME   || 'AlgoLend';
-        const ncrNumber = settings?.ncr_number      || process.env.COMPANY_NCR    || 'NCRCP13510';
+        const ncrNumber = requireNcrNumber(settings);
         const companyReg= settings?.company_reg_number || '';
         const companyTel= settings?.company_phone   || '';
         const companyAddr= settings?.company_physical_address || '';
@@ -5295,7 +5388,7 @@ app.get('/api/cron/monthly-statements', async (req, res) => {
 
         const settings  = await getSystemTheme();
         const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
-        const ncrNumber = settings?.ncr_number   || process.env.COMPANY_NCR  || 'NCRCP13510';
+        const ncrNumber = requireNcrNumber(settings);
         const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
         const fmtR      = v => `R ${Number(v || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
         const period    = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long' });
@@ -6228,7 +6321,7 @@ app.get('/api/admin/compliance/report/:year', async (req, res) => {
 
     const settings  = await getSystemTheme();
     const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
-    const ncrNumber = settings?.ncr_number   || process.env.COMPANY_NCR  || 'NCRCP13510';
+    const ncrNumber = requireNcrNumber(settings);
     const today     = new Date().toLocaleDateString('en-ZA', { year:'numeric', month:'long', day:'numeric' });
 
     const merged = COMPLIANCE_CHECKPOINTS.map(def => {
@@ -6403,7 +6496,7 @@ app.get('/api/cron/section129', async (req, res) => {
         const companyAddr  = settings?.company_physical_address || '';
         const companyPhone = settings?.company_phone     || '';
         const companyEmail = process.env.CREDIT_PROVIDER_EMAIL || '';
-        const ncrNumber    = settings?.ncr_number        || process.env.COMPANY_NCR  || 'NCRCP13510';
+        const ncrNumber    = requireNcrNumber(settings);
         const fromEmail    = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
         let sent = 0;
@@ -7287,7 +7380,7 @@ app.post('/api/contracts/sign', async (req, res) => {
         // 2. Build signed contract HTML (reuse preview HTML, append signature block)
         const settings  = await getSystemTheme();
         const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
-        const ncrNumber = settings?.ncr_number || process.env.COMPANY_NCR || 'NCRCP13510';
+        const ncrNumber = requireNcrNumber(settings);
         const term      = Number(app.term_months || 1);
         const monthly   = Number(app.offer_monthly_repayment || 0);
         const totalRepay= Number(app.offer_total_repayment || 0);

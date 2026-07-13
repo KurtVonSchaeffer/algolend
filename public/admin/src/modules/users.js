@@ -183,8 +183,8 @@ function renderStaffDetail(p, branchName) {
 
           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <!-- Header band -->
-            <div class="h-20 relative" style="background:linear-gradient(135deg,var(--color-primary,#7C3AED),#c05a1a)">
-              <div class="absolute -bottom-8 left-6 w-16 h-16 rounded-2xl bg-white border-4 border-white shadow-md flex items-center justify-center text-xl font-black" style="color:var(--color-primary,#7C3AED)">${initials}</div>
+            <div class="h-20 relative" style="background:linear-gradient(135deg,var(--color-primary,#E7762E),#c05a1a)">
+              <div class="absolute -bottom-8 left-6 w-16 h-16 rounded-2xl bg-white border-4 border-white shadow-md flex items-center justify-center text-xl font-black" style="color:var(--color-primary,#E7762E)">${initials}</div>
             </div>
             <div class="pt-11 pb-5 px-6">
               <h2 class="text-lg font-black text-gray-900">${p.full_name || '—'}</h2>
@@ -223,8 +223,8 @@ function renderStaffDetail(p, branchName) {
           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Branch Assignment</p>
             <div class="flex items-center gap-4">
-              <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background:rgba(124,58,237,0.1)">
-                <span class="material-symbols-outlined" style="color:var(--color-primary,#7C3AED)">location_city</span>
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background:rgba(231,118,46,0.1)">
+                <span class="material-symbols-outlined" style="color:var(--color-primary,#E7762E)">location_city</span>
               </div>
               <div>
                 <p class="text-lg font-black text-gray-900">${branchName || 'Unassigned'}</p>
@@ -232,7 +232,7 @@ function renderStaffDetail(p, branchName) {
               </div>
               <button onclick="window.openBranchModal()"
                 class="ml-auto px-4 py-2 text-sm font-bold text-white rounded-xl"
-                style="background:var(--color-primary,#7C3AED)">
+                style="background:var(--color-primary,#E7762E)">
                 <span class="material-symbols-outlined text-[15px] align-middle mr-1">swap_horiz</span>Transfer
               </button>
             </div>
@@ -242,8 +242,8 @@ function renderStaffDetail(p, branchName) {
           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Access Level</p>
             <div class="flex items-start gap-4">
-              <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style="background:rgba(124,58,237,0.1)">
-                <span class="material-symbols-outlined" style="color:var(--color-primary,#7C3AED)">${meta.icon}</span>
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style="background:rgba(231,118,46,0.1)">
+                <span class="material-symbols-outlined" style="color:var(--color-primary,#E7762E)">${meta.icon}</span>
               </div>
               <div class="flex-1">
                 <div class="flex items-center gap-2 mb-3">

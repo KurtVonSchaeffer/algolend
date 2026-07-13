@@ -6,11 +6,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   const { status } = useSession();
 
   if (status === 'loading') {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader size={120} />
-      </div>
-    );
+    return <Loader screen size={120} />;
   }
 
   if (status === 'unauthenticated') {

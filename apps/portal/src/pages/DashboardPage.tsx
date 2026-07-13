@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
-import { apiFetch } from '../api/apiClient';
 import { Loader } from '../components/ui/loader';
+import { usePageCSS } from '../hooks/usePageCSS';
+import dashboardCssUrl from '../legacy-css/10-dashboard.css?url';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -163,12 +164,65 @@ async function fetchDashboard() {
     monthly.push({ label, total });
   }
 
-  // eligibility via Express (optional — hide card if unavailable, like legacy)
+  // eligibility — replicated server logic, direct Supabase (no Express needed)
   let eligibility: Eligibility | null = null;
   try {
-    const res = await apiFetch('/api/my-eligibility');
-    if (res.ok) eligibility = await res.json();
-  } catch { /* card stays hidden */ }
+    const { data: cc } = await supabase
+      .from('credit_checks')
+      .select('credit_score, checked_at')
+      .eq('user_id', uid)
+      .eq('status', 'completed')
+      .order('checked_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cc?.credit_score) {
+      const { count: prevLoans } = await supabase
+        .from('loan_applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', uid)
+        .in('status', ['APPROVED', 'ACTIVE', 'SETTLED', 'COMPLETED']);
+      const isFirstLoan = (prevLoans ?? 0) === 0;
+
+      const { data: orgs } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1);
+      const orgId = orgs?.[0]?.id;
+
+      if (orgId) {
+        const { data: band } = await supabase
+          .from('credit_score_bands')
+          .select('*')
+          .eq('organization_id', orgId)
+          .eq('is_active', true)
+          .lte('min_score', cc.credit_score)
+          .gte('max_score', cc.credit_score)
+          .maybeSingle();
+
+        if (band && band.risk_level !== 'declined') {
+          const effectiveTerm = (isFirstLoan && band.first_loan_max_term_months)
+            ? band.first_loan_max_term_months
+            : band.max_term_months;
+          eligibility = {
+            eligible: true,
+            credit_score: cc.credit_score,
+            band: {
+              label: band.label,
+              color: band.color,
+              max_loan_amount: band.max_loan_amount,
+              interest_rate_pa: band.interest_rate_pa,
+              max_term_months: effectiveTerm,
+            },
+            first_loan_restriction: (isFirstLoan && band.first_loan_max_term_months)
+              ? `First loan: max ${band.first_loan_max_term_months} month term`
+              : undefined,
+          };
+        }
+      }
+    }
+  } catch { /* eligibility card stays hidden */ }
 
   return {
     userName,
@@ -198,6 +252,7 @@ function LineChart({ series }: { series: { label: string; total: number }[] }) {
 
     const W = canvas.width = canvas.offsetWidth * 2;
     const H = canvas.height = canvas.offsetHeight * 2;
+    if (W === 0 || H === 0) return;
     const pad = 40;
     const color = primaryColor();
     const max = Math.max(1, ...series.map(s => s.total));
@@ -260,8 +315,10 @@ function DoughnutChart({ repaid, outstanding }: { repaid: number; outstanding: n
 
     const W = canvas.width = canvas.offsetWidth * 2;
     const H = canvas.height = canvas.offsetHeight * 2;
+    if (W === 0 || H === 0) return;
     const cx = W / 2, cy = H / 2;
     const r = Math.min(W, H) / 2 - 30;
+    if (r <= 0) return;
     const color = primaryColor();
     const total = Math.max(1, repaid + outstanding);
     const repaidAngle = (repaid / total) * Math.PI * 2;
@@ -324,7 +381,11 @@ function loanHealth(days: number | null) {
 // ─── main page (legacy dashboard.html desktop-view markup) ───────────────────
 
 export function DashboardPage() {
+  usePageCSS(dashboardCssUrl);
   const navigate = useNavigate();
+  const [mobileModal, setMobileModal] = useState<'transactions' | 'applications' | null>(null);
+  const [activeDot, setActiveDot] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['dashboard'],
@@ -336,14 +397,17 @@ export function DashboardPage() {
   // animate credit score meter like legacy
   const scorePct = data ? Math.min(100, Math.round(((data.creditScore || 0) / CREDIT_SCORE_MAX) * 100)) : 0;
 
+  // carousel dot tracking
+  useEffect(() => {
+    const el = carouselRef.current;
+    if (!el) return;
+    const onScroll = () => setActiveDot(Math.round(el.scrollLeft / (el.offsetWidth || 1)));
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [data]);
+
   if (isLoading) {
-    return (
-      <div className="page-container">
-        <div className="content-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <Loader size={140} />
-        </div>
-      </div>
-    );
+    return <Loader screen size={140} />;
   }
 
   if (isError || !data) {
@@ -407,6 +471,176 @@ export function DashboardPage() {
 
         <div className="dashboard-wrapper">
           <div className="dashboard-container">
+
+            {/* ── Mobile view ── */}
+            <div id="mobile-view">
+              <section className="welcome-section">
+                <p className="greeting-line">{greeting()}{data.userName ? `, ${data.userName.split(' ')[0]}` : ''}</p>
+                <h1 className="main-title">Portfolio Overview</h1>
+                <p className="date-label">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+              </section>
+
+              <section className="hero-carousel-wrapper">
+                <div className="hero-carousel" ref={carouselRef}>
+                  {/* Card 1 — Next Payment (matches legacy order) */}
+                  <div className="snap-card card ds-metric-card">
+                    <div className="ds-card-header">
+                      <span className="card-label">Next Payment Due</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#3b82f6', ['--badge-bg' as string]: 'rgba(59,130,246,0.10)' }}><i className="fas fa-calendar-alt" /></div>
+                    </div>
+                    <div className="card-value">{fmt(np.amount)}</div>
+                    <div className="card-subtitle" style={npDateColor ? { color: npDateColor } : {}}>{npDateLabel}</div>
+                  </div>
+                  {/* Card 2 — Outstanding Balance */}
+                  <div className="snap-card card ds-metric-card">
+                    <div className="ds-card-header">
+                      <span className="card-label">Outstanding Balance</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#7C3AED', ['--badge-bg' as string]: 'rgba(124,58,237,0.10)' }}><i className="fas fa-wallet" /></div>
+                    </div>
+                    <div className="card-value">{fmt(data.currentBalance)}</div>
+                    <div className="card-subtitle">Total principal remaining</div>
+                  </div>
+                  {/* Card 3 — Total Repaid */}
+                  <div className="snap-card card ds-metric-card">
+                    <div className="ds-card-header">
+                      <span className="card-label">Total Repaid</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#8b5cf6', ['--badge-bg' as string]: 'rgba(139,92,246,0.10)' }}><i className="fas fa-circle-check" /></div>
+                    </div>
+                    <div className="card-value">{fmt(data.totalRepaid)}</div>
+                    <div className="card-subtitle">Successfully settled</div>
+                  </div>
+                  {/* Card 4 — Total Borrowed */}
+                  <div className="snap-card card ds-metric-card">
+                    <div className="ds-card-header">
+                      <span className="card-label">Total Borrowed</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#10b981', ['--badge-bg' as string]: 'rgba(16,185,129,0.10)' }}><i className="fas fa-arrow-trend-up" /></div>
+                    </div>
+                    <div className="card-value">{fmt(data.totalBorrowed)}</div>
+                    <div className="card-subtitle">Lifetime capacity</div>
+                  </div>
+                  {/* Card 5 — Credit Score */}
+                  <div className="snap-card card ds-metric-card">
+                    <div className="ds-card-header">
+                      <span className="card-label">Credit Score</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#7C3AED', ['--badge-bg' as string]: 'rgba(124,58,237,0.10)' }}><i className="fas fa-chart-line" /></div>
+                    </div>
+                    <div className="card-value">{data.creditScore || '---'}</div>
+                    <div className="card-subtitle">Experian Financial Standing</div>
+                  </div>
+                </div>
+                <div className="carousel-indicators">
+                  {[0, 1, 2, 3, 4].map(i => (
+                    <div key={i} className={`dot${activeDot === i ? ' active' : ''}`} />
+                  ))}
+                </div>
+              </section>
+
+              <section className="quick-actions-row">
+                <button className="action-btn-item" onClick={() => navigate('/user-portal/apply')}>
+                  <div className="action-icon-circle"><i className="fas fa-plus" /></div>
+                  <span>New Loan</span>
+                </button>
+                <button className="action-btn-item" onClick={() => navigate('/user-portal/transactions')}>
+                  <div className="action-icon-circle"><i className="fas fa-wallet" /></div>
+                  <span>Pay</span>
+                </button>
+                <button className="action-btn-item" onClick={() => setMobileModal('transactions')}>
+                  <div className="action-icon-circle"><i className="fas fa-list-ul" /></div>
+                  <span>Transactions</span>
+                </button>
+                <button className="action-btn-item" onClick={() => setMobileModal('applications')}>
+                  <div className="action-icon-circle"><i className="fas fa-file-alt" /></div>
+                  <span>Applications</span>
+                </button>
+              </section>
+
+              <section className="loans-section">
+                <div className="section-header">
+                  <h2 className="section-title">Active Loans</h2>
+                  <button className="view-all-link" onClick={() => navigate('/user-portal/transactions')}>View All</button>
+                </div>
+                {data.loans.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+                    <div style={{ width: 72, height: 72, background: 'rgba(124,58,237,0.08)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                      <i className="fas fa-file-contract" style={{ fontSize: 28, color: 'var(--color-primary)' }} />
+                    </div>
+                    <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-main, #1C1C1E)', margin: '0 0 8px' }}>No active loans</h3>
+                    <p style={{ fontSize: 14, color: 'var(--text-muted, #8E8E93)', margin: '0 0 20px', lineHeight: 1.5 }}>
+                      Ready to apply? Get a decision in minutes.
+                    </p>
+                    <button
+                      onClick={() => navigate('/user-portal/apply')}
+                      style={{ background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-soft))', color: 'white', border: 'none', padding: '14px 28px', borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(124,58,237,0.3)', fontFamily: 'inherit' }}
+                    >
+                      Apply for a Loan <i className="fas fa-arrow-right" style={{ marginLeft: 8 }} />
+                    </button>
+                  </div>
+                ) : data.loans.map(loan => (
+                  <div className="loan-card-hifi" key={loan.id}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Loan</p>
+                        <p style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>{loan.amount}</p>
+                      </div>
+                      <span style={{ background: 'rgba(16,185,129,0.1)', color: '#10b981', fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20 }}>Active</span>
+                    </div>
+                    <div className="loan-hifi-details">
+                      <div className="detail-item"><span className="label">Remaining</span><span className="val">{loan.remaining}</span></div>
+                      <div className="detail-item"><span className="label">Next Payment</span><span className="val">{loan.nextPayment}</span></div>
+                      <div className="detail-item"><span className="label">Due Date</span><span className="val">{loan.dueDate}</span></div>
+                      <div className="detail-item"><span className="label">Interest</span><span className="val">{loan.interestRate}</span></div>
+                    </div>
+                    <div style={{ background: '#f3f4f6', borderRadius: 100, height: 6, overflow: 'hidden' }}>
+                      <div style={{ width: `${loan.progress}%`, height: '100%', background: 'var(--color-primary)', borderRadius: 100, transition: 'width 1s ease' }} />
+                    </div>
+                    <p style={{ fontSize: 12, color: '#6b7280', marginTop: 6, textAlign: 'right' }}>{loan.progress}% repaid</p>
+                  </div>
+                ))}
+              </section>
+
+              {/* Slide-up modal */}
+              <div id="fullScreenModal" className={`full-modal${mobileModal ? '' : ' hidden'}`}>
+                <div className="modal-header-hifi">
+                  <button className="modal-close-btn" onClick={() => setMobileModal(null)}>
+                    <i className="fas fa-chevron-left" />
+                  </button>
+                  <h2 className="modal-title-mobile">
+                    {mobileModal === 'transactions' ? 'Recent Transactions' : 'Applications'}
+                  </h2>
+                  <div style={{ width: 36 }} />
+                </div>
+                <div className="modal-body-content">
+                  {mobileModal === 'transactions' && (
+                    data.transactions.length === 0
+                      ? <p style={{ color: '#6b7280', textAlign: 'center', marginTop: 40 }}>No transactions yet</p>
+                      : data.transactions.map(tx => (
+                          <div key={tx.id} style={{ background: '#fff', borderRadius: 16, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                            <div>
+                              <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 2px' }}>{tx.description}</p>
+                              <p style={{ fontSize: 12, color: '#6b7280', margin: 0 }}>{tx.date}</p>
+                            </div>
+                            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--color-primary)', margin: 0 }}>{tx.amount}</p>
+                          </div>
+                        ))
+                  )}
+                  {mobileModal === 'applications' && (
+                    data.applications.length === 0
+                      ? <p style={{ color: '#6b7280', textAlign: 'center', marginTop: 40 }}>No applications yet</p>
+                      : data.applications.map(app => (
+                          <div key={app.rawId} style={{ background: '#fff', borderRadius: 16, padding: '16px 20px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                              <p style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>{app.type}</p>
+                              <span style={{ fontSize: 12, fontWeight: 700, background: '#f3f4f6', padding: '2px 8px', borderRadius: 10 }}>{app.status}</span>
+                            </div>
+                            <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>{app.amount} · {app.date}</p>
+                          </div>
+                        ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Desktop view ── */}
             <div id="desktop-view">
 
               <div className="dashboard-header">

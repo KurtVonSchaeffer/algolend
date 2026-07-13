@@ -42,14 +42,14 @@ const loadApexCharts = () =>
 const STYLE_ID = 'admin-dashboard-analytics-style';
 const getThemeColors = () => {
   const root = getComputedStyle(document.documentElement);
-  const primary = (root.getPropertyValue('--color-primary') || '#7C3AED').trim() || '#7C3AED';
-  const secondary = (root.getPropertyValue('--color-secondary') || '#1A1F36').trim() || '#1A1F36';
+  const primary = (root.getPropertyValue('--color-primary') || '#E7762E').trim() || '#E7762E';
+  const secondary = (root.getPropertyValue('--color-secondary') || '#f97316').trim() || '#f97316';
   return { primary, secondary };
 };
 
 // Distinct palette used across charts — each chart picks its own slice
 const CHART_PALETTE = {
-  orange:  '#7C3AED',
+  orange:  '#E7762E',
   teal:    '#0D9488',
   indigo:  '#6366F1',
   rose:    '#F43F5E',

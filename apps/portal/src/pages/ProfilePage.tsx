@@ -2,6 +2,8 @@ import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
+import { usePageCSS } from '../hooks/usePageCSS';
+import profileCssUrl from '../legacy-css/15-profile.css?url';
 
 type TabName = 'profile' | 'financial' | 'security' | 'declarations';
 
@@ -57,17 +59,54 @@ interface Declarations {
 
 // ── data ──────────────────────────────────────────────────────────────────────
 
+function isRlsError(err: { code?: string; status?: number } | null) {
+  if (!err) return false;
+  return err.code === '42501' || (err as { status?: number }).status === 403;
+}
+
 async function fetchProfileData() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error('Not authenticated');
   const uid = session.user.id;
 
-  const [{ data: profile, error }, { data: financial }, { data: declarations }] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', uid).single(),
+  const [{ data: rawProfile, error: profileError }, { data: financial }, { data: declarations }] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', uid).maybeSingle(),
     supabase.from('financial_profiles').select('*').eq('user_id', uid).maybeSingle(),
     supabase.from('declarations').select('*').eq('user_id', uid).maybeSingle(),
   ]);
-  if (error) throw error;
+
+  // RLS/permission denial → treat as no row, not a fatal error
+  if (profileError && !isRlsError(profileError)) throw profileError;
+
+  let profile: Profile | null = rawProfile;
+
+  if (!profile) {
+    const email    = session.user.email ?? '';
+    const fullName = (session.user.user_metadata?.full_name as string | undefined)
+      ?? email.split('@')[0]
+      ?? '';
+    const { data: created, error: insertErr } = await supabase
+      .from('profiles')
+      .insert({ id: uid, email, full_name: fullName, role: 'borrower', updated_at: new Date().toISOString() })
+      .select()
+      .single();
+
+    if (insertErr) {
+      if (!isRlsError(insertErr)) throw insertErr;
+      // RLS blocked insert too — build a synthetic profile from auth metadata
+      const now = new Date().toISOString();
+      profile = {
+        id: uid, email, full_name: fullName,
+        first_name: null, last_name: null, contact_number: null,
+        identity_number: null, gender: null, date_of_birth: null,
+        address: null, postal_code: null, suburb_area: null,
+        cell_tel_no: null, avatar_url: null, role: 'borrower',
+        created_at: now,
+      };
+    } else {
+      profile = created;
+    }
+  }
 
   return {
     profile: profile as Profile,
@@ -877,6 +916,7 @@ function DeclarationsTab({ userId, declarations, onSaved, onComplete }: {
 // ── main page (legacy profile.html markup) ────────────────────────────────────
 
 export function ProfilePage() {
+  usePageCSS(profileCssUrl);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<TabName>('profile');
@@ -950,11 +990,20 @@ export function ProfilePage() {
             </nav>
 
             <div className="tab-content">
-              {tab === 'profile' && <ProfileTab profile={data.profile} onSaved={refresh} />}
-              {tab === 'financial' && <FinancialTab userId={data.profile.id} financial={data.financial} onSaved={refresh} />}
-              {tab === 'security' && <SecurityTab profile={data.profile} />}
-              {tab === 'declarations' && (
-                <DeclarationsTab userId={data.profile.id} declarations={data.declarations} onSaved={refresh} onComplete={handleComplete} />
+              {!data.profile ? (
+                <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                  <i className="fa-solid fa-user-slash" style={{ fontSize: 32, marginBottom: 12, display: 'block' }} />
+                  <p>No profile found. Please contact support.</p>
+                </div>
+              ) : (
+                <>
+                  {tab === 'profile' && <ProfileTab profile={data.profile} onSaved={refresh} />}
+                  {tab === 'financial' && <FinancialTab userId={data.profile.id} financial={data.financial} onSaved={refresh} />}
+                  {tab === 'security' && <SecurityTab profile={data.profile} />}
+                  {tab === 'declarations' && (
+                    <DeclarationsTab userId={data.profile.id} declarations={data.declarations} onSaved={refresh} onComplete={handleComplete} />
+                  )}
+                </>
               )}
             </div>
           </div>

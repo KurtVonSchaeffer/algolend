@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../api/apiClient';
+import { usePageCSS } from '../hooks/usePageCSS';
+import calcCssUrl from '../legacy-css/11-loan-calculator.css?url';
 
 // ── NCA-compliant fee structure (matches legacy loan-calculator.js) ───────────
 const INTEREST_RATE_MONTHLY = 0.05;   // 5% per month
@@ -54,6 +56,7 @@ function calcLoan(principal: number, termMonths: number) {
 // ── page (legacy loan-calculator.html markup) ─────────────────────────────────
 
 export function LoanCalculatorPage() {
+  usePageCSS(calcCssUrl);
   const navigate = useNavigate();
   const [amount, setAmount] = useState(5000);
   const [term, setTerm]     = useState(1);

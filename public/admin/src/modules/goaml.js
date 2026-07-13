@@ -138,6 +138,11 @@ async function init() {
     const main = document.getElementById('main-content');
     if (main) main.innerHTML = `
     <div class="max-w-5xl mx-auto px-4 py-8">
+        <button onclick="window.location.href='/admin/dashboard'"
+            class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-slate-700 transition-colors mb-4">
+            <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+            Back to Admin
+        </button>
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center gap-3">
                 <span class="material-symbols-outlined text-2xl" style="color:var(--color-primary)">security</span>

@@ -9,6 +9,22 @@
       "autoPort": false
     },
     {
+      "name": "portal-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/.bin/vite", "--port", "5173"],
+      "cwd": "apps/portal",
+      "port": 5173,
+      "autoPort": false
+    },
+    {
+      "name": "admin-dev",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/.bin/vite", "--port", "5174"],
+      "cwd": "apps/admin",
+      "port": 5174,
+      "autoPort": false
+    },
+    {
       "name": "demo-video",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["--prefix", "demo-video", "remotion", "studio", "--port", "3011"],

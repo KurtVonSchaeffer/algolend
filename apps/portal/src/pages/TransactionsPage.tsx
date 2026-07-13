@@ -1,6 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../api/supabaseClient';
+import { usePageCSS } from '../hooks/usePageCSS';
+import documentsCssUrl from '../legacy-css/14-documents.css?url';
+import paymentsCssUrl from '../legacy-css/14b-payments.css?url';
 
 const PAYMENTS_PER_PAGE = 10;
 
@@ -71,7 +74,7 @@ async function fetchPaymentsData() {
   const uid = session.user.id;
 
   const [{ data: rawPayments }, { data: rawAccounts }, { data: rawLoans }] = await Promise.all([
-    supabase.from('payments').select('*, loans:loan_id(application_id)').eq('user_id', uid).order('payment_date', { ascending: false }),
+    supabase.from('payments').select('*').eq('user_id', uid).order('payment_date', { ascending: false }),
     supabase.from('bank_accounts').select('*').eq('user_id', uid).order('is_primary', { ascending: false }),
     supabase.from('loans').select('*').eq('user_id', uid).eq('status', 'active').order('created_at', { ascending: false }),
   ]);
@@ -79,7 +82,7 @@ async function fetchPaymentsData() {
   const payments: Payment[] = (rawPayments ?? []).map(p => ({
     id: p.id,
     loanId: p.loan_id,
-    applicationId: (p.loans as { application_id?: string } | null)?.application_id ?? null,
+    applicationId: null,
     amount: parseFloat(p.amount) || 0,
     date: p.payment_date,
     status: p.status || 'completed',
@@ -360,6 +363,7 @@ async function generateStatement(payments: Payment[], userName: string | undefin
 type ModalKind = 'addBank' | 'allBanks' | 'allLoans' | 'payment' | { deleteAccount: BankAccount } | null;
 
 export function TransactionsPage() {
+  usePageCSS([documentsCssUrl, paymentsCssUrl]);
   const queryClient = useQueryClient();
   const [modal, setModal]       = useState<ModalKind>(null);
   const [page, setPage]         = useState(1);

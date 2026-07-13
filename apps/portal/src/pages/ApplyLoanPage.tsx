@@ -3,6 +3,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 import { apiFetch } from '../api/apiClient';
+import { usePageCSS } from '../hooks/usePageCSS';
+import applyCssUrl from '../legacy-css/16-apply-loan.css?url';
+import creditCheckCssUrl from '../legacy-css/17-credit-check.css?url';
+import loanConfigCssUrl from '../legacy-css/18-loan-config.css?url';
+import confirmationCssUrl from '../legacy-css/19-confirmation.css?url';
+import applyInlineCssUrl from '../legacy-css/20-apply-loan-inline.css?url';
 
 // NCA-compliant rates (matches legacy loan-config.js)
 const INTEREST_RATE_MONTHLY     = 0.05;   // 5% per month
@@ -62,12 +68,16 @@ async function fetchApplyData() {
     { data: creditChecks },
     { data: priorLoans },
     { data: bankAccounts },
+    { data: financialProfile },
+    { data: declarations },
   ] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', uid).single(),
     supabase.from('document_uploads').select('file_type, uploaded_at').eq('user_id', uid).in('file_type', ['till_slip', 'bank_statement']).order('uploaded_at', { ascending: false }),
     supabase.from('credit_checks').select('credit_score, risk_category, status, application_id, checked_at').eq('user_id', uid).eq('status', 'completed').order('checked_at', { ascending: false }).limit(1),
     supabase.from('loan_applications').select('id, created_at').eq('user_id', uid).in('status', ['DISBURSED', 'OFFER_ACCEPTED', 'READY_TO_DISBURSE', 'ACTIVE', 'CONTRACT_SIGN', 'DEBICHECK_AUTH']),
     supabase.from('bank_accounts').select('*').eq('user_id', uid).order('is_primary', { ascending: false }),
+    supabase.from('financial_profiles').select('monthly_income').eq('user_id', uid).maybeSingle(),
+    supabase.from('declarations').select('accepted_std_conditions').eq('user_id', uid).maybeSingle(),
   ]);
 
   const uploadedTypes = new Set((docs ?? []).map(d => d.file_type));
@@ -81,6 +91,8 @@ async function fetchApplyData() {
     existingCheck: creditChecks?.[0] ?? null,
     isFirstLoanOfYear: !(priorLoans ?? []).some(l => new Date(l.created_at).getFullYear() === currentYear),
     bankAccounts: bankAccounts ?? [],
+    hasFinancialProfile: !!(financialProfile && Number(financialProfile.monthly_income) > 0),
+    hasDeclarations: !!(declarations?.accepted_std_conditions === true),
   };
 }
 
@@ -181,6 +193,7 @@ function StepBar({ current, maxReached, onGo }: { current: number; maxReached: n
 // ── main wizard (legacy apply-loan.html / -2 / -3 / confirmation.html) ───────
 
 export function ApplyLoanPage() {
+  usePageCSS([applyCssUrl, creditCheckCssUrl, loanConfigCssUrl, confirmationCssUrl, applyInlineCssUrl]);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -222,7 +235,41 @@ export function ApplyLoanPage() {
   const summary = loanSummary(amount, period, data?.isFirstLoanOfYear ?? false, startDate || null);
   const existingScore = checkResult?.score ?? data?.existingCheck?.credit_score ?? null;
 
+  // Gate: redirect to profile immediately if financial profile or declarations are missing
+  useEffect(() => {
+    if (!data) return;
+    const missing: string[] = [];
+    if (!data.hasFinancialProfile) missing.push('Financial Information');
+    if (!data.hasDeclarations) missing.push('Declarations');
+    if (missing.length > 0) {
+      showProfileIncompleteToast(missing);
+      navigate('/user-portal/profile');
+    }
+  }, [data, navigate]);
+
+  function showProfileIncompleteToast(missing: string[]) {
+    const existing = document.querySelector('.profile-incomplete-toast');
+    if (existing) { (existing as HTMLElement).style.animation = 'none'; setTimeout(() => { (existing as HTMLElement).style.animation = 'pulse 0.3s ease'; }, 10); return; }
+    const toast = document.createElement('div');
+    toast.className = 'profile-incomplete-toast';
+    toast.style.cssText = 'position:fixed;top:90px;right:20px;background:linear-gradient(135deg,#EF4444,#DC2626);color:white;padding:16px 24px;border-radius:12px;box-shadow:0 8px 24px rgba(239,68,68,0.3);z-index:10000;animation:slideInRight 0.3s ease;max-width:400px;font-weight:600;border:2px solid rgba(255,255,255,0.2);font-family:inherit;';
+    toast.innerHTML = `<div style="display:flex;align-items:start;gap:12px;"><i class="fa-solid fa-triangle-exclamation" style="font-size:24px;margin-top:2px;"></i><div><div style="font-size:16px;margin-bottom:8px;">Profile Incomplete</div><div style="font-size:13px;opacity:0.95;line-height:1.5;">Please complete: <strong>${missing.join(' & ')}</strong></div><div style="font-size:12px;opacity:0.85;margin-top:6px;">Go to Profile → ${missing[0]}</div></div></div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.animation = 'slideOutRight 0.3s ease'; setTimeout(() => toast.remove(), 300); }, 5000);
+  }
+
   function goTo(n: number) {
+    // Gate: steps 2+ require completed financial profile and declarations (same as legacy)
+    if (n >= 2 && data) {
+      const missing: string[] = [];
+      if (!data.hasFinancialProfile) missing.push('Financial Information');
+      if (!data.hasDeclarations) missing.push('Declarations');
+      if (missing.length > 0) {
+        showProfileIncompleteToast(missing);
+        navigate('/user-portal/profile');
+        return;
+      }
+    }
     setStep(n);
     setMaxReached(m => Math.max(m, n));
     setNotice(null);

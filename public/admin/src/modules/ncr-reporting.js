@@ -66,6 +66,33 @@ async function fetchForm40(year) {
     return res.json();
 }
 
+async function saveStaffCount(year, staffCount) {
+    const token = await getToken();
+    const res = await fetch(`/api/admin/ncr/statutory-registers/${year}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ staff_count: staffCount }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || `HTTP ${res.status}`);
+    return res.json();
+}
+
+async function logExport(kind, payload) {
+    // Best-effort — a failed audit log shouldn't block the user from getting
+    // their CSV, but it's awaited (not fire-and-forget) so a failure is at
+    // least visible in the console rather than silently dropped.
+    try {
+        const token = await getToken();
+        await fetch(`/api/compliance/${kind}/log-export`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+    } catch (err) {
+        console.warn(`[ncr-reporting] log-export failed for ${kind}:`, err.message);
+    }
+}
+
 // ── CSV export ────────────────────────────────────────────────────────────────
 
 function downloadCsv(rows, filename) {
@@ -77,14 +104,16 @@ function downloadCsv(rows, filename) {
     URL.revokeObjectURL(url);
 }
 
-function exportForm39Csv() {
+async function exportForm39Csv() {
     if (!form39Data) return;
     const p = currentPeriod;
     const d = form39Data;
+    await logExport('form39', { from: p.from, to: p.to, figures: d });
     const rows = [
         ['NCR Form 39 — Statistical Return'],
         ['Period', `${p.from} to ${p.to}`],
         ['Due Date', p.due],
+        ...(d.is_live_snapshot ? [[], ['NOTE: Book Snapshot and Arrears/Defaults figures reflect account statuses at export time, not a true snapshot as of the period end date. See admin notes.']] : []),
         [],
         ['SECTION A — NEW CREDIT AGREEMENTS'],
         ['Number of new agreements', d.new_agreements.count],
@@ -116,12 +145,14 @@ function exportForm39Csv() {
     downloadCsv(rows, `Form39_${p.from}_${p.to}.csv`);
 }
 
-function exportForm40Csv() {
+async function exportForm40Csv() {
     if (!form40Data) return;
     const d = form40Data;
+    await logExport('form40', { year: d.year, figures: d });
     const rows = [
         ['NCR Form 40 — Annual Financial & Operational Return'],
         ['Financial Year', d.year],
+        ...(d.is_live_snapshot ? [[], ['NOTE: Credit Book figures reflect account statuses at export time, not a true snapshot as of the financial year-end. See admin notes.']] : []),
         [],
         ['SECTION A — CREDIT BOOK'],
         ['Total principal outstanding (R)',     d.credit_book.total_principal_outstanding],
@@ -142,7 +173,14 @@ function exportForm40Csv() {
         [],
         ['SECTION D — OPERATIONAL'],
         ['Number of branches',            d.operational.branches],
-        ['Number of staff (manual)',      document.getElementById('f40-staff-count')?.value || ''],
+        ['Number of staff',               document.getElementById('f40-staff-count')?.value || ''],
+        [],
+        ['SECTION E — COMPLIANCE'],
+        ['Complaints received',           d.compliance?.complaints_received ?? ''],
+        ['Complaints resolved',           d.compliance?.complaints_resolved ?? ''],
+        ['Debt review referrals',         d.compliance?.debt_review_referrals ?? ''],
+        ['Submitted to NCR',              d.compliance?.submitted_to_ncr ? 'Yes' : 'No'],
+        ['Submission reference',          d.compliance?.submission_reference ?? ''],
     ];
     downloadCsv(rows, `Form40_${d.year}.csv`);
 }
@@ -191,6 +229,16 @@ function renderForm39(d, period) {
             <span class="material-symbols-outlined text-[16px]">download</span>Download CSV
         </button>
     </div>
+
+    ${d.is_live_snapshot ? `
+    <div class="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2">
+        <span class="material-symbols-outlined text-[16px] text-amber-600 mt-0.5">warning</span>
+        <p class="text-xs text-amber-800">
+            <strong>Book Snapshot and Arrears/Defaults reflect today's account statuses</strong>, not a true snapshot as of ${period.to}.
+            This app doesn't yet log every status change with a timestamp, so a past period's book state can't be reliably reconstructed.
+            These figures are safe to use for the current/most recent period, but treat them as an approximation for older periods.
+        </p>
+    </div>` : ''}
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Section A -->
@@ -247,6 +295,7 @@ function renderForm40(d) {
     const rv = d.revenue_year;
     const im = d.impairments_year;
     const op = d.operational;
+    const co = d.compliance || {};
     return `
 <div class="glass-card p-6 rounded-2xl mb-6">
     <div class="flex items-center justify-between mb-4">
@@ -261,6 +310,27 @@ function renderForm40(d) {
             <span class="material-symbols-outlined text-[16px]">download</span>Download CSV
         </button>
     </div>
+
+    ${d.is_live_snapshot ? `
+    <div class="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-2">
+        <span class="material-symbols-outlined text-[16px] text-amber-600 mt-0.5">warning</span>
+        <p class="text-xs text-amber-800">
+            <strong>Credit Book figures reflect today's account statuses</strong>, not a true snapshot as of ${d.year}-12-31.
+            This app doesn't yet log every status change with a timestamp, so a past year-end book state can't be reliably reconstructed.
+            Safe to use for the current financial year; treat as an approximation for prior years.
+        </p>
+    </div>` : ''}
+
+    ${co.submitted_to_ncr !== undefined ? `
+    <div class="mb-4 p-3 rounded-xl border flex items-center gap-2 ${co.submitted_to_ncr ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}">
+        <span class="material-symbols-outlined text-[16px] ${co.submitted_to_ncr ? 'text-green-600' : 'text-gray-400'}">${co.submitted_to_ncr ? 'verified' : 'schedule'}</span>
+        <p class="text-xs ${co.submitted_to_ncr ? 'text-green-800' : 'text-gray-500'}">
+            ${co.submitted_to_ncr
+                ? `Marked submitted to NCR${co.submitted_at ? ` on ${new Date(co.submitted_at).toLocaleDateString('en-ZA')}` : ''}${co.submission_reference ? ` — ref ${co.submission_reference}` : ''}.`
+                : 'Not yet marked as submitted to NCR.'}
+            Manage submission status on the <a href="/admin/ncr-registers" class="underline font-semibold">NCR Registers</a> page.
+        </p>
+    </div>` : ''}
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- Credit book -->
@@ -300,10 +370,23 @@ function renderForm40(d) {
             <div class="space-y-3 text-sm">
                 <div class="flex justify-between items-center"><span class="text-gray-500">Branches</span><span class="font-bold">${fmtN(op.branches)}</span></div>
                 <div>
-                    <label class="block text-xs text-gray-500 mb-1">Staff count <span class="text-gray-400">(enter manually)</span></label>
-                    <input id="f40-staff-count" type="number" min="0" placeholder="e.g. 12"
-                        class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent">
+                    <label class="block text-xs text-gray-500 mb-1">Staff count</label>
+                    <div class="flex gap-2">
+                        <input id="f40-staff-count" type="number" min="0" placeholder="e.g. 12" value="${op.staff_count ?? ''}"
+                            class="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent">
+                        <button id="f40-staff-save" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white shrink-0" style="background:var(--color-primary)">Save</button>
+                    </div>
+                    <p id="f40-staff-status" class="text-[10px] text-gray-400 mt-1">${op.staff_count != null ? 'Saved — persists across reloads.' : 'Not yet saved.'}</p>
                 </div>
+                ${co.complaints_received != null || co.complaints_resolved != null ? `
+                <div class="pt-2 border-t">
+                    <div class="flex justify-between"><span class="text-gray-500">Complaints received</span><span class="font-semibold">${fmtN(co.complaints_received)}</span></div>
+                    <div class="flex justify-between"><span class="text-gray-500">Complaints resolved</span><span class="font-semibold">${fmtN(co.complaints_resolved)}</span></div>
+                </div>` : ''}
+                ${co.debt_review_referrals != null ? `
+                <div class="flex justify-between"><span class="text-gray-500">Debt review referrals</span><span class="font-semibold">${fmtN(co.debt_review_referrals)}</span></div>` : ''}
+                ${(co.complaints_received == null && co.debt_review_referrals == null) ? `
+                <p class="text-[10px] text-gray-400 pt-2 border-t">Complaints and debt review referrals aren't recorded for ${d.year} yet — add them on the <a href="/admin/ncr-registers" class="underline">NCR Registers</a> page.</p>` : ''}
             </div>
         </div>
     </div>
@@ -314,6 +397,11 @@ function renderPage(loaded = false) {
     const periods = buildPeriodOptions();
     return `
 <div class="max-w-5xl mx-auto px-4 py-8">
+    <button onclick="window.location.href='/admin/dashboard'"
+        class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-slate-700 transition-colors mb-4">
+        <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+        Back to Admin
+    </button>
     <div class="flex items-center gap-3 mb-6">
         <span class="material-symbols-outlined text-2xl" style="color:var(--color-primary)">assignment</span>
         <div>
@@ -366,6 +454,35 @@ async function init() {
     window._exportF40 = exportForm40Csv;
 }
 
+function bindStaffCountSave(year) {
+    const btn    = document.getElementById('f40-staff-save');
+    const input  = document.getElementById('f40-staff-count');
+    const status = document.getElementById('f40-staff-status');
+    if (!btn || !input) return;
+
+    btn.addEventListener('click', async () => {
+        const raw = input.value.trim();
+        const val = raw === '' ? null : Number(raw);
+        if (raw !== '' && (!Number.isFinite(val) || val < 0)) {
+            showToast('Staff count must be a non-negative number', 'error');
+            return;
+        }
+        btn.disabled = true;
+        btn.textContent = 'Saving…';
+        try {
+            await saveStaffCount(year, val);
+            if (form40Data) form40Data.operational.staff_count = val;
+            status.textContent = 'Saved — persists across reloads.';
+            showToast('Staff count saved', 'success');
+        } catch (err) {
+            showToast('Failed to save staff count: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save';
+        }
+    });
+}
+
 function bindEvents(periods) {
     document.getElementById('load-btn')?.addEventListener('click', async () => {
         const idx = Number(document.getElementById('period-select').value);
@@ -383,6 +500,7 @@ function bindEvents(periods) {
             ]);
             document.getElementById('results-container').innerHTML =
                 renderForm39(form39Data, currentPeriod) + renderForm40(form40Data);
+            bindStaffCountSave(year);
         } catch (err) {
             showToast('Failed to load data: ' + err.message, 'error');
         } finally {

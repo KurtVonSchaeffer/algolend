@@ -10,7 +10,7 @@ const fmtR   = v => `R ${Number(v||0).toLocaleString('en-ZA', { minimumFractionD
 const fmtPct = v => `${Number(v||0).toFixed(1)}%`;
 const fmtN   = v => Number(v||0).toLocaleString('en-ZA');
 
-function kpi(label, value, sub, color = '#7C3AED', icon = 'payments') {
+function kpi(label, value, sub, color = '#E7762E', icon = 'payments') {
     return `
     <div class="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
         <div class="flex items-start justify-between mb-3">
@@ -94,7 +94,7 @@ async function init() {
 
         <!-- KPI grid -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            ${kpi('Active Loans',   fmtN(summary.active_count),  null,                                '#7C3AED', 'receipt_long')}
+            ${kpi('Active Loans',   fmtN(summary.active_count),  null,                                '#E7762E', 'receipt_long')}
             ${kpi('Book Value',     fmtR(summary.book_value),    `Principal: ${fmtR(summary.principal_book)}`, '#10b981', 'account_balance')}
             ${kpi('NPL Ratio',      fmtPct(summary.npl_ratio_pct), `${fmtN(summary.npl_count)} loans · ${fmtR(summary.npl_value)}`, nplColor, 'trending_down')}
             ${kpi('Portfolio Yield',fmtPct(summary.yield_pct),  'Total interest / principal',         '#8b5cf6', 'percent')}

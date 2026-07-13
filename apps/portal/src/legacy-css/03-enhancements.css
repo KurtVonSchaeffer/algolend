@@ -54,18 +54,6 @@
     letter-spacing: -0.2px;
   }
 
-  /* ── Hero snap cards — warm tinted gradient ─────────────────── */
-  .snap-card {
-    background: linear-gradient(145deg, #ffffff 0%, #fef7f2 100%) !important;
-    border: 1px solid rgba(231, 118, 46, 0.07) !important;
-  }
-
-  /* First snap card (payment due) gets a stronger orange tint */
-  .snap-card:first-child {
-    background: linear-gradient(145deg, #fff9f5 0%, #fff3eb 100%) !important;
-    border: 1px solid rgba(231, 118, 46, 0.12) !important;
-  }
-
   /* ── Better empty loans state ────────────────────────────────── */
   .empty-loans-state {
     display: flex !important;
