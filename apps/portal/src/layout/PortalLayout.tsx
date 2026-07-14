@@ -259,7 +259,7 @@ export function PortalLayout({ children }: { children: ReactNode }) {
                         <button
                           className={`nav-link${currentPage === 'apply' ? ' active' : ''}`}
                           data-page={LEGACY_PAGE_KEYS[item.page]}
-                          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, font: 'inherit', color: 'inherit' }}
+                          style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}
                           onClick={() => guardedNavigate('apply')}
                         >
                           <i className={`fa-solid ${item.icon} nav-icon`} />
