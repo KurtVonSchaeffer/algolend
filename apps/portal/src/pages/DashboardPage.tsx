@@ -5,7 +5,7 @@ import { supabase } from '../api/supabaseClient';
 import { Loader } from '../components/ui/loader';
 import { usePageCSS } from '../hooks/usePageCSS';
 import dashboardCssUrl from '../legacy-css/10-dashboard.css?url';
-import LoanApplyExplainer, { LOAN_EXPLAINER_KEY } from '../components/LoanApplyExplainer';
+import { isDemoMode, DEMO_DASHBOARD } from '../demo/demoData';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -387,12 +387,10 @@ export function DashboardPage() {
   const [mobileModal, setMobileModal] = useState<'transactions' | 'applications' | null>(null);
   const [activeDot, setActiveDot] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
-  const applyBtnRef = useRef<HTMLButtonElement>(null);
-  const [showExplainer, setShowExplainer] = useState(() => !localStorage.getItem(LOAN_EXPLAINER_KEY));
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['dashboard'],
-    queryFn: fetchDashboard,
+    queryFn: isDemoMode() ? () => Promise.resolve(DEMO_DASHBOARD) : fetchDashboard,
     staleTime: 60_000,
     retry: 1,
   });
@@ -443,8 +441,9 @@ export function DashboardPage() {
 
   const elig = data.eligibility;
 
+  const noActivity = data.loans.length === 0 && data.applications.length === 0;
+
   return (
-    <>
     <div className="page-container">
       <div className="content-wrapper">
 
@@ -470,6 +469,26 @@ export function DashboardPage() {
                 Sign Now <i className="fas fa-arrow-right" style={{ marginLeft: 6 }} />
               </button>
             </div>
+          </div>
+        )}
+
+        {noActivity && (
+          <div style={{ marginBottom: 20, background: 'linear-gradient(135deg, rgba(124,58,237,0.07), rgba(167,139,250,0.05))', border: '1.5px solid rgba(124,58,237,0.18)', borderRadius: 18, padding: '22px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ width: 48, height: 48, background: 'rgba(124,58,237,0.12)', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <i className="fas fa-rocket" style={{ fontSize: 20, color: 'var(--color-primary)' }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 15, fontWeight: 700, margin: '0 0 3px', color: 'var(--text-main, #1C1C1E)' }}>Welcome to AlgoLend</p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted, #8E8E93)', margin: 0, lineHeight: 1.5 }}>You have no active loans yet. Apply online in minutes — no paperwork, no branch visits.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/user-portal/apply')}
+              style={{ background: 'var(--color-primary)', color: '#fff', border: 'none', padding: '12px 22px', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'inherit' }}
+            >
+              Apply for a Loan <i className="fas fa-arrow-right" style={{ marginLeft: 6 }} />
+            </button>
           </div>
         )}
 
@@ -540,7 +559,7 @@ export function DashboardPage() {
               </section>
 
               <section className="quick-actions-row">
-                <button className="action-btn-item" onClick={() => navigate('/user-portal/apply')}>
+                <button className={`action-btn-item${noActivity ? ' btn-coach-pulse' : ''}`} onClick={() => navigate('/user-portal/apply')}>
                   <div className="action-icon-circle"><i className="fas fa-plus" /></div>
                   <span>New Loan</span>
                 </button>
@@ -746,7 +765,7 @@ export function DashboardPage() {
                   <h2>Quick Actions</h2>
                 </div>
                 <div className="quick-actions-grid">
-                  <button ref={applyBtnRef} data-coach-apply="true" className="action-card" onClick={() => navigate('/user-portal/apply')}>
+                  <button className={`action-card${noActivity ? ' btn-coach-pulse' : ''}`} onClick={() => navigate('/user-portal/apply')}>
                     <div className="action-icon-wrapper"><i className="fas fa-plus" /></div>
                     <div className="action-text-block">
                       <div className="action-title">New Loan</div>
@@ -899,12 +918,5 @@ export function DashboardPage() {
       </div>
     </div>
 
-      {showExplainer && (
-        <LoanApplyExplainer
-          targetRef={applyBtnRef}
-          onDone={() => setShowExplainer(false)}
-        />
-      )}
-    </>
   );
 }

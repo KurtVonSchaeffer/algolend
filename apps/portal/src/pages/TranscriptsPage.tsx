@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { isDemoMode, DEMO_TRANSCRIPTS } from '../demo/demoData';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 import { usePageCSS } from '../hooks/usePageCSS';
@@ -225,7 +226,7 @@ export function TranscriptsPage() {
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['transcripts'],
-    queryFn: fetchTranscripts,
+    queryFn: isDemoMode() ? () => Promise.resolve(DEMO_TRANSCRIPTS) : fetchTranscripts,
     staleTime: 60_000,
     retry: 1,
   });

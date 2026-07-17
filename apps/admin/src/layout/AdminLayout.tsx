@@ -84,26 +84,37 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
   const navigate = useNavigate();
 
   const [userName,  setUserName]  = useState('Admin');
+  const [userRole,  setUserRole]  = useState('base_admin');
   const [initials,  setInitials]  = useState('A');
-  const [dropOpen,  setDropOpen]  = useState(false);
   const [expanded,  setExpanded]  = useState<Record<string, boolean>>({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
 
-  const dropRef = useRef<HTMLDivElement>(null);
-  const logoUrl = theme.company_logo_url || '/algolend-logo.png';
+  const logoUrl = theme.company_logo_url || `${import.meta.env.BASE_URL}algolend-logo.png`;
 
   useEffect(() => {
+    const demo = localStorage.getItem('algolend_demo') === '1';
+    if (demo) {
+      setUserName('Demo Admin');
+      setInitials('DA');
+      setUserRole('base_admin');
+      return;
+    }
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       const name = (user.user_metadata?.full_name as string) ?? user.email ?? 'Admin';
+      const role = (user.app_metadata?.role ?? user.user_metadata?.role ?? 'base_admin') as string;
       setUserName(name);
+      setUserRole(role.replace(/_/g, ' '));
       const parts = name.trim().split(/\s+/).filter(Boolean);
-      setInitials(parts.slice(0, 2).map(p => p[0]?.toUpperCase() ?? '').join('') || 'A');
+      setInitials(parts.slice(0, 2).map((p: string) => p[0]?.toUpperCase() ?? '').join('') || 'A');
     });
   }, []);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (dropRef.current && !dropRef.current.contains(e.target as Node)) setDropOpen(false);
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
     }
     document.addEventListener('click', onDocClick);
     return () => document.removeEventListener('click', onDocClick);
@@ -120,7 +131,7 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
 
   async function handleSignOut() {
     await supabase.auth.signOut();
-    window.location.replace('/auth/login.html');
+    window.location.replace('/auth/login');
   }
 
   const currentPath = location.pathname;
@@ -134,17 +145,30 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
   }
 
   return (
-    <div id="admin-shell">
+    <div id="admin-shell" style={{ display: 'flex', minHeight: '100vh' }}>
+
+      {/* ── Mobile overlay ── */}
+      {sidebarOpen && (
+        <div
+          className="admin-sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="admin-sidebar">
+      <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`}>
+
+        {/* Logo */}
         <div className="admin-sidebar-logo">
           <img
-            src={logoUrl} alt="AlgoLend" data-brand-logo
-            style={{ height: 36, width: 'auto', objectFit: 'contain', maxWidth: 150 }}
+            src={logoUrl}
+            alt="AlgoLend"
+            data-brand-logo
             onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
 
+        {/* Nav */}
         <nav className="admin-sidebar-nav">
           {NAV.map(group => (
             <div key={group.section}>
@@ -154,6 +178,7 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
                 <NavLink
                   key={item.href}
                   to={item.href}
+                  onClick={() => setSidebarOpen(false)}
                   className={({ isActive: a }) => `nav-link${a ? ' nav-link-active' : ''}`}
                 >
                   <span className="material-symbols-outlined">{item.icon}</span>
@@ -166,17 +191,14 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
                 const open = !!expanded[sub.id];
                 const childActive = sub.children.some(c => isActive(c.href));
                 return (
-                  <div>
+                  <div key={sub.id}>
                     <button
                       type="button"
                       className={`nav-link${childActive ? ' nav-link-active' : ''}`}
                       onClick={() => toggleSubmenu(sub.id)}
-                      style={{ justifyContent: 'space-between' }}
                     >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <span className="material-symbols-outlined">{sub.icon}</span>
-                        {sub.label}
-                      </span>
+                      <span className="material-symbols-outlined">{sub.icon}</span>
+                      <span style={{ flex: 1, textAlign: 'left' }}>{sub.label}</span>
                       <span
                         className="material-symbols-outlined"
                         style={{ fontSize: 16, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none' }}
@@ -184,11 +206,12 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
                         expand_more
                       </span>
                     </button>
-                    <ul className={`nav-submenu${open ? ' expanded' : ''}`} style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    <ul className={`nav-submenu${open ? ' expanded' : ''}`}>
                       {sub.children.map(child => (
                         <li key={child.href}>
                           <NavLink
                             to={child.href}
+                            onClick={() => setSidebarOpen(false)}
                             className={({ isActive: a }) => `nav-sublink${a ? ' active' : ''}`}
                           >
                             {child.label}
@@ -203,66 +226,81 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
           ))}
         </nav>
 
+        {/* Footer */}
         <div className="admin-sidebar-footer">
           <button
             type="button"
-            className="nav-link"
+            className="sign-out-btn"
             onClick={handleSignOut}
-            style={{ color: '#EF4444', width: '100%' }}
           >
-            <span className="material-symbols-outlined">logout</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>logout</span>
             Sign Out
           </button>
-          <div style={{ textAlign: 'center', padding: '10px 0 0', opacity: 0.4, fontSize: 10, letterSpacing: '0.05em' }}>
-            Powered by <strong>Mint Platforms</strong>
-          </div>
+          <p className="powered-by">Powered by <strong>Mint Platforms</strong></p>
         </div>
       </aside>
 
       {/* ── Main ── */}
       <div className="admin-main">
-        {/* Top header */}
+
+        {/* Atmospheric blobs */}
+        <div className="atmo-blob atmo-blob-top" />
+        <div className="atmo-blob atmo-blob-bottom" />
+
+        {/* Header */}
         <header className="admin-header">
-          <span className="admin-header-title">{title ?? 'Admin'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button
+              className="sidebar-toggle"
+              onClick={() => setSidebarOpen(o => !o)}
+              type="button"
+            >
+              <span className="material-symbols-outlined">menu</span>
+            </button>
+            <span className="admin-header-title">{title ?? 'Admin'}</span>
+          </div>
 
           <div className="admin-header-actions">
-            <button className="admin-icon-btn" title="Notifications">
-              <i className="fa-solid fa-bell" style={{ fontSize: 15 }} />
-            </button>
-
-            {/* User dropdown */}
-            <div style={{ position: 'relative' }} ref={dropRef}>
+            {/* Notifications */}
+            <div style={{ position: 'relative' }} ref={notifRef}>
               <button
-                className="user-chip"
-                onClick={() => setDropOpen(o => !o)}
+                className="admin-icon-btn"
+                title="Notifications"
+                onClick={() => setNotifOpen(o => !o)}
                 type="button"
               >
-                <div className="user-avatar-sm">{initials}</div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>
-                  {userName.split(' ')[0]}
-                </span>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--color-text-muted)' }}>
-                  expand_more
-                </span>
+                <span className="material-symbols-outlined" style={{ fontSize: 20 }}>notifications</span>
               </button>
-
-              {dropOpen && (
-                <div className="dropdown-menu">
-                  <div className="dropdown-user-header">
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{userName}</div>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>Administrator</div>
+              {notifOpen && (
+                <div className="notif-dropdown">
+                  <div className="notif-header">
+                    <span>Notifications</span>
+                    <button type="button" style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                      Mark all read
+                    </button>
                   </div>
-                  <button className="dropdown-item" onClick={() => { setDropOpen(false); navigate('/settings'); }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>settings</span>
-                    Settings
-                  </button>
-                  <button className="dropdown-item danger" onClick={handleSignOut}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>logout</span>
-                    Sign Out
-                  </button>
+                  <div style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
+                    No new notifications
+                  </div>
                 </div>
               )}
             </div>
+
+            {/* Divider */}
+            <div className="header-divider" />
+
+            {/* User info */}
+            <button
+              type="button"
+              className="user-chip"
+              onClick={() => { setNotifOpen(false); navigate('/settings'); }}
+            >
+              <div style={{ textAlign: 'right' }}>
+                <div className="user-chip-name">{userName.split(' ')[0]}</div>
+                <div className="user-chip-role">{userRole}</div>
+              </div>
+              <div className="user-avatar-sm">{initials}</div>
+            </button>
           </div>
         </header>
 

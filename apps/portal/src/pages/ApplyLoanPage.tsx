@@ -71,7 +71,7 @@ async function fetchApplyData() {
     { data: financialProfile },
     { data: declarations },
   ] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', uid).single(),
+    supabase.from('profiles').select('*').eq('id', uid).maybeSingle(),
     supabase.from('document_uploads').select('file_type, uploaded_at').eq('user_id', uid).in('file_type', ['till_slip', 'bank_statement']).order('uploaded_at', { ascending: false }),
     supabase.from('credit_checks').select('credit_score, risk_category, status, application_id, checked_at').eq('user_id', uid).eq('status', 'completed').order('checked_at', { ascending: false }).limit(1),
     supabase.from('loan_applications').select('id, created_at').eq('user_id', uid).in('status', ['DISBURSED', 'OFFER_ACCEPTED', 'READY_TO_DISBURSE', 'ACTIVE', 'CONTRACT_SIGN', 'DEBICHECK_AUTH']),

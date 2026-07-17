@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../api/supabaseClient';
 import { redirectTo } from '../lib/navigation';
+import { isDemoMode } from '../demo/demoData';
 
 const ALLOWED_PORTAL_ROLES = ['borrower', 'super_admin', 'admin', 'base_admin', 'owner'];
 
@@ -17,9 +18,12 @@ function roleOf(session: Session | null): string {
 }
 
 export function useSession(): SessionState {
-  const [state, setState] = useState<SessionState>({ status: 'loading', session: null });
+  const [state, setState] = useState<SessionState>(() =>
+    isDemoMode() ? { status: 'authenticated', session: null } : { status: 'loading', session: null }
+  );
 
   useEffect(() => {
+    if (isDemoMode()) return;
     let cancelled = false;
 
     async function evaluate(session: Session | null) {

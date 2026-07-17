@@ -32,7 +32,7 @@ const SLIDE_PHOTOS = [
 
 async function resolveRedirectPath(session: MinimalSession): Promise<string> {
   const role = session?.user?.app_metadata?.role || session?.user?.user_metadata?.role || '';
-  return hasMinimumRole(role, 'base_admin') ? '/admin/dashboard' : '/user-portal/dashboard';
+  return hasMinimumRole(role, 'base_admin') ? '/admin-panel/dashboard' : '/user-portal/dashboard';
 }
 
 export function AuthPage() {
@@ -101,7 +101,8 @@ export function AuthPage() {
     <>
       <style>{`
         @keyframes photoFade {
-          0%   { opacity: 1; transform: scale(1.03); }
+          0%   { opacity: 0; transform: scale(1.03); }
+          5%   { opacity: 1; transform: scale(1.03); }
           22%  { opacity: 1; transform: scale(1.0);  }
           25%  { opacity: 0; transform: scale(1.0);  }
           100% { opacity: 0; transform: scale(1.0);  }
@@ -127,16 +128,20 @@ export function AuthPage() {
                 position: 'absolute', inset: 0,
                 backgroundImage: `url('${src}')`,
                 backgroundSize: 'cover', backgroundPosition: 'center',
-                opacity: 0,
-                animation: `photoFade 20s linear ${i * 5}s infinite`
+                animationName: 'photoFade',
+                animationDuration: '20s',
+                animationTimingFunction: 'linear',
+                animationDelay: `${i * 5}s`,
+                animationIterationCount: 'infinite',
+                animationFillMode: 'both',
               }}
             />
           ))}
 
-          {/* Gradient overlay — vertical, matches reference repo exactly */}
+          {/* Gradient overlay */}
           <div style={{
             position: 'absolute', inset: 0,
-            background: 'linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(43,21,81,0.65) 50%, rgba(15,23,42,0.75) 100%)'
+            background: 'linear-gradient(180deg, rgba(15,23,42,0.60) 0%, rgba(43,21,81,0.40) 50%, rgba(15,23,42,0.55) 100%)'
           }} />
 
           {/* Content */}

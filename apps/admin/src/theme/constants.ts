@@ -43,7 +43,7 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   primary_color: '#5B21B6',
   secondary_color: '#4A0E8F',
   tertiary_color: '#11022A',
-  theme_mode: 'dark',
+  theme_mode: 'light',
   company_logo_url: null,
   auth_background_url: null,
   auth_background_flip: false,

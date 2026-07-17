@@ -34,8 +34,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     applyCssVariables(theme);
-    // Admin defaults to dark mode
-    document.documentElement.setAttribute('data-theme', DEFAULT_SYSTEM_SETTINGS.theme_mode);
+    document.documentElement.setAttribute('data-theme', theme.theme_mode);
   }, [theme]);
 
   return <ThemeContext.Provider value={{ theme, isLoading }}>{children}</ThemeContext.Provider>;

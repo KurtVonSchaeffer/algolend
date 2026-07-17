@@ -6,6 +6,15 @@ import { fetchLoanApplications } from '../services/adminData';
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 0 }).format(n);
 
+const STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Pending',
+  UNDER_REVIEW: 'In Review',
+  APPROVED: 'Approved',
+  AWAITING_DISBURSEMENT: 'Awaiting Disbursement',
+  DISBURSED: 'Disbursed',
+  DECLINED: 'Declined',
+};
+
 const STATUS_BADGE: Record<string, string> = {
   PENDING: 'badge-yellow',
   UNDER_REVIEW: 'badge-blue',
@@ -16,6 +25,24 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const ALL_STATUSES = ['ALL', 'PENDING', 'UNDER_REVIEW', 'APPROVED', 'AWAITING_DISBURSEMENT', 'DISBURSED', 'DECLINED'];
+
+function getInitial(name: string) {
+  return (name?.trim()?.[0] ?? '?').toUpperCase();
+}
+
+function AvatarCircle({ name }: { name: string }) {
+  return (
+    <div style={{
+      width: 36, height: 36, borderRadius: '50%',
+      background: 'rgba(124,58,237,0.12)',
+      color: 'var(--color-primary)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontWeight: 700, fontSize: 14, flexShrink: 0,
+    }}>
+      {getInitial(name)}
+    </div>
+  );
+}
 
 export function ApplicationsPage() {
   const navigate = useNavigate();
@@ -30,13 +57,15 @@ export function ApplicationsPage() {
 
   const apps = data?.data ?? [];
 
-  const filtered = apps.filter(a => {
+  const filtered = apps.filter((a: any) => {
     const name = (a.profiles as any)?.full_name ?? '';
     const id = String(a.id ?? '');
+    const loanNum = String(a.loan_number ?? '');
     const matchSearch =
       !search ||
       name.toLowerCase().includes(search.toLowerCase()) ||
-      id.toLowerCase().includes(search.toLowerCase());
+      id.toLowerCase().includes(search.toLowerCase()) ||
+      loanNum.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'ALL' || a.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -45,8 +74,8 @@ export function ApplicationsPage() {
     <>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Applications</h1>
-          <p className="page-subtitle">{apps.length} total applications</p>
+          <h1 className="page-title">Loan Applications</h1>
+          <p className="page-subtitle">Review and manage in-branch loan applications</p>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/create-application')}>
           <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
@@ -60,7 +89,7 @@ export function ApplicationsPage() {
           <i className="fa-solid fa-search admin-search-icon" />
           <input
             type="text"
-            placeholder="Search by name or ID…"
+            placeholder="Search by name, loan number or ID…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -72,7 +101,9 @@ export function ApplicationsPage() {
           onChange={e => setStatusFilter(e.target.value)}
         >
           {ALL_STATUSES.map(s => (
-            <option key={s} value={s}>{s === 'ALL' ? 'All Statuses' : s.replace(/_/g, ' ')}</option>
+            <option key={s} value={s}>
+              {s === 'ALL' ? 'All Statuses' : STATUS_LABEL[s] ?? s.replace(/_/g, ' ')}
+            </option>
           ))}
         </select>
         <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
@@ -107,28 +138,46 @@ export function ApplicationsPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.map(app => (
-                <tr
-                  key={app.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/applications/${app.id}`)}
-                >
-                  <td style={{ fontWeight: 600 }}>{(app.profiles as any)?.full_name ?? '—'}</td>
-                  <td style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{(app.profiles as any)?.identity_number ?? '—'}</td>
-                  <td style={{ fontWeight: 700 }}>{fmt(Number(app.amount) || 0)}</td>
-                  <td>
-                    <span className={`badge ${STATUS_BADGE[app.status] ?? 'badge-gray'}`}>
-                      {app.status?.replace(/_/g, ' ')}
-                    </span>
-                  </td>
-                  <td style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
-                    {new Date(app.created_at).toLocaleDateString('en-ZA')}
-                  </td>
-                  <td>
-                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--color-text-muted)' }}>chevron_right</span>
-                  </td>
-                </tr>
-              ))}
+              ) : filtered.map((app: any) => {
+                const name = (app.profiles as any)?.full_name ?? '—';
+                const loanNum = app.loan_number ? `#${app.loan_number}` : '';
+                return (
+                  <tr
+                    key={app.id}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => navigate(`/applications/${app.id}`)}
+                  >
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <AvatarCircle name={name} />
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{name}</div>
+                          {loanNum && (
+                            <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{loanNum}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
+                      {(app.profiles as any)?.identity_number ?? '—'}
+                    </td>
+                    <td style={{ fontWeight: 700 }}>{fmt(Number(app.amount) || 0)}</td>
+                    <td>
+                      <span className={`badge ${STATUS_BADGE[app.status] ?? 'badge-gray'}`}>
+                        {STATUS_LABEL[app.status] ?? app.status?.replace(/_/g, ' ') ?? '—'}
+                      </span>
+                    </td>
+                    <td style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>
+                      {new Date(app.created_at).toLocaleDateString('en-ZA')}
+                    </td>
+                    <td>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--color-text-muted)' }}>
+                        chevron_right
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -789,7 +789,7 @@ async function inviteBorrowerToPortal(applicationId, opts = {}) {
     const { data: linkData, error: linkError } = await supabaseService.auth.admin.generateLink({
         type: 'recovery',
         email: profile.email,
-        options: { redirectTo: `${siteUrl}/auth/set-password.html?next=${nextPage}` }
+        options: { redirectTo: `${siteUrl}/auth/set-password?next=${nextPage}` }
     });
     if (linkError) throw linkError;
     const actionLink = linkData?.properties?.action_link;
@@ -2832,6 +2832,12 @@ if (fs.existsSync(reactPortalDist)) {
     // Static assets (hashed filenames, safe to cache forever)
     app.use('/portal', express.static(reactPortalDist));
     // SPA fallback for all portal + auth routes
+    // Redirect legacy .html auth URLs to React SPA routes
+    app.get('/auth/login.html', (_req, res) => res.redirect(301, '/auth/login'));
+    app.get('/auth/set-password.html', (req, res) => {
+        const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+        res.redirect(301, `/auth/set-password${qs}`);
+    });
     const portalSpaRoutes = ['/user-portal', '/user-portal/*', '/auth/login', '/auth/set-password'];
     app.get(portalSpaRoutes, (_req, res) => {
         res.sendFile(path.join(reactPortalDist, 'index.html'));
@@ -2867,12 +2873,12 @@ app.use(express.static(path.join(__dirname, 'public'), publicStaticOptions));
 
 // --- 6. Root Redirect & Auth Helpers ---
 app.get('/', (req, res) => {
-    res.redirect('/auth/login.html');
+    res.redirect('/auth/login');
 });
 
 // Helper routes to catch bad redirects
 app.get('/login.html', (req, res) => {
-    res.redirect('/auth/login.html');
+    res.redirect('/auth/login');
 });
 app.get('/auth.html', (req, res) => {
     res.redirect('/auth/login.html');
@@ -5759,7 +5765,7 @@ app.post('/api/admin/invite-staff', async (req, res) => {
         const siteUrl = req.headers.origin || `https://${req.headers.host}`;
         const { data: invited, error: inviteErr } = await supabaseService.auth.admin.inviteUserByEmail(email, {
             data: { full_name, role },
-            redirectTo: `${siteUrl}/auth/set-password.html`
+            redirectTo: `${siteUrl}/auth/set-password`
         });
 
         if (inviteErr) {

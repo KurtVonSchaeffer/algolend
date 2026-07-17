@@ -282,11 +282,55 @@ header.navbar-desktop {
   #desktop-view { display: block !important; }
 }
 
-/* ── 8b. HERO SNAP-CARDS (mobile carousel) ────────────────────── */
-/* Visual styling comes from .card + .ds-metric-card — only carousel mechanics here */
+/* ── 8b. HERO SNAP-CARDS (mobile carousel) ─────────────────────── */
+/* Needs #main-content prefix to beat #main-content .card (specificity 110) */
+#main-content .snap-card.card,
+.snap-card.card,
 .snap-card {
-  border-radius: 20px !important;
+  background: linear-gradient(135deg,
+    var(--color-primary, #7C3AED) 0%,
+    var(--color-primary-soft, #A78BFA) 100%
+  ) !important;
+  box-shadow:
+    0 4px 16px rgba(var(--color-primary-rgb, 124 58 237), 0.40),
+    0 12px 40px rgba(var(--color-primary-rgb, 124 58 237), 0.20),
+    inset 0 1px 0 rgba(255,255,255,0.25) !important;
+  border-radius: 28px !important;
+  overflow: hidden !important;
 }
+#main-content .snap-card.card::before,
+.snap-card.card::before,
+.snap-card::before {
+  /* Shine sweep animation */
+  content: '' !important;
+  position: absolute !important;
+  top: -60% !important;
+  left: -60% !important;
+  width: 60% !important;
+  height: 200% !important;
+  background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%) !important;
+  transform: skewX(-15deg) !important;
+  animation: snapCardShine 4s ease-in-out infinite !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+@keyframes snapCardShine {
+  0%   { left: -60%; opacity: 0; }
+  10%  { opacity: 1; }
+  40%  { left: 130%; opacity: 1; }
+  41%  { opacity: 0; }
+  100% { left: 130%; opacity: 0; }
+}
+.snap-card > * { position: relative !important; z-index: 2 !important; }
+/* High-specificity (120) overrides to beat #main-content .card-value etc. (110) */
+#main-content .snap-card .card-label,  .snap-card .card-label  { color: rgba(255,255,255,0.82) !important; font-weight: 600 !important; letter-spacing: 0.06em !important; text-transform: uppercase !important; }
+#main-content .snap-card .card-value,  .snap-card .card-value  { color: #fff !important; text-shadow: 0 2px 12px rgba(0,0,0,0.18) !important; letter-spacing: -2px !important; }
+#main-content .snap-card .card-subtitle, #main-content .snap-card .card-detail,
+.snap-card .card-subtitle, .snap-card .card-detail { color: rgba(255,255,255,0.72) !important; }
+#main-content .snap-card .card-icon-badge,
+.snap-card .card-icon-badge { background: rgba(255,255,255,0.22) !important; backdrop-filter: blur(8px) !important; -webkit-backdrop-filter: blur(8px) !important; border: 1px solid rgba(255,255,255,0.35) !important; color: white !important; }
+#main-content .snap-card .ds-card-header .card-label,
+.snap-card .ds-card-header .card-label { color: rgba(255,255,255,0.82) !important; margin-bottom: 0 !important; }
 
 /* ── 9. QUICK ACTION CIRCLES ─────────────────────────────────── */
 .action-icon-circle {

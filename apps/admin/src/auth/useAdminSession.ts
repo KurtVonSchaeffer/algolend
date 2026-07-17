@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../api/supabaseClient';
 
+const isDemoMode = () => localStorage.getItem('algolend_demo') === '1';
+
 const ADMIN_ROLES = ['base_admin', 'admin', 'super_admin', 'owner'];
 
 export type AdminSessionStatus = 'loading' | 'authenticated' | 'unauthorized';
@@ -21,19 +23,20 @@ function roleOf(session: Session | null): string {
 }
 
 export function useAdminSession(): AdminSessionState {
-  const [state, setState] = useState<AdminSessionState>({
-    status: 'loading',
-    session: null,
-    role: 'borrower',
-  });
+  const [state, setState] = useState<AdminSessionState>(() =>
+    isDemoMode()
+      ? { status: 'authenticated', session: null, role: 'base_admin' }
+      : { status: 'loading', session: null, role: 'borrower' }
+  );
 
   useEffect(() => {
+    if (isDemoMode()) return;
     let cancelled = false;
 
     async function evaluate(session: Session | null) {
       if (!session) {
         if (!cancelled) setState({ status: 'unauthorized', session: null, role: 'borrower' });
-        window.location.replace('/auth/login.html');
+        window.location.replace('/auth/login');
         return;
       }
 
@@ -41,7 +44,7 @@ export function useAdminSession(): AdminSessionState {
       if (!ADMIN_ROLES.includes(role)) {
         await supabase.auth.signOut();
         if (!cancelled) setState({ status: 'unauthorized', session: null, role });
-        window.location.replace('/auth/login.html');
+        window.location.replace('/auth/login');
         return;
       }
 
@@ -53,7 +56,7 @@ export function useAdminSession(): AdminSessionState {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         setState({ status: 'unauthorized', session: null, role: 'borrower' });
-        window.location.replace('/auth/login.html');
+        window.location.replace('/auth/login');
         return;
       }
       evaluate(session);

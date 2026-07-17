@@ -9,6 +9,25 @@ const ROLE_BADGE: Record<string, string> = {
   super_admin: 'badge-green', owner: 'badge-yellow',
 };
 
+function getInitials(name: string) {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  return parts.slice(0, 2).map(p => p[0]?.toUpperCase() ?? '').join('') || '?';
+}
+
+function AvatarCircle({ name }: { name: string }) {
+  return (
+    <div style={{
+      width: 36, height: 36, borderRadius: '50%',
+      background: 'rgba(124,58,237,0.12)',
+      color: 'var(--color-primary)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontWeight: 700, fontSize: 13, flexShrink: 0,
+    }}>
+      {getInitials(name)}
+    </div>
+  );
+}
+
 export function UsersPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
@@ -57,7 +76,9 @@ export function UsersPage() {
           <option value="ALL">All Roles</option>
           {ROLES.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
         </select>
-        <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
+        <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+          {filtered.length} result{filtered.length !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {isLoading ? (
@@ -66,7 +87,15 @@ export function UsersPage() {
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
-              <tr><th>User</th><th>ID Number</th><th>Phone</th><th>Role</th><th>Branch</th><th>Joined</th><th></th></tr>
+              <tr>
+                <th>User</th>
+                <th>ID Number</th>
+                <th>Phone</th>
+                <th>Role</th>
+                <th>Branch</th>
+                <th>Joined</th>
+                <th></th>
+              </tr>
             </thead>
             <tbody>
               {filtered.length === 0
@@ -74,8 +103,13 @@ export function UsersPage() {
                 : filtered.map((u: any) => (
                   <tr key={u.id}>
                     <td>
-                      <div style={{ fontWeight: 600 }}>{u.full_name ?? '—'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{u.email}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <AvatarCircle name={u.full_name ?? ''} />
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{u.full_name ?? '—'}</div>
+                          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{u.email}</div>
+                        </div>
+                      </div>
                     </td>
                     <td style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{u.identity_number ?? '—'}</td>
                     <td style={{ fontSize: 12 }}>{u.cell_tel_no ?? '—'}</td>
@@ -94,16 +128,23 @@ export function UsersPage() {
                             onClick={() => roleMutation.mutate({ userId: u.id, role: editingUser!.role })}>
                             Save
                           </button>
-                          <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setEditingUser(null)}>Cancel</button>
+                          <button className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setEditingUser(null)}>
+                            Cancel
+                          </button>
                         </div>
                       ) : (
-                        <span className={`badge ${ROLE_BADGE[u.role] ?? 'badge-gray'}`}>{u.role?.replace(/_/g, ' ') ?? 'borrower'}</span>
+                        <span className={`badge ${ROLE_BADGE[u.role] ?? 'badge-gray'}`}>
+                          {u.role?.replace(/_/g, ' ') ?? 'borrower'}
+                        </span>
                       )}
                     </td>
                     <td style={{ fontSize: 12 }}>{(u.branches as any)?.name ?? '—'}</td>
-                    <td style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{new Date(u.created_at).toLocaleDateString('en-ZA')}</td>
+                    <td style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                      {new Date(u.created_at).toLocaleDateString('en-ZA')}
+                    </td>
                     <td>
-                      <button className="admin-icon-btn" title="Edit role" onClick={() => setEditingUser({ id: u.id, role: u.role ?? 'borrower' })}>
+                      <button className="admin-icon-btn" title="Edit role"
+                        onClick={() => setEditingUser({ id: u.id, role: u.role ?? 'borrower' })}>
                         <span className="material-symbols-outlined" style={{ fontSize: 16 }}>edit</span>
                       </button>
                     </td>

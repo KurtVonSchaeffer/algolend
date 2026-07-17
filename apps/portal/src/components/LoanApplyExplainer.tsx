@@ -13,7 +13,7 @@ const PANEL = {
 };
 
 /* ── 4-panel single-hole overlay ── */
-function SingleHoleOverlay({ hole, onClick }: { hole: DOMRect & { pad: number } | null; onClick: () => void }) {
+function SingleHoleOverlay({ hole, onClick }: { hole: { top: number; left: number; right: number; bottom: number; pad: number } | null; onClick: () => void }) {
   if (!hole) return (
     <motion.div style={{ ...PANEL, inset: 0 }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClick} />
   );
@@ -52,7 +52,7 @@ function AnimatedRing({ rect, pad = 10, radius = 16, zIndex = 999 }: {
 function ButtonSpotlight({ rect }: { rect: DOMRect | null }) {
   if (!rect) return null;
   const pad = 10;
-  const hole = { ...rect, pad };
+  const hole = { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, pad };
   return (
     <>
       <SingleHoleOverlay hole={hole} onClick={() => {}} />
@@ -82,7 +82,7 @@ function StepCallout({ rect, onDone }: { rect: DOMRect | null; onDone: () => voi
   const navigate = useNavigate();
   if (!rect) return null;
   const pad = 10;
-  const hole = { ...rect, pad };
+  const hole = { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, pad };
 
   const rightSpace = window.innerWidth - (rect.right + pad + 14);
   const leftSpace  = rect.left - pad - 14;
@@ -187,13 +187,40 @@ export default function LoanApplyExplainer({ targetRef, onDone }: {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    let raf: number;
+    let settled = false;
+
     function measure() {
-      const el = targetRef.current ?? document.querySelector('[data-coach-apply="true"]') as HTMLElement | null;
-      if (el) setRect(el.getBoundingClientRect());
+      const candidates = document.querySelectorAll<HTMLElement>('[data-coach-apply="true"]');
+      let best: HTMLElement | null = targetRef.current ?? null;
+      candidates.forEach(el => {
+        const r = el.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) best = el;
+      });
+      if (best) {
+        const r = best.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          setRect(r);
+          settled = true;
+          return;
+        }
+      }
+      if (!settled) raf = requestAnimationFrame(measure);
     }
+
+    function onResize() {
+      const candidates = document.querySelectorAll<HTMLElement>('[data-coach-apply="true"]');
+      let best: HTMLElement | null = targetRef.current ?? null;
+      candidates.forEach(el => {
+        const r = el.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) best = el;
+      });
+      if (best) setRect(best.getBoundingClientRect());
+    }
+
     measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    window.addEventListener('resize', onResize);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); };
   }, [targetRef]);
 
   useEffect(() => {

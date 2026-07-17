@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { isDemoMode, DEMO_PROFILE } from '../demo/demoData';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 import { usePageCSS } from '../hooks/usePageCSS';
@@ -923,7 +924,7 @@ export function ProfilePage() {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['profile-page'],
-    queryFn: fetchProfileData,
+    queryFn: isDemoMode() ? () => Promise.resolve(DEMO_PROFILE) : fetchProfileData,
     staleTime: 60_000,
     retry: 1,
   });

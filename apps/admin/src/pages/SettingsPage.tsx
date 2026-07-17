@@ -4,6 +4,23 @@ import { fetchSystemSettings, updateSystemSettings } from '../services/adminData
 
 const TABS = ['Branding', 'Theme', 'Auth Page', 'Legal'];
 
+const DEFAULT_FORM = {
+  company_name: '',
+  company_logo_url: '',
+  primary_color: '#7C3AED',
+  secondary_color: '#1A1F36',
+  tertiary_color: '#A78BFA',
+  theme_mode: 'light',
+  auth_background_url: '',
+  auth_overlay_color: '#1E0B3B',
+  auth_overlay_enabled: true,
+  auth_background_flip: false,
+  legal_entity_name: '',
+  company_reg_name: '',
+  fsp_number: '',
+  ncr_number: '',
+};
+
 export function SettingsPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState('Branding');
@@ -16,9 +33,12 @@ export function SettingsPage() {
     staleTime: 60_000,
   });
 
+  // Set form once query completes — fall back to defaults if no DB row exists
   useEffect(() => {
-    if (settingsResult?.data && !form) setForm(settingsResult.data);
-  }, [settingsResult, form]);
+    if (!isLoading && !form) {
+      setForm(settingsResult?.data ?? DEFAULT_FORM);
+    }
+  }, [isLoading, settingsResult, form]);
 
   const mutation = useMutation({
     mutationFn: (data: Record<string, any>) => updateSystemSettings(data),
@@ -32,9 +52,10 @@ export function SettingsPage() {
 
   const set = (key: string, value: unknown) => setForm((f: any) => ({ ...f, [key]: value }));
 
-  if (isLoading || !form) {
+  if (isLoading) {
     return <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}><div className="spinner" /></div>;
   }
+  if (!form) return null;
 
   return (
     <>

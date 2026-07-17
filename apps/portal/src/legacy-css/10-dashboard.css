@@ -213,13 +213,20 @@ body, #main-content .page-container {
     }
     .hero-carousel::-webkit-scrollbar { display: none; }
 
-    .snap-card { 
+    .snap-card {
         flex: 0 0 calc(100vw - 48px); /* Full width minus 24px padding on each side */
         box-sizing: border-box;
-        scroll-snap-align: center; background: var(--color-white); 
-        border-radius: 36px; padding: 36px; position: relative; 
-        box-shadow: var(--shadow-soft); display: flex; flex-direction: column; justify-content: center; 
+        scroll-snap-align: center;
+        background: linear-gradient(135deg, var(--color-primary, #7C3AED) 0%, var(--color-primary-soft, #A78BFA) 100%) !important;
+        box-shadow: 0 4px 16px rgba(var(--color-primary-rgb, 124 58 237)/0.40), 0 12px 40px rgba(var(--color-primary-rgb, 124 58 237)/0.20), inset 0 1px 0 rgba(255,255,255,0.25) !important;
+        border-radius: 36px; padding: 36px; position: relative;
+        overflow: hidden;
+        display: flex; flex-direction: column; justify-content: center;
     }
+    .snap-card .card-label  { color: rgba(255,255,255,0.82) !important; font-size: 12px !important; font-weight: 600 !important; letter-spacing: 0.08em !important; text-transform: uppercase !important; }
+    .snap-card .card-value  { color: #fff !important; text-shadow: 0 2px 12px rgba(0,0,0,0.18) !important; }
+    .snap-card .card-subtitle, .snap-card .card-detail { color: rgba(255,255,255,0.72) !important; }
+    .snap-card .card-icon-badge { background: rgba(255,255,255,0.22) !important; backdrop-filter: blur(8px) !important; border: 1px solid rgba(255,255,255,0.35) !important; color: white !important; }
     
     .hide-eye-btn { position: absolute; top: 24px; right: 24px; background: var(--color-bg); border: none; width: 44px; height: 44px; border-radius: 50%; color: var(--text-main); cursor: pointer; display: grid; place-items: center; font-size: 18px; z-index: 10; }
 
@@ -304,3 +311,14 @@ body, #main-content .page-container {
     }
 }
 
+
+/* ── Onboarding: pulse ring on New Loan button ── */
+@keyframes coachPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.45); }
+    70%  { box-shadow: 0 0 0 10px rgba(124, 58, 237, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0); }
+}
+
+.btn-coach-pulse {
+    animation: coachPulse 1.8s ease-out infinite;
+}
