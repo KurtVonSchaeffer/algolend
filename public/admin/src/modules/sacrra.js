@@ -1057,6 +1057,14 @@ async function buildSacrraFileContent(settings) {
     const STATUS_DATE_CAP_CODES = new Set(['B','C','D','G','H','K','M','P','S','T','V','X','Z']);
     // Status codes where Last Payment Date must not exceed monthEnd (SACRRA rejection rule)
     const LASTPAY_CAP_CODES = new Set(['','E','I','L','J','W','Y']);
+    // Status codes covered by the "Status Date should not be 3+ months before Month End" warning
+    const STALE_STATUS_CODES = new Set(['B','C','E','F','G','H','I','J','K','L','M','N','S','T','U','V','W','X','Z']);
+
+    const int8ToDate = n => {
+        const s = String(n).padStart(8, '0');
+        return new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
+    };
+    const dateToInt8 = d => +`${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
 
     sacrraState.members.forEach(m => {
         // Monthly = 'D' (Data). Daily = 'R' (Registration) or 'C' (Closure) per prefix
@@ -1088,11 +1096,26 @@ async function buildSacrraFileContent(settings) {
         // STATUS DATE:
         //   - Must be 00000000 when Status Code is blank/active (SACRRA warning fix)
         //   - Must not exceed monthEnd for B,C,D,G,H,K,M,P,S,T,V,X,Z (SACRRA rejection fix)
+        //   - For V (cancelled/rejected/declined): must not be more than 5 days after
+        //     Date Opened — the view used to force it to +6 days, guaranteeing this
+        //     warning on every such record (V07805 SACRRA warning fix)
         let statusDateStr = (m.f51_status_date || '').replace(/-/g,'').slice(0,8) || '0';
         if (!rawStatus) {
             statusDateStr = '0';
+        } else if (rawStatus === 'V' && dateOpenedInt > 0) {
+            const capInt = dateToInt8(new Date(int8ToDate(dateOpenedInt).getTime() + 5 * 86400000));
+            if (toInt8(statusDateStr) > capInt) statusDateStr = String(capInt);
         } else if (STATUS_DATE_CAP_CODES.has(rawStatus) && toInt8(statusDateStr) > monthEndInt) {
             statusDateStr = monthEnd;
+        }
+
+        // Drop stale closed/cancelled accounts instead of resubmitting them forever:
+        // once a T/V-status account's status date is 2+ months before month-end, stop
+        // reporting it — well inside SACRRA's 3-month tolerance (V07889 warning fix).
+        if (STALE_STATUS_CODES.has(rawStatus) && toInt8(statusDateStr) > 0) {
+            const monthsBefore = (monthEndInt ? (Math.floor(monthEndInt / 10000) * 12 + Math.floor((monthEndInt % 10000) / 100)) : 0)
+                - (Math.floor(toInt8(statusDateStr) / 10000) * 12 + Math.floor((toInt8(statusDateStr) % 10000) / 100));
+            if (monthsBefore >= 2) return;
         }
 
         // LAST PAYMENT DATE:
