@@ -27,7 +27,7 @@ export async function enforceAdminSession() {
     }
 
     // 2. Verify user has admin role (read from JWT app_metadata; RPC fallback)
-    const ADMIN_ROLES = ['base_admin', 'admin', 'super_admin', 'owner'];
+    const ADMIN_ROLES = ['base_admin', 'admin', 'super_admin', 'owner', 'telemarketing_agent'];
     const jwtRole = (session.user?.app_metadata?.role || session.user?.user_metadata?.role || '').toLowerCase();
     let isAllowed = ADMIN_ROLES.includes(jwtRole);
 

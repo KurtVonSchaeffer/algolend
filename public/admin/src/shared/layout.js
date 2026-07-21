@@ -26,7 +26,7 @@ export async function initLayout() {
     return null; 
   }
 
-  const ADMIN_ROLES = ['base_admin', 'admin', 'super_admin', 'owner'];
+  const ADMIN_ROLES = ['base_admin', 'admin', 'super_admin', 'owner', 'telemarketing_agent'];
   const role = (session.user?.app_metadata?.role || session.user?.user_metadata?.role || 'borrower').toLowerCase();
   const isAllowed = ADMIN_ROLES.includes(role);
 
@@ -225,9 +225,15 @@ function renderSidebarNav(role) {
   const isBaseAdmin = ['base_admin', 'admin', 'super_admin'].includes(role);
   const isAdmin     = ['admin', 'super_admin'].includes(role);
   const isSuperAdmin = role === 'super_admin';
+  const isTelemarketingAgent = role === 'telemarketing_agent';
 
   return `
     <ul class="space-y-0.5">
+      ${isTelemarketingAgent ? `
+        ${navSection('Overview')}
+        ${navLink('/admin/telemarketing', 'call', 'My Dashboard')}
+      ` : ''}
+
       ${isBaseAdmin ? `
         ${navSection('Overview')}
         ${navLink('/admin/dashboard', 'dashboard', 'Dashboard')}
@@ -272,6 +278,12 @@ function renderSidebarNav(role) {
         ${navLink('/admin/portfolio',      'analytics',               'Portfolio')}
         ${navLink('/admin/loan-book',     'menu_book',               'Loan Book')}
         ${navLink('/admin/cash-ledger',   'account_balance_wallet',  'Cash Ledger')}
+      ` : ''}
+
+      ${isAdmin ? `
+        ${navSection('Telemarketing')}
+        ${navLink('/admin/telemarketing', 'call', 'Agents & Leads')}
+        ${isSuperAdmin ? navLink('/admin/telemarketing-payroll', 'payments', 'Commission Payroll') : ''}
       ` : ''}
 
       ${isAdmin ? `
