@@ -6,7 +6,6 @@ import { AdminLayout } from './layout/AdminLayout';
 import { DashboardPage }          from './pages/DashboardPage';
 import { ApplicationsPage }       from './pages/ApplicationsPage';
 import { ApplicationDetailPage }  from './pages/ApplicationDetailPage';
-import { UsersPage }              from './pages/UsersPage';
 import { MandatesPage }           from './pages/MandatesPage';
 import { IncomingPaymentsPage }   from './pages/IncomingPaymentsPage';
 import { OutgoingPaymentsPage }   from './pages/OutgoingPaymentsPage';
@@ -26,7 +25,8 @@ import {
 const PAGE_TITLES: Record<string, string> = {
   dashboard:          'Dashboard',
   applications:       'Applications',
-  users:              'Users',
+  'settings/user-management': 'User Management',
+  users:              'User Management',
   mandates:           'Mandates',
   'incoming-payments': 'Incoming Payments',
   'outgoing-payments': 'Outgoing Payments',
@@ -52,8 +52,9 @@ const queryClient = new QueryClient({
 
 function AdminShell() {
   const { pathname } = useLocation();
-  const seg = pathname.split('/').filter(Boolean)[0] ?? 'dashboard';
-  const title = PAGE_TITLES[seg] ?? 'Admin';
+  const parts = pathname.split('/').filter(Boolean);
+  const routeKey = parts.join('/') || 'dashboard';
+  const title = PAGE_TITLES[routeKey] ?? PAGE_TITLES[parts[0] ?? 'dashboard'] ?? 'Admin';
   return (
     <AdminRoute>
       <AdminLayout title={title}>
@@ -75,7 +76,8 @@ export default function App() {
               <Route path="applications"       element={<ApplicationsPage />} />
               <Route path="applications/:id"   element={<ApplicationDetailPage />} />
               <Route path="create-application" element={<CreateApplicationPage />} />
-              <Route path="users"              element={<UsersPage />} />
+              <Route path="settings/user-management" element={<SettingsPage section="user-management" />} />
+              <Route path="users"              element={<Navigate to="/settings/user-management" replace />} />
               <Route path="mandates"           element={<MandatesPage />} />
               <Route path="incoming-payments"  element={<IncomingPaymentsPage />} />
               <Route path="outgoing-payments"  element={<OutgoingPaymentsPage />} />

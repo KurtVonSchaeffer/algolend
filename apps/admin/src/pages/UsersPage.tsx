@@ -28,7 +28,7 @@ function AvatarCircle({ name }: { name: string }) {
   );
 }
 
-export function UsersPage() {
+export function UsersPage({ embedded = false, title = 'Users' }: { embedded?: boolean; title?: string }) {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
@@ -57,12 +57,14 @@ export function UsersPage() {
 
   return (
     <>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Users</h1>
-          <p className="page-subtitle">{users.length} registered users</p>
+      {!embedded && (
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">{title}</h1>
+            <p className="page-subtitle">{users.length} registered users</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <div className="admin-search">

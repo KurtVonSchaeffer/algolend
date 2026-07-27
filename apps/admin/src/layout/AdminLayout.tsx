@@ -2,81 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 import { useTheme } from '../theme/ThemeProvider';
-
-interface NavItem {
-  href: string;
-  icon: string;
-  label: string;
-}
-
-interface NavGroup {
-  section: string;
-  items: NavItem[];
-  submenu?: { id: string; label: string; icon: string; children: { href: string; label: string }[] };
-}
-
-const NAV: NavGroup[] = [
-  {
-    section: 'Overview',
-    items: [{ href: '/dashboard', icon: 'dashboard', label: 'Dashboard' }],
-    submenu: {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: 'bar_chart',
-      children: [
-        { href: '/analytics', label: 'Customer Analytics' },
-        { href: '/financials', label: 'Financials' },
-      ],
-    },
-  },
-  {
-    section: 'Applications',
-    items: [
-      { href: '/applications', icon: 'assignment', label: 'Applications' },
-      { href: '/create-application', icon: 'add_circle', label: 'New Application' },
-    ],
-  },
-  {
-    section: 'Finance',
-    items: [
-      { href: '/users', icon: 'group', label: 'Users' },
-      { href: '/mandates', icon: 'receipt_long', label: 'Mandates' },
-    ],
-    submenu: {
-      id: 'payments',
-      label: 'Payments',
-      icon: 'payments',
-      children: [
-        { href: '/incoming-payments', label: 'Incoming' },
-        { href: '/outgoing-payments', label: 'Outgoing' },
-      ],
-    },
-  },
-  {
-    section: 'Tools',
-    items: [
-      { href: '/credit-rules',  icon: 'rule',                    label: 'Credit Rules' },
-      { href: '/portfolio',     icon: 'analytics',               label: 'Portfolio' },
-      { href: '/loan-book',     icon: 'menu_book',               label: 'Loan Book' },
-      { href: '/cash-ledger',   icon: 'account_balance_wallet',  label: 'Cash Ledger' },
-    ],
-  },
-  {
-    section: 'Compliance',
-    items: [
-      { href: '/sacrra',             icon: 'verified_user',    label: 'SACRRA' },
-      { href: '/sacrra-validator',   icon: 'rule_folder',      label: 'Migration Validator' },
-      { href: '/ncr-reporting',      icon: 'assignment',       label: 'NCR Reporting' },
-      { href: '/ncr-registers',      icon: 'manage_accounts',  label: 'NCR Registers' },
-      { href: '/compliance-tracker', icon: 'checklist',        label: 'Compliance Tracker' },
-      { href: '/goaml',              icon: 'security',         label: 'FIC goAML' },
-    ],
-  },
-  {
-    section: 'System',
-    items: [{ href: '/settings', icon: 'settings', label: 'Settings' }],
-  },
-];
+import { ADMIN_NAV, getExpandedNavIds } from './adminNav';
 
 export function AdminLayout({ children, title }: { children: ReactNode; title?: string }) {
   const { theme } = useTheme();
@@ -120,13 +46,8 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
     return () => document.removeEventListener('click', onDocClick);
   }, []);
 
-  // Auto-expand submenu if current path matches a child
   useEffect(() => {
-    const path = location.pathname;
-    const updates: Record<string, boolean> = {};
-    if (path.includes('/analytics') || path.includes('/financials')) updates['analytics'] = true;
-    if (path.includes('/incoming-payments') || path.includes('/outgoing-payments')) updates['payments'] = true;
-    if (Object.keys(updates).length) setExpanded(prev => ({ ...prev, ...updates }));
+    setExpanded(prev => ({ ...prev, ...getExpandedNavIds(location.pathname) }));
   }, [location.pathname]);
 
   async function handleSignOut() {
@@ -170,7 +91,7 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
 
         {/* Nav */}
         <nav className="admin-sidebar-nav">
-          {NAV.map(group => (
+          {ADMIN_NAV.map(group => (
             <div key={group.section}>
               <p className="nav-section-label">{group.section}</p>
 

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchSystemSettings, updateSystemSettings } from '../services/adminData';
+import { UsersPage } from './UsersPage';
 
-const TABS = ['Branding', 'Theme', 'Auth Page', 'Legal'];
+const TABS = ['Branding', 'Theme', 'Auth Page', 'Legal', 'User Management'];
 
 const DEFAULT_FORM = {
   company_name: '',
@@ -21,9 +22,9 @@ const DEFAULT_FORM = {
   ncr_number: '',
 };
 
-export function SettingsPage() {
+export function SettingsPage({ section = 'general' }: { section?: 'general' | 'user-management' }) {
   const qc = useQueryClient();
-  const [tab, setTab] = useState('Branding');
+  const [tab, setTab] = useState(section === 'user-management' ? 'User Management' : 'Branding');
   const [form, setForm] = useState<Record<string, any> | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -183,6 +184,10 @@ export function SettingsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {tab === 'User Management' && (
+        <UsersPage embedded title="User Management" />
       )}
     </>
   );
