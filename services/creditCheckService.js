@@ -454,18 +454,12 @@ async function performCreditCheck(userData, applicationId, authToken = null) {
     // ────────────────────────────────────────────────────────────────────────
 
     try {
-        console.log('🔍 Starting credit check for application:', applicationId);
-        console.log('🔧 Experian endpoint:', EXPERIAN_CONFIG.url);
-        
         // Build SOAP XML request
         const soapRequest = buildCreditCheckXML({
             ...userData,
             client_ref: applicationId.toString()
         });
-        
-        console.log('📤 Sending request to Experian...');
-        console.log('📋 SOAP Request:', soapRequest);
-        
+
         // Send SOAP request to Experian
         const response = await axios.post(EXPERIAN_CONFIG.url, soapRequest, {
             headers: {
@@ -474,33 +468,16 @@ async function performCreditCheck(userData, applicationId, authToken = null) {
             },
             timeout: 30000 // 30 second timeout
         });
-        
-        console.log('📥 Received response from Experian');
-        console.log('📋 SOAP Response Status:', response.status);
-        console.log('📋 SOAP Response Headers:', JSON.stringify(response.headers, null, 2));
-        console.log('📋 SOAP Response Body:', response.data);
-        
+
         // Parse response and extract retdata
         const retdata = await parseExperianResponse(response.data);
-        console.log('📋 Extracted retdata (first 200 chars):', retdata.substring(0, 200));
-        
+
         // Decode and extract ZIP contents
         const { pdfBuffer, pdfFilename, xmlContent } = await decodeReportAssets(retdata);
-        console.log('💾 Credit report assets extracted:', { pdfFilename });
-        
-        // Display the extracted XML
+
         if (xmlContent) {
-            console.log('\n');
-            console.log('========================================');
-            console.log('📄 DECODED XML FROM ZIP:');
-            console.log('========================================');
-            console.log(xmlContent);
-            console.log('========================================');
-            console.log('\n');
-            
             // Extract credit score from XML
             const creditScore = await extractCreditScore(xmlContent);
-            console.log('📊 Extracted Credit Score:', creditScore);
             
             // Save to database (pass auth token if available)
             const savedRecord = await saveCreditCheckToDatabase(

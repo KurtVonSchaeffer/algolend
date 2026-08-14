@@ -104,10 +104,6 @@ const { startNotificationScheduler } = require('./services/notificationScheduler
 // Validates Supabase JWT from Authorization: Bearer <token>.
 // Applied to all admin-only API route groups below.
 async function requireAdminAuth(req, res, next) {
-    if (req.hostname === 'localhost' || req.hostname === '127.0.0.1') {
-        req.adminUser = { id: 'local-dev', email: 'admin@localhost.dev' };
-        return next();
-    }
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
     if (!token) return res.status(401).json({ error: 'Authentication required' });
     const { data: { user }, error } = await supabaseService.auth.getUser(token);
@@ -122,6 +118,16 @@ const DOCUSEAL_TEMPLATE_ID = process.env.DOCUSEAL_TEMPLATE_ID;
 const DOCUSEAL_API_URL = process.env.DOCUSEAL_API_URL || 'https://api.docuseal.com';
 
 const isDocuSealReady = () => Boolean(DOCUSEAL_API_KEY && DOCUSEAL_TEMPLATE_ID);
+
+// Resolved sending address for all outbound email. Falls back to Resend's sandbox
+// address only in local dev — in production, RESEND_FROM_EMAIL must be set to a
+// verified domain address or NCA-regulated legal notices (s108, s129) will be rejected.
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || (() => {
+    if (process.env.NODE_ENV === 'production') {
+        console.error('[FATAL] RESEND_FROM_EMAIL is not set. Legal notices will be sent from the Resend sandbox address and will likely be rejected as spam. Set this env var to a verified sending domain.');
+    }
+    return 'onboarding@resend.dev';
+})();
 
 const docuSealHeaders = {
     'Content-Type': 'application/json',
@@ -812,7 +818,7 @@ async function inviteBorrowerToPortal(applicationId, opts = {}) {
             const btnText = signContext ? 'Set Password & Sign My Agreement' : 'Set Up My Portal Access';
 
             await resend.emails.send({
-                from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+                from: RESEND_FROM_EMAIL,
                 to: profile.email,
                 subject,
                 html: `
@@ -1372,7 +1378,7 @@ const notificationScheduler = require('./services/notificationScheduler');
 // POST /api/notifications/status-change
 // Called automatically by updateApplicationStatus() whenever a loan status changes.
 // Sends the appropriate SMS/WhatsApp to the client based on the new status.
-app.post('/api/notifications/status-change', async (req, res) => {
+app.post('/api/notifications/status-change', requireAdminAuth, async (req, res) => {
     try {
         const { applicationId, newStatus } = req.body;
         if (!applicationId || !newStatus) return res.status(400).json({ error: 'applicationId and newStatus required' });
@@ -1443,7 +1449,7 @@ app.post('/api/notifications/status-change', async (req, res) => {
     }
 });
 
-app.post('/api/notifications/check-payments', async (req, res) => {
+app.post('/api/notifications/check-payments', requireAdminAuth, async (req, res) => {
     try {
         await notificationScheduler.checkPaymentDueNotifications();
         return res.json({ success: true, message: 'Payment due notifications checked' });
@@ -1453,7 +1459,7 @@ app.post('/api/notifications/check-payments', async (req, res) => {
     }
 });
 
-app.post('/api/notifications/check-edit-window', async (req, res) => {
+app.post('/api/notifications/check-edit-window', requireAdminAuth, async (req, res) => {
     try {
         await notificationScheduler.checkEditWindowNotifications();
         return res.json({ success: true, message: 'Edit window notifications checked' });
@@ -1507,111 +1513,6 @@ app.post('/api/calculate-affordability', sensitiveLimiter, (req, res) => {
 
 // ── Admin-only API route guards ───────────────────────────────────────
 // All routes under these prefixes require a valid Supabase session.
-// Public config-check endpoint — shows only boolean presence, no secret values
-app.get('/api/debug/server-ip', async (req, res) => {
-    try {
-        const r = await fetch('https://api.ipify.org?format=json');
-        const j = await r.json();
-        res.json({ outbound_ip: j.ip });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// Full request+response dump for SureSystems support investigation.
-// Returns: outbound IP, exact headers sent, body sent, and raw response.
-app.get('/api/debug/suresystems-raw', async (req, res) => {
-    try {
-        const CryptoJS = require('crypto-js');
-
-        const clientId     = process.env.SURESYSTEMS_CLIENT_ID     || '';
-        const clientSecret = process.env.SURESYSTEMS_CLIENT_SECRET  || '';
-        const baseUrl      = process.env.SURESYSTEMS_BASE_URL       || 'https://online.suredebit.co.za';
-        const username     = process.env.SURESYSTEMS_BASIC_AUTH_USERNAME || '';
-        const password     = process.env.SURESYSTEMS_BASIC_AUTH_PASSWORD || '';
-        const merchantGid  = process.env.SURESYSTEMS_MERCHANT_GID   || '';
-        const remoteGid    = process.env.SURESYSTEMS_REMOTE_GID     || '';
-
-        // Build SAST timestamp (UTC+2)
-        const now  = new Date(Date.now() + 2 * 60 * 60 * 1000);
-        const pad  = n => String(n).padStart(2, '0');
-        const dts  = `${now.getUTCFullYear()}-${pad(now.getUTCMonth()+1)}-${pad(now.getUTCDate())} ${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())}:${pad(now.getUTCSeconds())}`;
-        const hmac = CryptoJS.enc.Base64.stringify(CryptoJS.HmacSHA512(clientId + dts, clientSecret));
-
-        const requestHeaders = {
-            'Content-Type':          'application/json',
-            'Accept':                'application/json',
-            'Authorization':         `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
-            'SS_SD_SWITCH_ClientId': clientId,
-            'SS_SD_SWITCH_DTS':      dts,
-            'SS_SD_SWITCH_HSH':      hmac,
-        };
-
-        const requestBody = {
-            mandate: {
-                merchantGid: Number(merchantGid),
-                remoteGid:   Number(remoteGid),
-            }
-        };
-
-        const endpoint = `${baseUrl}/api/sssdswitchuadsrest/v3/mandates/batch/mandateenquiry`;
-
-        // Get outbound IP
-        let outboundIp = 'unknown';
-        try {
-            const ipRes = await fetch('https://api.ipify.org?format=json');
-            outboundIp = (await ipRes.json()).ip;
-        } catch (_) {}
-
-        // Fire the actual request and capture everything
-        let responseStatus = null;
-        let responseHeaders = {};
-        let responseBody = null;
-        let networkError = null;
-
-        try {
-            const apiRes = await fetch(endpoint, {
-                method:  'POST',
-                headers: requestHeaders,
-                body:    JSON.stringify(requestBody),
-            });
-            responseStatus  = apiRes.status;
-            responseHeaders = Object.fromEntries(apiRes.headers.entries());
-            try { responseBody = await apiRes.json(); }
-            catch (_) { responseBody = await apiRes.text().catch(() => null); }
-        } catch (err) {
-            networkError = err.message;
-        }
-
-        return res.json({
-            outbound_ip:      outboundIp,
-            endpoint,
-            request_headers:  { ...requestHeaders, Authorization: 'Basic ***hidden***' },
-            request_body:     requestBody,
-            response_status:  responseStatus,
-            response_headers: responseHeaders,
-            response_body:    responseBody,
-            network_error:    networkError,
-            timestamp_sast:   dts,
-        });
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
-});
-
-app.get('/api/debug/suresystems-config', (req, res) => {
-    const e = process.env;
-    res.json({
-        BASE_URL:       e.SURESYSTEMS_BASE_URL || '(empty)',
-        USERNAME:       !!e.SURESYSTEMS_BASIC_AUTH_USERNAME,
-        PASSWORD:       !!e.SURESYSTEMS_BASIC_AUTH_PASSWORD,
-        CLIENT_ID:      !!e.SURESYSTEMS_CLIENT_ID,
-        CLIENT_SECRET:  !!e.SURESYSTEMS_CLIENT_SECRET,
-        MERCHANT_GID:   e.SURESYSTEMS_MERCHANT_GID || '(empty)',
-        REMOTE_GID:     e.SURESYSTEMS_REMOTE_GID || '(empty)',
-        missing:        sureSystemsService.getConfigStatus().missing || []
-    });
-});
 app.use('/api/suresystems', requireAdminAuth);
 app.use('/api/sacrra', requireAdminAuth);
 app.use('/api/moveit', requireAdminAuth);
@@ -3265,7 +3166,7 @@ app.post('/api/sacrra/submit/:bureauKey', async (req, res) => {
             const { Resend } = require('resend');
             const resend = new Resend(process.env.RESEND_API_KEY);
             const send = await resend.emails.send({
-                from:    process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+                from:    RESEND_FROM_EMAIL,
                 to:      bureau.submission_email,
                 subject: `SACRRA Layout 700v2 Submission — ${process.env.COMPANY_NAME || 'AlgoLend'} — ${new Date().toISOString().slice(0,10)}`,
                 text:    `Please find attached the encrypted SACRRA Layout 700v2 submission.\n\nSupplier Reference: ${bureau.supplier_ref_number || 'N/A'}\nFile: ${pgpFileName}\nSubmitted: ${new Date().toISOString()}\n\nThis file is PGP-encrypted with your public key.`,
@@ -3824,7 +3725,7 @@ app.get('/api/credit-rules/:orgId', async (req, res) => {
 });
 
 // POST /api/credit-bands — create a score band
-app.post('/api/credit-bands', async (req, res) => {
+app.post('/api/credit-bands', requireAdminAuth, async (req, res) => {
     try {
         const { data, error } = await supabaseService
             .from('credit_score_bands')
@@ -3839,7 +3740,7 @@ app.post('/api/credit-bands', async (req, res) => {
 });
 
 // PUT /api/credit-bands/:id — update a score band
-app.put('/api/credit-bands/:id', async (req, res) => {
+app.put('/api/credit-bands/:id', requireAdminAuth, async (req, res) => {
     try {
         const { data, error } = await supabaseService
             .from('credit_score_bands')
@@ -3855,7 +3756,7 @@ app.put('/api/credit-bands/:id', async (req, res) => {
 });
 
 // DELETE /api/credit-bands/:id — remove a score band
-app.delete('/api/credit-bands/:id', async (req, res) => {
+app.delete('/api/credit-bands/:id', requireAdminAuth, async (req, res) => {
     try {
         const { error } = await supabaseService
             .from('credit_score_bands')
@@ -3869,7 +3770,7 @@ app.delete('/api/credit-bands/:id', async (req, res) => {
 });
 
 // PUT /api/eligibility-rules/:id — update a rule
-app.put('/api/eligibility-rules/:id', async (req, res) => {
+app.put('/api/eligibility-rules/:id', requireAdminAuth, async (req, res) => {
     try {
         const { data, error } = await supabaseService
             .from('credit_eligibility_rules')
@@ -4064,7 +3965,7 @@ app.post('/api/payment/submit-proof', async (req, res) => {
             const { Resend } = require('resend');
             const resend = new Resend(process.env.RESEND_API_KEY);
             resend.emails.send({
-                from:    process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+                from:    RESEND_FROM_EMAIL,
                 to:      toEmail,
                 subject: `We received your ${typeStr} proof — ${co}`,
                 html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px">
@@ -4204,7 +4105,7 @@ app.post('/api/admin/payment/confirm/:id', async (req, res) => {
         if (email) {
             const { Resend } = require('resend');
             const resend = new Resend(process.env.RESEND_API_KEY);
-            const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+            const fromEmail = RESEND_FROM_EMAIL;
             resend.emails.send({
                 from:    fromEmail,
                 to:      email,
@@ -4300,6 +4201,13 @@ app.post('/api/applications/:id/evaluate', sensitiveLimiter, async (req, res) =>
     try {
         const { id } = req.params;
 
+        // Require a valid session
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) return res.status(401).json({ error: 'Authentication required' });
+        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
+        if (authErr || !user) return res.status(401).json({ error: 'Invalid or expired session' });
+
         // 1. Load the application + profile + financial data
         const { data: app, error: appErr } = await supabaseService
             .from('loan_applications')
@@ -4314,6 +4222,18 @@ app.post('/api/applications/:id/evaluate', sensitiveLimiter, async (req, res) =>
 
         if (appErr || !app) return res.status(404).json({ error: 'Application not found', detail: appErr?.message });
 
+        // Verify caller owns this application or is an admin
+        if (app.user_id !== user.id) {
+            const { data: callerProfile } = await supabaseService
+                .from('profiles')
+                .select('role')
+                .eq('id', user.id)
+                .maybeSingle();
+            if (callerProfile?.role !== 'admin') {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+        }
+
         // Load financial profile separately to avoid join issues
         const { data: financial } = await supabaseService
             .from('financial_profiles')
@@ -4323,8 +4243,9 @@ app.post('/api/applications/:id/evaluate', sensitiveLimiter, async (req, res) =>
 
         const profile = Array.isArray(app.profiles) ? app.profiles[0] : app.profiles;
 
-        // 2. Determine credit score (from application or latest credit check)
-        let creditScore = app.bureau_score_band ? null : null; // bureau_score_band is a label, not a number
+        // 2. Determine credit score from the latest completed credit check.
+        // bureau_score_band is a text label (e.g. "Good"), not a numeric score — always fetch the number.
+        let creditScore = null;
         if (!creditScore) {
             const { data: cc } = await supabaseService
                 .from('credit_checks')
@@ -5436,7 +5357,7 @@ app.get('/api/cron/monthly-statements', async (req, res) => {
         const settings  = await getSystemTheme();
         const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
         const ncrNumber = requireNcrNumber(settings);
-        const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        const fromEmail = RESEND_FROM_EMAIL;
         const fmtR      = v => `R ${Number(v || 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`;
         const period    = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long' });
         const today     = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -5589,7 +5510,7 @@ app.post('/api/support/ticket', async (req, res) => {
             const { Resend } = require('resend');
             const resend = new Resend(process.env.RESEND_API_KEY);
             resend.emails.send({
-                from:    process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+                from:    RESEND_FROM_EMAIL,
                 to:      supportEmail,
                 subject: `[Support #${ticketRef}] ${subject || 'New support request'} — ${company}`,
                 html: `<div style="font-family:Arial,sans-serif;max-width:600px">
@@ -6544,7 +6465,7 @@ app.get('/api/cron/section129', async (req, res) => {
         const companyPhone = settings?.company_phone     || '';
         const companyEmail = process.env.CREDIT_PROVIDER_EMAIL || '';
         const ncrNumber    = requireNcrNumber(settings);
-        const fromEmail    = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        const fromEmail    = RESEND_FROM_EMAIL;
 
         let sent = 0;
         const now = new Date().toISOString();
@@ -6650,12 +6571,15 @@ ${[profile.address, profile.suburb_area, profile.postal_code].filter(Boolean).jo
             }
 
             if (notified) {
-                await supabaseService.from('loan_applications').update({
-                    section129_sent_at:    now,
-                    section129_reference:  reference,
-                    updated_at:            now,
-                }).eq('id', app.id);
-                sent++;
+                // Atomic update: the WHERE section129_sent_at IS NULL ensures that if two
+                // cron invocations overlap, only one can write this row — preventing duplicate legal notices.
+                const { data: locked } = await supabaseService
+                    .from('loan_applications')
+                    .update({ section129_sent_at: now, section129_reference: reference, updated_at: now })
+                    .eq('id', app.id)
+                    .is('section129_sent_at', null)
+                    .select('id');
+                if (locked?.length) sent++;
             }
         }
 
@@ -7268,7 +7192,7 @@ app.post('/api/contracts/notify-to-sign', async (req, res) => {
                 const settings = await getSystemTheme();
                 const company  = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
                 await resend.emails.send({
-                    from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+                    from: RESEND_FROM_EMAIL,
                     to: email,
                     subject: `Your Loan Agreement is Ready to Sign — ${company}`,
                     html: `
@@ -7610,7 +7534,7 @@ app.post('/api/contracts/sign', async (req, res) => {
             try {
                 const { Resend } = require('resend');
                 const resend = new Resend(process.env.RESEND_API_KEY);
-                const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+                const fromEmail = RESEND_FROM_EMAIL;
                 await resend.emails.send({
                     from: fromEmail,
                     to: clientEmail,

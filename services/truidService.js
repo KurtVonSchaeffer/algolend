@@ -728,14 +728,6 @@ async function initiateCollection(input = {}) {
   const result = await truIDClient.createCollection(resolvedInput);
   const collectionId = result.collectionId;
 
-  // Log full success JSON and all log messages
-  console.log('=== TruID Session Created ===');
-  console.log('Collection ID:', collectionId);
-  console.log('Consent ID:', result.consentId);
-  console.log('Consumer URL:', result.consumerUrl);
-  console.log('Status:', result.data?.status || result.data?.state || 'started');
-  console.log('Full Response:', JSON.stringify(result, null, 2));
-
   const sessionEntry = {
     collectionId,
     userId,
