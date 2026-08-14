@@ -298,7 +298,6 @@ export async function fetchUserDetail(userId) {
 }
 
 export async function fetchPayments() {
-  // Query manual_payments joined with loans for the balance
   const result = await supabase
     .from('manual_payments')
     .select(`

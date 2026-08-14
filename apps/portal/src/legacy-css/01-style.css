@@ -36,10 +36,9 @@ body {
   background: var(--color-surface-card);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding-top: 4rem;
-  padding-bottom: 4rem;
+  justify-content: flex-start;
+  align-items: stretch;
+  padding-top: var(--navbar-height, 64px);
 }
 
 /* Mobile: full viewport for main content */

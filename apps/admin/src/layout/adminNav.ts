@@ -35,12 +35,14 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     section: 'Applications',
     items: [
       { href: '/applications', icon: 'assignment', label: 'Applications' },
-      { href: '/create-application', icon: 'add_circle', label: 'New Application' },
     ],
   },
   {
     section: 'Finance',
-    items: [{ href: '/mandates', icon: 'receipt_long', label: 'Mandates' }],
+    items: [
+      { href: '/mandates', icon: 'receipt_long', label: 'Mandates' },
+      { href: '/arrears', icon: 'warning', label: 'Collections & Arrears' },
+    ],
     submenu: {
       id: 'payments',
       label: 'Payments',
@@ -58,6 +60,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: '/portfolio', icon: 'analytics', label: 'Portfolio' },
       { href: '/loan-book', icon: 'menu_book', label: 'Loan Book' },
       { href: '/cash-ledger', icon: 'account_balance_wallet', label: 'Cash Ledger' },
+      { href: '/communications', icon: 'chat', label: 'Communications' },
     ],
   },
   {
@@ -81,6 +84,9 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       children: [
         { href: '/settings', icon: 'tune', label: 'General' },
         { href: '/settings/user-management', icon: 'group', label: 'User Management' },
+        { href: '/settings/roles', icon: 'admin_panel_settings', label: 'Roles' },
+        { href: '/settings/permissions', icon: 'key', label: 'Permissions' },
+        { href: '/settings/audit-logs', icon: 'history', label: 'Audit Logs' },
       ],
     },
   },

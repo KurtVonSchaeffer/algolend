@@ -2858,6 +2858,21 @@ if (fs.existsSync(reactAdminDist)) {
     });
 }
 
+// 5c-demo. Demo mode entry/exit routes — set/clear localStorage then redirect.
+// These must come before static serving so they aren't shadowed by demo.html.
+function demoBounce(dest) {
+    return (_req, res) => res.send(`<!doctype html><html><head><script>
+localStorage.setItem('algolend_demo','1');
+window.location.replace('${dest}');
+</script></head><body></body></html>`);
+}
+app.get('/demo',         demoBounce('/admin/dashboard.html'));
+app.get('/portal-demo',  demoBounce('/user-portal/dashboard'));
+app.get('/demo/exit',    (_req, res) => res.send(`<!doctype html><html><head><script>
+localStorage.removeItem('algolend_demo');
+window.location.replace('/auth/login');
+</script></head><body></body></html>`));
+
 // 5c. Serve the REST of the 'public' folder (for login.html, etc.)
 const publicStaticOptions = process.env.NODE_ENV === 'production'
     ? {}
@@ -7514,13 +7529,50 @@ app.post('/api/contracts/sign', async (req, res) => {
             console.warn('Contract HTML upload failed:', contractUploadErr.message);
         }
 
+        // 3b. Generate PDF with Puppeteer (local only — skipped on Vercel serverless)
+        let finalContractUrl = contractUrl;
+        if (!process.env.VERCEL && contractUrl) {
+            try {
+                const puppeteer = require('puppeteer');
+                const browser = await puppeteer.launch({
+                    headless: 'new',
+                    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
+                });
+                const pdfPage = await browser.newPage();
+                await pdfPage.setContent(signedContractHtml, { waitUntil: 'networkidle0', timeout: 15000 });
+                const pdfBuffer = await pdfPage.pdf({
+                    format: 'A4',
+                    margin: { top: '12mm', right: '14mm', bottom: '12mm', left: '14mm' },
+                    printBackground: true
+                });
+                await browser.close();
+
+                const pdfPath = `contracts/${applicationId}/signed-contract.pdf`;
+                const { error: pdfErr } = await supabaseService.storage
+                    .from('documents')
+                    .upload(pdfPath, pdfBuffer, { contentType: 'application/pdf', upsert: true });
+
+                if (!pdfErr) {
+                    const { data: { publicUrl: pdfPublicUrl } } = supabaseService.storage
+                        .from('documents')
+                        .getPublicUrl(pdfPath);
+                    finalContractUrl = pdfPublicUrl;
+                    console.log(`[Contract] PDF generated for ${applicationId}`);
+                } else {
+                    console.warn('[Contract] PDF storage upload failed:', pdfErr.message);
+                }
+            } catch (pdfErr) {
+                console.warn('[Contract] PDF generation failed (non-fatal, keeping HTML):', pdfErr.message);
+            }
+        }
+
         // 4. Update application
         const { error: updateErr } = await supabaseService
             .from('loan_applications')
             .update({
                 contract_signed_at: now,
                 contract_signature_url: signatureUrl,
-                contract_pdf_url: contractUrl,
+                contract_pdf_url: finalContractUrl,
                 status: 'OFFER_ACCEPTED',
                 updated_at: now
             })
@@ -7554,6 +7606,7 @@ app.post('/api/contracts/sign', async (req, res) => {
         // 6. Email the signed contract to the client (non-blocking)
         const clientEmail = profile.email;
         if (clientEmail && process.env.RESEND_API_KEY) {
+            // use finalContractUrl (PDF if generated, HTML otherwise)
             try {
                 const { Resend } = require('resend');
                 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -7577,7 +7630,7 @@ app.post('/api/contracts/sign', async (req, res) => {
       <tr style="background:#fff"><td style="padding:8px 12px;border:1px solid #e5e7eb;font-weight:bold">Term</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${term} month${term !== 1 ? 's' : ''}</td></tr>
       <tr style="background:#f9fafb"><td style="padding:8px 12px;border:1px solid #e5e7eb;font-weight:bold">Total Repayment</td><td style="padding:8px 12px;border:1px solid #e5e7eb">${fmtR(totalRepay)}</td></tr>
     </table>
-    ${contractUrl ? `<div style="text-align:center;margin:20px 0"><a href="${contractUrl}" style="background:#E7762E;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px">View Signed Contract</a></div>` : ''}
+    ${finalContractUrl ? `<div style="text-align:center;margin:20px 0"><a href="${finalContractUrl}" style="background:#E7762E;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px">View Signed Contract</a></div>` : ''}
     <p style="color:#888;font-size:12px;margin-top:20px">If you have any questions, please contact us. This agreement was signed electronically on ${signedDate}.</p>
   </div>
 </div>`
@@ -7588,7 +7641,7 @@ app.post('/api/contracts/sign', async (req, res) => {
             }
         }
 
-        return res.json({ success: true, signedAt: now, signatureUrl, contractUrl });
+        return res.json({ success: true, signedAt: now, signatureUrl, contractUrl: finalContractUrl });
     } catch (err) {
         console.error('Contract sign error:', err.message);
         return res.status(500).json({ error: err.message || 'Failed to process signature' });

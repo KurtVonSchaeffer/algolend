@@ -3,6 +3,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { AdminRoute } from './auth/AdminRoute';
 import { AdminLayout } from './layout/AdminLayout';
+import { ToastProvider } from './components/ui/Toast';
+import { DemoPage }               from './pages/DemoPage';
 import { DashboardPage }          from './pages/DashboardPage';
 import { ApplicationsPage }       from './pages/ApplicationsPage';
 import { ApplicationDetailPage }  from './pages/ApplicationDetailPage';
@@ -17,6 +19,8 @@ import { LoanBookPage }           from './pages/LoanBookPage';
 import { CashLedgerPage }         from './pages/CashLedgerPage';
 import { SettingsPage }           from './pages/SettingsPage';
 import { CreateApplicationPage }  from './pages/CreateApplicationPage';
+import { ArrearsPage }            from './pages/ArrearsPage';
+import { CommunicationsPage }     from './pages/CommunicationsPage';
 import {
   SACRRAPage, SACRRAValidatorPage, NCRReportingPage,
   NCRRegistersPage, ComplianceTrackerPage, GoAMLPage,
@@ -58,7 +62,9 @@ function AdminShell() {
   return (
     <AdminRoute>
       <AdminLayout title={title}>
-        <Outlet />
+        <div key={pathname} style={{ animation: 'pageFadeIn 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards' }}>
+          <Outlet />
+        </div>
       </AdminLayout>
     </AdminRoute>
   );
@@ -68,8 +74,10 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
+      <ToastProvider>
         <BrowserRouter basename="/admin-panel" future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
+            <Route path="/demo" element={<DemoPage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route element={<AdminShell />}>
               <Route path="dashboard"          element={<DashboardPage />} />
@@ -77,6 +85,9 @@ export default function App() {
               <Route path="applications/:id"   element={<ApplicationDetailPage />} />
               <Route path="create-application" element={<CreateApplicationPage />} />
               <Route path="settings/user-management" element={<SettingsPage section="user-management" />} />
+              <Route path="settings/roles"       element={<SettingsPage section="roles" />} />
+              <Route path="settings/permissions" element={<SettingsPage section="permissions" />} />
+              <Route path="settings/audit-logs"  element={<SettingsPage section="audit-logs" />} />
               <Route path="users"              element={<Navigate to="/settings/user-management" replace />} />
               <Route path="mandates"           element={<MandatesPage />} />
               <Route path="incoming-payments"  element={<IncomingPaymentsPage />} />
@@ -94,10 +105,13 @@ export default function App() {
               <Route path="ncr-registers"      element={<NCRRegistersPage />} />
               <Route path="compliance-tracker" element={<ComplianceTrackerPage />} />
               <Route path="goaml"              element={<GoAMLPage />} />
+              <Route path="arrears"            element={<ArrearsPage />} />
+              <Route path="communications"     element={<CommunicationsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </BrowserRouter>
+      </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

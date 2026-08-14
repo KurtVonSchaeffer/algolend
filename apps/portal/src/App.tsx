@@ -12,6 +12,7 @@ import { TranscriptsPage } from './pages/TranscriptsPage';
 import { TransactionsPage } from './pages/TransactionsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ApplyLoanPage } from './pages/ApplyLoanPage';
+import { SignContractPage } from './pages/SignContractPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,7 +44,8 @@ export default function App() {
               <Route path="support"      element={<SupportPage />} />
               <Route path="transcripts"  element={<TranscriptsPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
-              <Route path="profile"      element={<ProfilePage />} />
+              <Route path="profile"        element={<ProfilePage />} />
+              <Route path="sign-contract" element={<SignContractPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/user-portal/dashboard" replace />} />
           </Routes>

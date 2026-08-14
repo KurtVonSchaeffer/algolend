@@ -1,5 +1,23 @@
 {
   "version": 2,
+  "rewrites": [
+    { "source": "/admin-panel/:path*", "destination": "/admin/index.html" },
+    { "source": "/portal/:path*",      "destination": "/portal/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/admin/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron/notifications",

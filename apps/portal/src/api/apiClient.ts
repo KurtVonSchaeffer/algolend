@@ -1,6 +1,5 @@
 import { supabase } from './supabaseClient';
 import { redirectTo } from '../lib/navigation';
-import { isDemoMode } from '../demo/demoData';
 
 async function getAccessToken(): Promise<string | null> {
   const {
@@ -13,10 +12,6 @@ async function getAccessToken(): Promise<string | null> {
 }
 
 export async function apiFetch(path: string, options: RequestInit = {}, _retry = true): Promise<Response> {
-  if (isDemoMode()) {
-    return new Response(JSON.stringify(null), { status: 200, headers: { 'Content-Type': 'application/json' } });
-  }
-
   const token = await getAccessToken();
   if (!token) {
     redirectTo('/auth/login');

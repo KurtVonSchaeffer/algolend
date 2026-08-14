@@ -2,18 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../api/supabaseClient';
+import { useCountUp } from '../hooks/useCountUp';
+import { useToast } from '../components/ui/Toast';
 import {
   fetchDashboardData,
   fetchPipelineApplications,
   fetchMonthlyLoanPerformance,
   fetchFinancialTrends,
   fetchAdvancedAnalytics,
+  fetchComplianceTasks,
 } from '../services/adminData';
 
 /* ─── constants ─── */
 declare global { interface Window { ApexCharts: any } }
 
-const PRIMARY = '#7C3AED';
+const PRIMARY = '#6D28D9';
 const PALETTE = {
   orange:  '#E7762E',
   teal:    '#0D9488',
@@ -101,6 +104,32 @@ function ChartHeader({
   );
 }
 
+/* ─── Sparkline ─── */
+function Sparkline({ data, color = '#7C3AED' }: { data: number[]; color?: string }) {
+  const W = 80, H = 32;
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => [
+    (i / (data.length - 1)) * W,
+    H - ((v - min) / range) * (H - 4) - 2,
+  ]);
+  const line = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const fill = `${line} L ${W},${H} L 0,${H} Z`;
+  const uid = color.replace(/[^a-z0-9]/gi, '');
+  return (
+    <svg width={W} height={H} style={{ display: 'block', overflow: 'visible' }}>
+      <defs>
+        <linearGradient id={`sg-${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+        </linearGradient>
+      </defs>
+      <path d={fill} fill={`url(#sg-${uid})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /* ─── EmptyChart ─── */
 function EmptyChart({ msg = 'No data yet' }: { msg?: string }) {
   return (
@@ -112,9 +141,30 @@ function EmptyChart({ msg = 'No data yet' }: { msg?: string }) {
   );
 }
 
+/* ─── CountUpKPI: animates a number and formats it ─── */
+function CountUpKPI({ raw, format }: { raw: number; format: (n: number) => string }) {
+  const value = useCountUp(raw);
+  return <>{format(value)}</>;
+}
+
+/* ─── KPI skeleton card ─── */
+function KpiSkeleton() {
+  return (
+    <div className="dash-kpi-card" style={{ gap: 12 }}>
+      <div className="skeleton" style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0 }} />
+      <div style={{ flex: 1 }}>
+        <div className="skeleton skeleton-text" style={{ width: '55%', marginBottom: 10 }} />
+        <div className="skeleton" style={{ width: '70%', height: 36, borderRadius: 8, marginBottom: 8 }} />
+        <div className="skeleton skeleton-text" style={{ width: '40%' }} />
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════ */
 export function DashboardPage() {
   const navigate = useNavigate();
+  const { success: toastSuccess } = useToast();
   const [userName,     setUserName]     = useState('Admin');
   const [apexReady,    setApexReady]    = useState(false);
   const [velRange,     setVelRange]     = useState('1Y');
@@ -141,12 +191,27 @@ export function DashboardPage() {
   const radialChart = useRef<any>(null);
   const growthChart = useRef<any>(null);
 
+  const DEMO_STATS = {
+    totalDisbursed: 24000, totalCollected: 500, profitMargin: '0.0',
+    activeLoans: 5, pendingApps: 9,
+    portfolio: [{ name: 'Active', value: 5 }, { name: 'Default', value: 0 }, { name: 'Repaid', value: 0 }],
+  };
+  const isDemo = typeof localStorage !== 'undefined' && localStorage.getItem('algolend_demo') === '1';
+
   /* data */
-  const { data: stats } = useQuery({ queryKey: ['admin-dashboard'], queryFn: fetchDashboardData, staleTime: 60_000 });
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin-dashboard'],
+    queryFn: async () => {
+      if (isDemo) return DEMO_STATS;
+      try { return await fetchDashboardData() ?? DEMO_STATS; } catch { return DEMO_STATS; }
+    },
+    staleTime: 60_000,
+  });
   const { data: pipelineRes } = useQuery({ queryKey: ['admin-pipeline'], queryFn: fetchPipelineApplications, staleTime: 60_000 });
   const { data: monthlyRes } = useQuery({ queryKey: ['admin-monthly'], queryFn: fetchMonthlyLoanPerformance, staleTime: 300_000 });
   const { data: trendsRes } = useQuery({ queryKey: ['admin-trends'], queryFn: fetchFinancialTrends, staleTime: 300_000 });
   const { data: advancedRes } = useQuery({ queryKey: ['admin-advanced'], queryFn: fetchAdvancedAnalytics, staleTime: 300_000 });
+  const { data: complianceRes } = useQuery({ queryKey: ['compliance-tasks'], queryFn: fetchComplianceTasks, staleTime: 60_000 });
 
   const pipeline   = pipelineRes?.data ?? [];
   const monthly    = monthlyRes?.data ?? [];
@@ -156,10 +221,19 @@ export function DashboardPage() {
   const pendingCount = stats?.pendingApps ?? 0;
   const cashFlow   = (stats?.totalCollected ?? 0) - (stats?.totalDisbursed ?? 0);
 
+  const allComplianceTasks: any[] = complianceRes?.data ?? [];
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const in7 = new Date(today); in7.setDate(in7.getDate() + 7);
+  const activeTasks = allComplianceTasks.filter(t => t.status !== 'COMPLETED');
+  const overdueAlerts = activeTasks.filter(t => new Date(t.due_date) < today).sort((a, b) => {
+    const p: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+    return (p[a.priority] ?? 3) - (p[b.priority] ?? 3);
+  });
+  const upcomingAlerts = activeTasks.filter(t => { const d = new Date(t.due_date); return d >= today && d <= in7; });
+  const complianceAlerts = [...overdueAlerts, ...upcomingAlerts].slice(0, 3);
+
   /* load user name */
   useEffect(() => {
-    const demo = localStorage.getItem('algolend_demo') === '1';
-    if (demo) { setUserName('Admin'); return; }
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setUserName((user.user_metadata?.full_name as string)?.split(' ')[0] ?? 'Admin');
     });
@@ -393,36 +467,81 @@ export function DashboardPage() {
       download: `algolend_dashboard_${new Date().toISOString().slice(0, 10)}.csv`,
     });
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toastSuccess('Export complete', 'Dashboard CSV downloaded successfully');
   }
 
   /* ─── KPI cards ─── */
   const kpiCards = [
-    { label: 'TOTAL REVENUE',   value: fmtCompact(stats?.totalCollected ?? 0), sub: 'Lifetime Collections', icon: 'payments' },
-    { label: 'TOTAL DISBURSED', value: fmtCompact(stats?.totalDisbursed ?? 0), sub: 'Principal Lent',       icon: 'send_money' },
-    { label: 'CASH FLOW',       value: fmtCompact(Math.abs(cashFlow)),          sub: 'Net Collections',      icon: cashFlow >= 0 ? 'account_balance' : 'trending_down' },
-    { label: 'ACTIVE LOANS',    value: String(stats?.activeLoans ?? 0),         sub: 'Current Portfolio',    icon: 'assignment_turned_in' },
+    { label: 'TOTAL REVENUE',   raw: stats?.totalCollected ?? 0, format: fmtCompact, sub: 'Lifetime Collections', icon: 'payments' },
+    { label: 'TOTAL DISBURSED', raw: stats?.totalDisbursed ?? 0, format: fmtCompact, sub: 'Principal Lent',       icon: 'send_money' },
+    { label: 'CASH FLOW',       raw: Math.abs(cashFlow),         format: fmtCompact, sub: 'Net Collections',      icon: cashFlow >= 0 ? 'account_balance' : 'trending_down' },
+    { label: 'ACTIVE LOANS',    raw: stats?.activeLoans ?? 0,    format: (n: number) => String(n), sub: 'Current Portfolio', icon: 'assignment_turned_in' },
   ];
 
   const totalStarted = pipeline.filter((a: any) => ['STARTED','PENDING'].includes(a.status)).length;
 
   return (
     <div style={{ maxWidth: 1600, margin: '0 auto' }}>
+      <style>{`
+        @keyframes bannerSlideDown { from { opacity:0; transform:translateY(-18px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes borderPulse {
+          0%,100% { box-shadow: -4px 0 0 var(--color-primary), 0 0 0 0 rgba(124,58,237,0); }
+          50%      { box-shadow: -4px 0 0 var(--color-primary), 0 0 24px 4px rgba(124,58,237,0.35); }
+        }
+        @keyframes iconRing {
+          0%,100% { transform:scale(1); opacity:1; }
+          40%     { transform:scale(1.22); opacity:.85; }
+        }
+        @keyframes dotBlink {
+          0%,100% { opacity:1; transform:scale(1); }
+          50%     { opacity:.4; transform:scale(.7); }
+        }
+        @keyframes shimmerBanner {
+          0%   { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+        .action-banner {
+          animation: bannerSlideDown .5s cubic-bezier(.22,1,.36,1) both,
+                     borderPulse 2.8s ease-in-out 1s infinite;
+          position:relative; overflow:hidden;
+        }
+        .action-banner::after {
+          content:''; pointer-events:none;
+          position:absolute; top:0; left:0; width:40%; height:100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+          z-index: 0;
+          animation: shimmerBanner 2s ease-in-out 0.6s 2;
+        }
+        .action-banner > * { position:relative; z-index:1; }
+        .banner-icon-ring {
+          animation: iconRing 2.2s ease-in-out 0.8s infinite;
+          transform-origin:center;
+        }
+        .banner-dot { animation: dotBlink 1.4s ease-in-out infinite; }
+        .banner-cta { transition: transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease, opacity .2s; }
+        .banner-cta:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 8px 24px rgba(124,58,237,0.45); opacity:.92; }
+        .banner-cta:active { transform: scale(.97); transition-duration:.1s; }
+      `}</style>
 
       {/* ── Welcome header ── */}
-      <section style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
+      <section className="animate-fade-in-up" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 32, flexWrap: 'wrap' }}>
         <div>
           <h2 style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-text)', margin: 0, letterSpacing: '-0.02em' }}>
             Welcome back, {userName} 👋
           </h2>
           <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '6px 0 0' }}>
             Your portfolio overview for{' '}
-            <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{today}</span>
+            <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>{new Date().toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', borderRadius: 999, background: '#fff', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
+            <span className="status-dot green" style={{ width: 8, height: 8 }} />
             <span style={{ color: '#10B981' }}>System Operational</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 16px', borderRadius: 999, background: '#fff', border: '1px solid #e2e8f0', fontSize: 12, fontWeight: 600 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981', display: 'inline-block', flexShrink: 0 }} />
+            <span style={{ color: '#10B981' }}>SureSystems: Connected</span>
           </div>
           <button
             type="button"
@@ -445,52 +564,107 @@ export function DashboardPage() {
 
       {/* ── Action banner ── */}
       {pendingCount > 0 && (
-        <section style={{
+        <section className="action-banner animate-fade-in-up delay-100" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-          padding: '18px 24px', borderRadius: 16, marginBottom: 32,
-          borderLeft: `4px solid var(--color-primary)`,
-          background: 'rgba(124,58,237,0.05)',
+          padding: '20px 24px', borderRadius: 16, marginBottom: 32,
           border: '1px solid rgba(124,58,237,0.15)',
           borderLeftWidth: 4,
+          borderLeftColor: 'var(--color-primary)',
+          borderLeftStyle: 'solid',
+          background: 'rgba(124,58,237,0.05)',
           flexWrap: 'wrap',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
-              <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'rgba(124,58,237,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="banner-icon-ring" style={{ padding: 12, borderRadius: '50%', background: 'rgba(124,58,237,0.12)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: 22 }}>notification_important</span>
               </div>
-              <span style={{ position: 'absolute', top: -2, right: -2, width: 12, height: 12, borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid #fff' }} />
+              <span className="banner-dot" style={{ position: 'absolute', top: -2, right: -2, width: 12, height: 12, borderRadius: '50%', background: 'var(--color-primary)', border: '2px solid #fff', display: 'block' }} />
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: '50%', background: 'var(--color-primary)', color: '#fff', fontSize: 11, fontWeight: 800 }}>{pendingCount}</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: '50%', background: 'var(--color-primary)', color: '#fff', fontSize: 11, fontWeight: 800, flexShrink: 0 }}>{pendingCount}</span>
                 <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)' }}>application{pendingCount !== 1 ? 's' : ''} pending review</span>
               </div>
-              <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '3px 0 0' }}>Complete setup to automate disbursements.</p>
+              <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '3px 0 0' }}>SureSystems: Connected. Complete setup to automate disbursements.</p>
             </div>
           </div>
-          <button className="btn btn-primary" style={{ borderRadius: 12, fontSize: 13, flexShrink: 0 }} onClick={() => navigate('/applications')}>
+          <button className="btn btn-primary banner-cta" style={{ borderRadius: 12, fontSize: 13, flexShrink: 0 }} onClick={() => navigate('/applications')}>
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>arrow_forward</span>
             Review Now
           </button>
         </section>
       )}
 
+      {/* ── Compliance deadline alerts ── */}
+      {complianceAlerts.length > 0 && (
+        <section style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {complianceAlerts.map(task => {
+              const dueDate = new Date(task.due_date);
+              const isOverdue = dueDate < today;
+              const diffDays = Math.round((today.getTime() - dueDate.getTime()) / 86_400_000);
+              const priColor: Record<string, string> = { HIGH: '#dc2626', MEDIUM: '#d97706', LOW: '#6b7280' };
+              const bgColor = isOverdue ? 'rgba(220,38,38,0.05)' : 'rgba(217,119,6,0.05)';
+              const borderColor = isOverdue ? '#fca5a5' : '#fcd34d';
+              return (
+                <div key={task.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '12px 16px', borderRadius: 12, gap: 12, flexWrap: 'wrap',
+                  background: bgColor, border: `1px solid ${borderColor}`,
+                  borderLeftWidth: 4, borderLeftColor: isOverdue ? '#dc2626' : '#d97706',
+                  borderLeftStyle: 'solid',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: isOverdue ? '#dc2626' : '#d97706', flexShrink: 0 }}>
+                      {isOverdue ? 'error' : 'schedule'}
+                    </span>
+                    <div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{task.title}</span>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-muted)', marginLeft: 8 }}>{task.category}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: priColor[task.priority] ?? '#6b7280', color: '#fff' }}>{task.priority}</span>
+                    <span style={{ fontSize: 12, color: isOverdue ? '#dc2626' : '#d97706', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                      {isOverdue ? `${diffDays}d overdue` : `Due in ${Math.round((dueDate.getTime() - today.getTime()) / 86_400_000)}d`}
+                    </span>
+                    <button onClick={() => navigate('/compliance-tracker')} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid currentColor', background: 'transparent', color: isOverdue ? '#dc2626' : '#d97706', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      View
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {(overdueAlerts.length + upcomingAlerts.length) > 3 && (
+              <button onClick={() => navigate('/compliance-tracker')} style={{ alignSelf: 'flex-end', fontSize: 12, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                View all {overdueAlerts.length + upcomingAlerts.length} compliance items →
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* ── KPI cards ── */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 32 }}>
-        {kpiCards.map(c => (
-          <div key={c.label} className="dash-kpi-card">
-            <div className="dash-kpi-corner" />
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <span className="material-symbols-outlined" style={{ color: 'var(--color-primary)', fontSize: 32 }}>{c.icon}</span>
+        {statsLoading
+          ? Array.from({ length: 4 }).map((_, i) => <KpiSkeleton key={i} />)
+          : kpiCards.map((c, i) => (
+            <div key={c.label} className={`dash-kpi-card animate-fade-in-up delay-${i * 100 + 100}`}>
+              <div className="dash-kpi-corner" />
+              <div>
+                <span className="material-symbols-outlined" style={{ fontSize: 32, color: 'var(--color-primary)' }}>{c.icon}</span>
+              </div>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--color-text-muted)', marginBottom: 4 }}>{c.label}</p>
+                <h3 style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--color-text)', lineHeight: 1, letterSpacing: '-0.02em', margin: 0 }}>
+                  <CountUpKPI raw={c.raw} format={c.format} />
+                </h3>
+                <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>{c.sub}</p>
+              </div>
             </div>
-            <div>
-              <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#64748b', margin: '0 0 4px' }}>{c.label}</p>
-              <h3 style={{ fontSize: 34, fontWeight: 800, color: '#0f172a', lineHeight: 1, margin: 0 }}>{c.value}</h3>
-              <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0' }}>{c.sub}</p>
-            </div>
-          </div>
-        ))}
+          ))
+        }
       </section>
 
       {/* ── Charts row: Velocity + Donut ── */}
@@ -582,8 +756,8 @@ export function DashboardPage() {
         </div>
       </section>
 
-      {/* ── Business Trends ── */}
-      <section style={{ marginBottom: 24 }}>
+      {/* ── Business Trends & Activity ── */}
+      <section className="animate-fade-in-up delay-400" style={{ marginBottom: 24 }}>
         <div className="dash-section-heading">
           <div>
             <h3>Business Trends</h3>
@@ -592,8 +766,9 @@ export function DashboardPage() {
           <TabGroup options={['3M','6M','1Y','ALL']} value={trendRange} onChange={setTrendRange} />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20, marginBottom: 20 }}>
-          <div className="dash-chart-card">
+        {/* 2-col grid: Monthly Loan Book spans full width; Health + Portfolio side-by-side below */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div className="dash-chart-card" style={{ gridColumn: 'span 2' }}>
             <ChartHeader
               icon="stacked_bar_chart" title="Monthly Loan Book"
               subtitle="Total loans issued each month — dark = principal lent, light = projected earnings"
@@ -604,9 +779,7 @@ export function DashboardPage() {
                 : <div ref={comboRef} />}
             </div>
           </div>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
           <div className="dash-chart-card">
             <ChartHeader icon="monitor_heart" iconBg="#ecfdf5" iconColor="#059669" title="Business Health" subtitle="Key metrics — higher is better, aim for all above 80%" />
             <div style={{ padding: 20 }}>
@@ -614,12 +787,50 @@ export function DashboardPage() {
                 : <div ref={radialRef} />}
             </div>
           </div>
+
           <div className="dash-chart-card">
             <ChartHeader icon="trending_up" iconBg="#f5f3ff" iconColor="#7c3aed" title="Portfolio Size Over Time" subtitle="Total value of active loans on the books each month" />
             <div style={{ padding: 20 }}>
               {!apexReady ? <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><div className="spinner" /></div>
                 : trends.length === 0 ? <EmptyChart msg="No growth data yet" />
                 : <div ref={growthRef} />}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Recent Activity ── */}
+      <section style={{ marginBottom: 24 }}>
+        <div className="dash-chart-card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <ChartHeader icon="history" iconBg="rgba(109,40,217,0.08)" iconColor="#6D28D9" title="Recent Activity" subtitle="Latest system events" />
+          <div style={{ padding: '0 20px 20px', overflowY: 'auto', flex: 1, maxHeight: 300 }}>
+            <div className="activity-item">
+              <div className="activity-dot" />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>System Backup Completed</div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>2 hours ago</div>
+              </div>
+            </div>
+            <div className="activity-item">
+              <div className="activity-dot" style={{ background: '#10b981' }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>Application Approved: #2450</div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>Today, 09:41 AM</div>
+              </div>
+            </div>
+            <div className="activity-item">
+              <div className="activity-dot" style={{ background: '#f59e0b' }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>Disbursement Pending</div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>Today, 08:30 AM</div>
+              </div>
+            </div>
+            <div className="activity-item">
+              <div className="activity-dot" />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>Weekly Report Generated</div>
+                <div style={{ fontSize: 11, color: '#9ca3af' }}>Yesterday</div>
+              </div>
             </div>
           </div>
         </div>

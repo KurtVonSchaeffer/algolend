@@ -3,6 +3,9 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 import { useTheme } from '../theme/ThemeProvider';
 import { ADMIN_NAV, getExpandedNavIds } from './adminNav';
+import { CommandPalette } from '../components/CommandPalette';
+
+const isDemoMode = () => localStorage.getItem('algolend_demo') === '1';
 
 export function AdminLayout({ children, title }: { children: ReactNode; title?: string }) {
   const { theme } = useTheme();
@@ -15,18 +18,12 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
   const [expanded,  setExpanded]  = useState<Record<string, boolean>>({});
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
   const logoUrl = theme.company_logo_url || `${import.meta.env.BASE_URL}algolend-logo.png`;
 
   useEffect(() => {
-    const demo = localStorage.getItem('algolend_demo') === '1';
-    if (demo) {
-      setUserName('Demo Admin');
-      setInitials('DA');
-      setUserRole('base_admin');
-      return;
-    }
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       const name = (user.user_metadata?.full_name as string) ?? user.email ?? 'Admin';
@@ -42,8 +39,19 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
     function onDocClick(e: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') { setNotifOpen(false); setCmdOpen(false); }
+      if ((e.key === 'k') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setCmdOpen(o => !o);
+      }
+    }
     document.addEventListener('click', onDocClick);
-    return () => document.removeEventListener('click', onDocClick);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, []);
 
   useEffect(() => {
@@ -67,6 +75,7 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
 
   return (
     <div id="admin-shell" style={{ display: 'flex', minHeight: '100vh' }}>
+      <a href="#main-content" style={{ position: 'absolute', top: -9999, left: -9999 }}>Skip to content</a>
 
       {/* ── Mobile overlay ── */}
       {sidebarOpen && (
@@ -170,7 +179,7 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
 
         {/* Header */}
         <header className="admin-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button
               className="sidebar-toggle"
               onClick={() => setSidebarOpen(o => !o)}
@@ -179,6 +188,26 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
               <span className="material-symbols-outlined">menu</span>
             </button>
             <span className="admin-header-title">{title ?? 'Admin'}</span>
+            <button
+              type="button"
+              onClick={() => setCmdOpen(true)}
+              title="Search (⌘K)"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 12px 6px 10px',
+                borderRadius: 10, border: '1px solid var(--color-border)',
+                background: 'var(--color-surface-muted)',
+                color: 'var(--color-text-muted)', cursor: 'pointer',
+                fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                transition: 'all 0.15s', whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(124,58,237,0.4)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-primary)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--color-border)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-muted)'; }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>search</span>
+              Search
+              <kbd style={{ padding: '1px 5px', borderRadius: 5, border: '1px solid var(--color-border)', background: 'var(--color-surface-card)', fontSize: 10, fontWeight: 700, fontFamily: 'inherit', lineHeight: 1.6 }}>⌘K</kbd>
+            </button>
           </div>
 
           <div className="admin-header-actions">
@@ -191,6 +220,8 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
                 type="button"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 20 }}>notifications</span>
+                <span className="notif-badge">3</span>
+                <span className="notif-badge-dot"></span>
               </button>
               {notifOpen && (
                 <div className="notif-dropdown">
@@ -226,8 +257,29 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
         </header>
 
         {/* Page content */}
-        <main className="admin-page">{children}</main>
+        <main id="main-content" className="admin-page">{children}</main>
       </div>
+
+      {/* Demo banner */}
+      {isDemoMode() && (
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9000, background: 'rgba(124,58,237,0.92)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '8px 16px', fontSize: 12, fontWeight: 600, color: '#fff', letterSpacing: '0.01em' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 15 }}>science</span>
+          Demo Mode — all data is fictional and for demonstration purposes only
+          <button
+            type="button"
+            onClick={() => { localStorage.removeItem('algolend_demo'); window.location.replace('/auth/login'); }}
+            style={{ marginLeft: 12, padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', color: '#fff', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}
+          >
+            Exit Demo
+          </button>
+        </div>
+      )}
+
+      {/* Toast Container */}
+      <div id="toast-container" />
+
+      {/* Command Palette */}
+      <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
     </div>
   );
 }

@@ -1,6 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchRevenueAnalytics } from '../services/adminData';
+import { PageHeader } from '../components/ui/PageHeader';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
+import { EmptyState } from '../components/ui/EmptyState';
+import { StatusBadge } from '../components/ui/StatusBadge';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 0 }).format(n);
@@ -123,62 +127,87 @@ export function AnalyticsPage() {
 
   return (
     <>
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Revenue Analytics</h1>
-          <p className="page-subtitle">Portfolio Revenue &amp; Amortisation Statement</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Period tabs */}
-          <div className="dash-tab-group">
-            {PERIODS.map(p => (
-              <button
-                key={p.key}
-                className={`dash-tab-btn${period === p.key ? ' active' : ''}`}
-                onClick={() => setPeriod(p.key)}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+      {/* Print styles */}
+      <style>{`
+        @media print {
+          @page { size: landscape; margin: 10mm; }
+          body { background: white !important; }
+          nav, aside, header, .sidebar, .print-hidden { display: none !important; }
+          .admin-table-wrap { max-height: none !important; overflow: visible !important; }
+          table { width: 100% !important; border-collapse: collapse !important; font-size: 10px !important; }
+          th, td { border: 1px solid #e5e7eb !important; padding: 6px !important; }
+          .print-header { display: flex !important; }
+        }
+        .print-header { display: none; }
+      `}</style>
 
-          {/* Export */}
-          <div style={{ position: 'relative' }}>
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowExport(o => !o)}
-              onBlur={() => setTimeout(() => setShowExport(false), 150)}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>file_export</span>
-              Export
-              <span className="material-symbols-outlined" style={{ fontSize: 14, opacity: 0.7 }}>expand_more</span>
-            </button>
-            {showExport && (
-              <div style={{
-                position: 'absolute', right: 0, top: '110%', background: '#fff',
-                border: '1px solid rgba(0,0,0,0.1)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                zIndex: 50, overflow: 'hidden', minWidth: 180,
-              }}>
-                <button
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', width: '100%', fontSize: 13, borderBottom: '1px solid #f1f5f9', background: 'none', cursor: 'pointer' }}
-                  onClick={() => { window.print(); setShowExport(false); }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#EF4444' }}>picture_as_pdf</span>
-                  Save as PDF
-                </button>
-                <button
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', width: '100%', fontSize: 13, background: 'none', cursor: 'pointer' }}
-                  onClick={() => { exportCsv(filtered); setShowExport(false); }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#10B981' }}>table_chart</span>
-                  Download CSV
-                </button>
-              </div>
-            )}
-          </div>
+      {/* Print-only header — hidden on screen, visible when printing */}
+      <div className="print-header" style={{ justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #1f2937', paddingBottom: 16, marginBottom: 16 }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111827', margin: 0 }}>AlgoLend</h1>
+          <p style={{ fontSize: 12, color: '#6b7280', textTransform: 'uppercase', fontWeight: 600, margin: '4px 0 0' }}>Revenue Analytics Report</p>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>Generated: {new Date().toLocaleDateString('en-ZA')}</p>
         </div>
       </div>
+
+      {/* Header */}
+      <PageHeader
+        title="Revenue Analytics"
+        subtitle="Portfolio Revenue &amp; Amortisation Statement"
+        action={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Period tabs */}
+            <div className="dash-tab-group">
+              {PERIODS.map(p => (
+                <button
+                  key={p.key}
+                  className={`dash-tab-btn${period === p.key ? ' active' : ''}`}
+                  onClick={() => setPeriod(p.key)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Export */}
+            <div style={{ position: 'relative' }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowExport(o => !o)}
+                onBlur={() => setTimeout(() => setShowExport(false), 150)}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>file_export</span>
+                Export
+                <span className="material-symbols-outlined" style={{ fontSize: 14, opacity: 0.7 }}>expand_more</span>
+              </button>
+              {showExport && (
+                <div style={{
+                  position: 'absolute', right: 0, top: '110%', background: '#fff',
+                  border: '1px solid rgba(0,0,0,0.1)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                  zIndex: 50, overflow: 'hidden', minWidth: 180,
+                }}>
+                  <button
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', width: '100%', fontSize: 13, borderBottom: '1px solid #f1f5f9', background: 'none', cursor: 'pointer' }}
+                    onClick={() => { window.print(); setShowExport(false); }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#EF4444' }}>picture_as_pdf</span>
+                    Save as PDF
+                  </button>
+                  <button
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', width: '100%', fontSize: 13, background: 'none', cursor: 'pointer' }}
+                    onClick={() => { exportCsv(filtered); setShowExport(false); }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: '#10B981' }}>table_chart</span>
+                    Download CSV
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        }
+      />
 
       {/* KPI row */}
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: 20 }}>
@@ -206,7 +235,7 @@ export function AnalyticsPage() {
       {/* Search / Filter / Sort bar */}
       <div className="chart-card" style={{ padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div className="admin-search" style={{ flex: '1 1 260px', minWidth: 200 }}>
-          <i className="fa-solid fa-search admin-search-icon" />
+          <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-text-muted)" }}>search</span>
           <input
             type="text"
             placeholder="Search customer or loan ID…"
@@ -242,7 +271,7 @@ export function AnalyticsPage() {
       {/* Table */}
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-          <div className="spinner" />
+          <SkeletonLoader type="table" />
         </div>
       ) : (
         <div className="admin-table-wrap" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
@@ -279,10 +308,7 @@ export function AnalyticsPage() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8}>
-                    <div className="empty-state">
-                      <i className="fa-solid fa-chart-bar" />
-                      <p>No records found</p>
-                    </div>
+                    <EmptyState icon="bar_chart" title="No records found" />
                   </td>
                 </tr>
               ) : filtered.map(row => {

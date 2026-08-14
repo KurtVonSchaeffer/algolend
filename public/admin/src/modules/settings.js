@@ -3,6 +3,7 @@ import { initLayout } from '../shared/layout.js';
 import { supabase } from '../services/supabaseClient.js';
 import {
   fetchUsers,
+  fetchBranches,
   updateMyProfile,
   updateUserRole,
   getPaymentMethods,
@@ -12,6 +13,7 @@ import {
   updateSystemSettings,
   DEFAULT_SYSTEM_SETTINGS
 } from '../services/dataService.js';
+import { apiFetch } from '../shared/apiFetch.js';
 import {
   ensureThemeLoaded,
   previewTheme,
@@ -530,130 +532,253 @@ function renderSecurityTab() {
     });
 }
 
-// --- UPDATED USER MANAGEMENT TAB ---
+// --- USER MANAGEMENT TAB (full Users page merged in) ---
 async function renderUserManagementTab() {
-  // FIX: Changed 'settings-content' to 'tab-content' to match renderPageContent
   const container = document.getElementById('tab-content');
   if (!container) return;
 
-  // 1. Inject the Table Structure
   container.innerHTML = `
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+    <div class="flex flex-col h-full">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-4 shrink-0">
         <div>
-            <h2 class="text-2xl font-headline font-bold text-on-surface">User Management</h2>
-            <p class="text-[11px] font-semibold uppercase tracking-widest text-outline mt-0.5">Manage permissions and roles for all users.</p>
+          <h2 class="text-2xl font-headline font-bold text-on-surface tracking-tight">Users</h2>
+          <p class="mt-1 text-[11px] font-semibold uppercase tracking-widest text-outline">Clients · Staff · Admins</p>
         </div>
-        <div class="relative w-full sm:w-72">
-            <input type="text" id="user-search" placeholder="Search users..." 
-                   class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500 text-sm transition-shadow">
-            <i class="fa-solid fa-search absolute left-3 top-2.5 text-gray-400"></i>
-        </div>
-    </div>
-    
-    <div class="glass-card rounded-2xl overflow-hidden">
-        <div class="overflow-x-auto custom-scrollbar">
-            <table class="min-w-full divide-y divide-outline-variant/10">
-                <thead class="bg-surface-container">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">User Identity</th>
-                        <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">System ID</th>
-                        <th class="px-6 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-outline">Current Role</th>
-                        <th class="px-6 py-3 text-right text-[10px] font-semibold uppercase tracking-widest text-outline">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="user-management-list" class="bg-white divide-y divide-outline-variant/10">
-                    <tr><td colspan="4" class="p-12 text-center text-gray-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i><br>Loading directory...</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="mt-4 text-xs text-gray-400 text-right" id="user-count"></div>
-  `;
-  
-  try {
-    // 2. Fetch users and update state
-    const users = await fetchUsers();
-    allUsers = Array.isArray(users) ? users : []; //
-    
-    // 3. Table Renderer Logic
-    const renderTableRows = (usersToRender) => {
-        const tbody = document.getElementById('user-management-list');
-        const countEl = document.getElementById('user-count');
-        
-        if(countEl) countEl.textContent = `Showing ${usersToRender.length} users`;
+        <button id="um-btn-invite"
+          class="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5"
+          style="background:var(--color-primary)">
+          <span class="material-symbols-outlined text-[16px]">person_add</span> Invite Staff
+        </button>
+      </div>
 
-        if (usersToRender.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-sm text-gray-500">No users found.</td></tr>`;
-            return;
-        }
+      <div class="flex items-center gap-1 mb-5 bg-gray-100 rounded-2xl p-1 w-fit shrink-0">
+        <button id="um-tab-clients" class="um-tab-btn px-5 py-2 rounded-xl text-sm font-bold transition-all bg-white shadow-sm text-on-surface">Clients</button>
+        <button id="um-tab-staff"   class="um-tab-btn px-5 py-2 rounded-xl text-sm font-bold transition-all text-outline hover:text-on-surface">Staff &amp; Admins</button>
+      </div>
 
-        tbody.innerHTML = usersToRender.map(user => {
-            const isMe = currentUserProfile?.id === user.id; //
-            
-            return `
-              <tr class="hover:bg-gray-50 transition-colors group">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="flex items-center gap-3">
-                          ${renderAvatar(user, { sizeClass: 'w-9 h-9', textClass: 'text-xs' })}
-                          <div>
-                              <div class="text-sm font-bold text-gray-900">${user.full_name || 'Unknown'}</div>
-                              <div class="text-xs text-gray-500">${user.email || 'No email'}</div>
-                          </div>
-                      </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                      <div class="text-xs font-mono text-gray-500 bg-gray-50 px-2 py-1 rounded inline-block border border-gray-100" title="${user.id}">
-                          ${user.id.substring(0, 8)}...
-                      </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                      <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border ${getRoleBadge(user.role)}">
-                          ${getRoleLabel(user.role)}
-                      </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right">
-                      ${!isMe ? `
-                      <button class="change-role-btn text-on-surface-variant font-semibold text-xs bg-surface-container border border-outline-variant/30 px-3 py-1.5 rounded-xl transition-colors shadow-sm inline-flex items-center gap-2"
-                          data-user-id="${user.id}"
-                          data-user-name="${user.full_name || 'User'}"
-                          data-user-role="${user.role}">
-                          <span class="material-symbols-outlined text-[14px]">manage_accounts</span> Change Role
-                      </button>` : 
-                      `<span class="text-xs text-gray-400 italic">Current User</span>`}
-                  </td>
+      <div class="flex flex-wrap gap-3 mb-5 shrink-0">
+        <select id="um-branch" class="bg-white border border-gray-200 text-gray-700 py-2 pl-3 pr-8 rounded-xl text-sm font-semibold focus:outline-none shadow-sm">
+          <option value="all">All Branches</option>
+          <option value="online">Online / Unassigned</option>
+        </select>
+        <div class="relative flex-1 min-w-[200px]">
+          <input type="text" id="um-search" placeholder="Search name, email, ID number..."
+            class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm font-medium focus:outline-none shadow-sm bg-white">
+          <span class="material-symbols-outlined absolute left-3 top-2 text-slate-400 text-[16px]">search</span>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl flex flex-col overflow-hidden" style="min-height:300px">
+        <div class="overflow-auto custom-scrollbar">
+          <table class="min-w-full divide-y divide-slate-50">
+            <thead class="bg-white sticky top-0 z-10 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
+              <tr>
+                <th class="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Identity</th>
+                <th class="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Match Key</th>
+                <th class="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Branch</th>
+                <th class="px-6 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Compliance</th>
+                <th class="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Action</th>
               </tr>
-            `;
-        }).join('');
+            </thead>
+            <tbody id="um-body" class="bg-white divide-y divide-slate-50">
+              <tr><td colspan="5" class="p-20 text-center text-slate-300 font-bold">Loading directory…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="px-6 py-3 border-t border-slate-50 flex items-center justify-between">
+          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Registry <span id="um-count">0</span></div>
+          <div id="um-pag"></div>
+        </div>
+      </div>
+    </div>
+  `;
 
-        // 4. Attach Event Listeners to buttons
-        tbody.querySelectorAll('.change-role-btn').forEach(btn => {
-          btn.onclick = () => {
-            document.getElementById('modal-user-id').value = btn.dataset.userId;
-            document.getElementById('modal-user-name').textContent = btn.dataset.userName;
-            document.getElementById('modal-current-role').textContent = getRoleLabel(btn.dataset.userRole);
-            document.getElementById('modal-role-select').value = btn.dataset.userRole;
-            document.getElementById('role-modal').classList.remove('hidden'); //
-          };
-        });
-    };
+  // ── scoped state ──────────────────────────────────────────────
+  let umUsers = [], umBranches = [], umRoleFilter = 'client', umPage = 1;
+  const PER_PAGE = 20;
+  let umFiltered = [];
 
-    // Initial Render
-    renderTableRows(allUsers);
+  const umIsStaff = r => ['admin', 'super_admin', 'base_admin'].includes(r);
+  const umRoleLabel = r => ({ super_admin: 'SUPER ADMIN', admin: 'BRANCH MANAGER', base_admin: 'LOAN OFFICER' }[r] || 'CLIENT');
+  const umValidID = id => {
+    if (!id || !/^\d{13}$/.test(id)) return false;
+    let s = 0;
+    for (let i = 0; i < 12; i++) { let d = +id[i]; if (i%2) { d*=2; if(d>9) d-=9; } s+=d; }
+    return (10 - s%10)%10 === +id[12];
+  };
 
-    // Search Listener
-    document.getElementById('user-search').addEventListener('input', (e) => {
-        const term = e.target.value.toLowerCase();
-        const filtered = allUsers.filter(u => 
-            (u.full_name || '').toLowerCase().includes(term) || 
-            (u.email || '').toLowerCase().includes(term) ||
-            (u.id || '').toLowerCase().includes(term)
-        );
-        renderTableRows(filtered);
+  const umRenderPage = () => {
+    const tbody = document.getElementById('um-body');
+    if (!tbody) return;
+    const page = umFiltered.slice((umPage-1)*PER_PAGE, umPage*PER_PAGE);
+    if (!page.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="p-20 text-center text-slate-300 font-bold">No results found.</td></tr>`;
+    } else {
+      tbody.innerHTML = page.map(u => {
+        const branch = u.branches?.name || 'Online';
+        const isClient = !umIsStaff(u.role);
+        const idOk = isClient ? umValidID(u.identity_number || u.id_number) : null;
+        return `
+        <tr class="hover:bg-slate-50/50 transition-colors group cursor-pointer" onclick="window.location.href='/admin/users'">
+          <td class="px-8 py-6">
+            <div class="flex items-center gap-4">
+              <div class="h-10 w-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-xs font-black text-slate-400">${(u.full_name||'U').charAt(0)}</div>
+              <div>
+                <div class="text-sm font-black text-slate-900">${u.full_name||'Unknown'}</div>
+                <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${umRoleLabel(u.role)}</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-6"><div class="text-[10px] font-black text-slate-500 font-mono tracking-tighter">${u.id.substring(0,13).toUpperCase()}</div></td>
+          <td class="px-6 py-6"><span class="px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-slate-100 text-slate-500">${branch}</span></td>
+          <td class="px-6 py-6">
+            ${idOk===null?'':`<div class="flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full ${idOk?'bg-emerald-500':'bg-red-500'}"></span>
+              <span class="text-[10px] font-black uppercase tracking-widest ${idOk?'text-emerald-600':'text-red-600'}">${idOk?'ID Valid':'ID Invalid'}</span>
+            </div>`}
+          </td>
+          <td class="px-8 py-6 text-right">
+            <button class="w-10 h-10 flex items-center justify-center text-slate-300 group-hover:text-[#a04100] transition-colors ml-auto">
+              <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+    const countEl = document.getElementById('um-count');
+    if (countEl) countEl.textContent = umFiltered.length;
+    const total = Math.ceil(umFiltered.length/PER_PAGE)||1;
+    const pag = document.getElementById('um-pag');
+    if (pag) pag.innerHTML = total<=1?'':`
+      <div class="flex gap-2">
+        <button onclick="window._umPrev()" ${umPage===1?'disabled':''} class="px-3 py-1.5 text-xs font-bold border rounded-lg bg-white hover:bg-gray-50 disabled:opacity-30 shadow-sm">Prev</button>
+        <span class="text-xs font-bold text-gray-500 self-center">${umPage}/${total}</span>
+        <button onclick="window._umNext()" ${umPage===total?'disabled':''} class="px-3 py-1.5 text-xs font-bold border rounded-lg bg-white hover:bg-gray-50 disabled:opacity-30 shadow-sm">Next</button>
+      </div>`;
+    window._umPrev = () => { umPage--; umRenderPage(); };
+    window._umNext = () => { umPage++; umRenderPage(); };
+  };
+
+  const umApply = (reset=true) => {
+    if (reset) umPage = 1;
+    const term = (document.getElementById('um-search')?.value||'').toLowerCase();
+    const branch = document.getElementById('um-branch')?.value||'all';
+    umFiltered = umUsers.filter(u => {
+      const text = !term || (u.full_name||'').toLowerCase().includes(term) || (u.email||'').toLowerCase().includes(term) || (u.identity_number||'').includes(term) || (u.id||'').includes(term);
+      const role = umRoleFilter==='staff' ? umIsStaff(u.role) : !umIsStaff(u.role);
+      const br = branch==='all' || u.branch_id?.toString()===branch || (branch==='online'&&!u.branch_id);
+      return text && role && br;
     });
+    umRenderPage();
+  };
 
+  const umSwitchTab = tab => {
+    umRoleFilter = tab==='staff'?'staff':'client';
+    document.querySelectorAll('.um-tab-btn').forEach(b => {
+      const on = b.id===`um-tab-${tab}`;
+      b.classList.toggle('bg-white',on); b.classList.toggle('shadow-sm',on);
+      b.classList.toggle('text-on-surface',on); b.classList.toggle('text-outline',!on);
+    });
+    umApply(true);
+  };
+
+  // ── invite staff modal ────────────────────────────────────────
+  const umInjectInvite = (branches) => {
+    if (document.getElementById('um-invite-modal')) return;
+    const m = document.createElement('div');
+    m.id = 'um-invite-modal';
+    m.className = 'hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4';
+    m.innerHTML = `
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between mb-6">
+          <div><h3 class="text-lg font-bold text-gray-900">Invite Staff Member</h3>
+          <p class="text-xs text-gray-500 mt-0.5">Creates a login account and profile immediately.</p></div>
+          <button onclick="document.getElementById('um-invite-modal').classList.add('hidden')"
+            class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500">
+            <span class="material-symbols-outlined text-[16px]">close</span></button>
+        </div>
+        <div id="um-invite-err" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 font-medium"></div>
+        <div id="um-invite-ok"  class="hidden mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700 font-medium"></div>
+        <form id="um-invite-form" class="space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Full Name *</label>
+            <input name="full_name" type="text" required placeholder="Jane Smith"
+              class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-400 outline-none">
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Email Address *</label>
+            <input name="email" type="email" required placeholder="jane@company.co.za"
+              class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-400 outline-none">
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Role *</label>
+              <select name="role" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-400 outline-none bg-white">
+                <option value="base_admin">Loan Officer</option>
+                <option value="admin">Branch Manager</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">Branch</label>
+              <select name="branch_id" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-orange-400 outline-none bg-white">
+                <option value="">No branch</option>
+                ${branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="flex justify-end gap-3 pt-2">
+            <button type="button" onclick="document.getElementById('um-invite-modal').classList.add('hidden')"
+              class="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-xl">Cancel</button>
+            <button type="submit" id="um-invite-submit"
+              class="px-4 py-2 text-sm font-bold text-white rounded-xl shadow-sm" style="background:var(--color-primary)">Send Invite</button>
+          </div>
+        </form>
+      </div>`;
+    document.body.appendChild(m);
+
+    document.getElementById('um-invite-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = document.getElementById('um-invite-submit');
+      const errEl = document.getElementById('um-invite-err');
+      const okEl  = document.getElementById('um-invite-ok');
+      errEl.classList.add('hidden'); okEl.classList.add('hidden');
+      btn.disabled = true; btn.textContent = 'Sending…';
+      const fd = new FormData(e.target);
+      try {
+        const res = await apiFetch('/api/admin/invite-staff', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ full_name: fd.get('full_name'), email: fd.get('email'), role: fd.get('role'), branch_id: fd.get('branch_id')||null }) });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error||'Invite failed');
+        okEl.textContent = `Invite sent to ${fd.get('email')}`;
+        okEl.classList.remove('hidden');
+        e.target.reset();
+        setTimeout(()=>document.getElementById('um-invite-modal')?.classList.add('hidden'), 2000);
+      } catch(err) {
+        errEl.textContent = err.message; errEl.classList.remove('hidden');
+      } finally { btn.disabled=false; btn.textContent='Send Invite'; }
+    });
+  };
+
+  // ── load data ─────────────────────────────────────────────────
+  try {
+    const [usersData, branchRes] = await Promise.all([fetchUsers(), fetchBranches()]);
+    umUsers   = usersData || [];
+    umBranches = branchRes?.data || [];
+
+    const branchSel = document.getElementById('um-branch');
+    umBranches.forEach(b => branchSel?.insertAdjacentHTML('beforeend', `<option value="${b.id}">${b.name}</option>`));
+
+    document.getElementById('um-search')?.addEventListener('input', ()=>umApply(true));
+    document.getElementById('um-branch')?.addEventListener('change', ()=>umApply(true));
+    document.getElementById('um-tab-clients')?.addEventListener('click', ()=>umSwitchTab('clients'));
+    document.getElementById('um-tab-staff')?.addEventListener('click',   ()=>umSwitchTab('staff'));
+    document.getElementById('um-btn-invite')?.addEventListener('click', ()=>document.getElementById('um-invite-modal')?.classList.remove('hidden'));
+
+    umInjectInvite(umBranches);
+    umSwitchTab('clients');
   } catch (err) {
     console.error(err);
-    document.getElementById('user-management-list').innerHTML = `<tr><td colspan="4" class="p-8 text-center text-red-600">Error: ${err.message}</td></tr>`;
+    const tbody = document.getElementById('um-body');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-500">Failed to load: ${err.message}</td></tr>`;
   }
 }
 

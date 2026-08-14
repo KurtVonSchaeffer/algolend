@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchCreditRules, upsertCreditRule, deleteCreditRule } from '../services/adminData';
+import { PageHeader } from '../components/ui/PageHeader';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
+import { EmptyState } from '../components/ui/EmptyState';
+import { StatusBadge } from '../components/ui/StatusBadge';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,6 +127,10 @@ export function CreditRulesPage() {
   // Band form state
   const [bandForm, setBandForm] = useState<Record<string, string>>({});
 
+  // Rule editor state
+  const [showRuleModal, setShowRuleModal] = useState(false);
+  const [ruleForm, setRuleForm] = useState({ id: '', rule_label: '', threshold_value: '', fail_action: 'decline', decline_reason: '', operator: '' });
+
   const { data, isLoading } = useQuery({
     queryKey: ['admin-credit-rules'],
     queryFn: fetchCreditRules,
@@ -150,6 +158,16 @@ export function CreditRulesPage() {
 
   const bands = allRules.filter(isBand);
   const eligibilityRules = allRules.filter(r => !isBand(r));
+
+  const overlaps: string[] = [];
+  for (let i = 0; i < bands.length; i++) {
+    for (let j = i + 1; j < bands.length; j++) {
+      const a = bands[i], b = bands[j];
+      if ((a.min_score ?? 0) <= (b.max_score ?? 999) && (b.min_score ?? 0) <= (a.max_score ?? 999)) {
+        overlaps.push(`"${getRuleName(a)}" (${a.min_score}–${a.max_score}) overlaps with "${getRuleName(b)}" (${b.min_score}–${b.max_score})`);
+      }
+    }
+  }
 
   function openBandModal(rule?: Rule) {
     setEditingRule(rule ?? null);
@@ -206,26 +224,40 @@ export function CreditRulesPage() {
   return (
     <>
       {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Credit Rules</h1>
-          <p className="page-subtitle">Configure score bands and eligibility criteria</p>
-        </div>
-        <button className="btn btn-primary" onClick={() => { setSimResult(null); setShowSimModal(true); }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>science</span>
-          Simulate
-        </button>
-      </div>
+      <PageHeader 
+        title="Credit Rules" 
+        subtitle="Configure score bands and eligibility criteria" 
+        action={
+          <button className="btn btn-primary" onClick={() => { setSimResult(null); setShowSimModal(true); }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>science</span>
+            Simulate
+          </button>
+        }
+      />
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
         <div className="admin-search">
-          <i className="fa-solid fa-search admin-search-icon" />
+          <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--color-text-muted)" }}>search</span>
           <input type="text" placeholder="Search rules…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
       </div>
 
+      {/* Overlap warning */}
+      {!isLoading && overlaps.length > 0 && (
+        <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 14, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <span className="material-symbols-outlined" style={{ color: '#EF4444', marginTop: 1, flexShrink: 0 }}>warning</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 700, color: '#B91C1C', marginBottom: 4 }}>Score Band Overlap Detected</p>
+            <ul style={{ margin: 0, paddingLeft: 14 }}>
+              {overlaps.map((o, i) => <li key={i} style={{ fontSize: 12, color: '#DC2626', marginBottom: 2 }}>{o}</li>)}
+            </ul>
+            <p style={{ fontSize: 11, color: '#EF4444', marginTop: 4 }}>Overlapping bands may produce unpredictable decisions. Fix the score ranges.</p>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}><div className="spinner" /></div>
+        <SkeletonLoader type="table" />
       ) : (
         <>
           {/* ── Score Bands ── */}
@@ -258,6 +290,7 @@ export function CreditRulesPage() {
                     <th style={{ textAlign: 'right' }}>Max Term</th>
                     <th style={{ textAlign: 'center' }}>Decision</th>
                     <th style={{ textAlign: 'center' }}>1st Loan</th>
+                    <th>Decline Message</th>
                     <th style={{ textAlign: 'center' }}>Active</th>
                     <th style={{ textAlign: 'center' }}>Actions</th>
                   </tr>
@@ -265,20 +298,22 @@ export function CreditRulesPage() {
                 <tbody>
                   {bands.length === 0 ? (
                     <tr><td colSpan={10}>
-                      <div className="empty-state">
-                        <i className="fa-solid fa-layer-group" />
-                        <p>No score bands configured.{' '}
+                      <EmptyState 
+                        icon="layers" 
+                        title="No score bands configured." 
+                        message={
                           <button style={{ color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }} onClick={() => openBandModal()}>
                             Add your first band
                           </button>
-                        </p>
-                      </div>
+                        } 
+                      />
                     </td></tr>
                   ) : bands.map(b => {
                     const riskColor = RISK_COLORS[(b.risk_level ?? '').toLowerCase()] ?? '#6B7280';
                     const decClass = b.auto_decision === 'approve' ? 'badge-green' : b.auto_decision === 'decline' ? 'badge-red' : 'badge-yellow';
+                    const isOverlap = overlaps.some(o => o.includes(`"${getRuleName(b)}"`));
                     return (
-                      <tr key={b.id}>
+                      <tr key={b.id} style={isOverlap ? { background: 'rgba(254,242,242,0.6)' } : undefined}>
                         <td>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700 }}>
                             <span style={{ width: 10, height: 10, borderRadius: '50%', background: b.color ?? riskColor, flexShrink: 0 }} />
@@ -303,9 +338,7 @@ export function CreditRulesPage() {
                           {b.max_term_months != null ? `${b.max_term_months} mo` : '—'}
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <span className={`badge ${decClass}`} style={{ textTransform: 'uppercase', fontSize: 10 }}>
-                            {b.auto_decision ?? '—'}
-                          </span>
+                          <StatusBadge status={b.auto_decision ?? '—'} />
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           {b.first_loan_max_term_months
@@ -315,6 +348,10 @@ export function CreditRulesPage() {
                               </span>
                             : <span style={{ color: '#d1d5db', fontSize: 12 }}>—</span>
                           }
+                        </td>
+                        <td style={{ fontSize: 12, color: 'var(--color-text-muted)', fontStyle: b.decline_reason ? 'italic' : 'normal', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          title={b.decline_reason ?? ''}>
+                          {b.decline_reason ? `"${b.decline_reason}"` : <span style={{ color: '#d1d5db' }}>—</span>}
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <button
@@ -364,9 +401,8 @@ export function CreditRulesPage() {
             </div>
 
             {eligibilityRules.length === 0 ? (
-              <div className="empty-state" style={{ padding: '40px 0' }}>
-                <i className="fa-solid fa-shield-halved" />
-                <p>No eligibility rules configured</p>
+              <div style={{ padding: '40px 0' }}>
+                <EmptyState icon="security" title="No eligibility rules configured" message="" />
               </div>
             ) : eligibilityRules.map(r => {
               const failBadge = (r.fail_action ?? r.action ?? 'decline') === 'decline' ? 'badge-red' : 'badge-yellow';
@@ -396,9 +432,7 @@ export function CreditRulesPage() {
                           {r.operator === 'gte' ? '≥' : r.operator === 'lte' ? '≤' : '='} {threshold}
                         </span>
                       )}
-                      <span className={`badge ${failBadge}`} style={{ fontSize: 10 }}>
-                        Fail → {failLabel.toUpperCase()}
-                      </span>
+                      <StatusBadge status={`Fail → ${failLabel.toUpperCase()}`} />
                     </div>
                     {r.condition && <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>{r.condition}</div>}
                     {r.decline_reason && <div style={{ fontSize: 12, color: '#64748b', marginTop: 2, fontStyle: 'italic' }}>"{r.decline_reason}"</div>}

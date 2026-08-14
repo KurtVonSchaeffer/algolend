@@ -12,12 +12,18 @@
 
         async function handleRouting() {
             try {
+                // Demo mode bypass
+                if (localStorage.getItem('algolend_demo') === '1') {
+                    window.location.replace('/admin/dashboard.html');
+                    return;
+                }
+
                 // Check if user has a session
                 const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-                
+
                 console.log('Session:', session);
                 console.log('Session Error:', sessionError);
-                
+
                 // No session → redirect to login
                 if (!session || sessionError) {
                     console.log('No session found, redirecting to login...');

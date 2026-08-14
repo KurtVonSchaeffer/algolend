@@ -102,16 +102,25 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const hasInk = useRef(false);
+  const lastPos = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.strokeStyle = '#1C1C1E';
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    // rAF ensures layout is settled (handles canvas inside a dialog or slide-in)
+    const raf = requestAnimationFrame(() => {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width  = canvas.offsetWidth  * dpr;
+      canvas.height = canvas.offsetHeight * dpr;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.scale(dpr, dpr);
+      ctx.strokeStyle = '#1C1C1E';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    });
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   function pos(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -119,44 +128,51 @@ function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
+  function clearCanvas() {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (canvas && ctx) ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+    hasInk.current = false;
+    onChange(null);
+  }
+
   return (
     <div className="signature-canvas-container">
       <canvas
-        id="signatureCanvas"
         ref={canvasRef}
         className="signature-canvas"
-        width={600} height={160}
+        style={{ touchAction: 'none', userSelect: 'none' }}
         onPointerDown={e => {
           drawing.current = true;
-          const ctx = canvasRef.current?.getContext('2d');
-          const p = pos(e);
-          ctx?.beginPath();
-          ctx?.moveTo(p.x, p.y);
+          lastPos.current = pos(e);
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={e => {
-          if (!drawing.current) return;
+          if (!drawing.current || !lastPos.current) return;
           const ctx = canvasRef.current?.getContext('2d');
+          if (!ctx) return;
           const p = pos(e);
-          ctx?.lineTo(p.x, p.y);
-          ctx?.stroke();
+          ctx.beginPath();
+          ctx.moveTo(lastPos.current.x, lastPos.current.y);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+          lastPos.current = p;
           hasInk.current = true;
         }}
         onPointerUp={() => {
           drawing.current = false;
+          lastPos.current = null;
           if (hasInk.current && canvasRef.current) onChange(canvasRef.current.toDataURL('image/png'));
+        }}
+        onPointerLeave={() => {
+          drawing.current = false;
+          lastPos.current = null;
         }}
       />
       <button
         type="button"
         className="clear-signature-btn"
-        onClick={() => {
-          const canvas = canvasRef.current;
-          const ctx = canvas?.getContext('2d');
-          if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-          hasInk.current = false;
-          onChange(null);
-        }}
+        onClick={clearCanvas}
       >
         <i className="fas fa-eraser" /> Clear
       </button>
@@ -178,7 +194,10 @@ function StepBar({ current, maxReached, onGo }: { current: number; maxReached: n
           <div
             key={label}
             className={`step ${cls}`}
-            style={{ cursor: n <= maxReached ? 'pointer' : 'default' }}
+            style={{
+              cursor: n <= maxReached ? 'pointer' : 'default',
+              ...(cls === 'active' ? { background: 'var(--color-primary, #7C3AED)', color: '#fff' } : {}),
+            }}
             onClick={() => n <= maxReached && onGo(n)}
           >
             <span className="step-number">{`0${n}`}</span>
@@ -211,7 +230,8 @@ export function ApplyLoanPage() {
   // loan config modal + state
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [amount, setAmount]         = useState(5000);
-  const [period, setPeriod]         = useState(1);
+  const [amountRaw, setAmountRaw]   = useState('5000');
+  const [period, setPeriod]         = useState(3);
   const [startDate, setStartDate]   = useState('');
   const [signature, setSignature]   = useState<string | null>(null);
   const [termsOk, setTermsOk]       = useState(false);
@@ -698,9 +718,15 @@ export function ApplyLoanPage() {
                   <div className="input-with-prefix" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1rem' }}>
                     <span style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--color-primary)' }}>R</span>
                     <input
-                      type="number" step={1} value={amount}
-                      onChange={e => setAmount(Math.min(MAX_ONLINE_AMOUNT, Math.max(100, Number(e.target.value) || 100)))}
-                      style={{ flex: 1, padding: '1rem', border: '2px solid #333', borderRadius: 8, fontSize: '1.5rem', fontWeight: 600, textAlign: 'center', background: '#0f0f0f', color: '#fff' }}
+                      type="number" step={1} min={100} max={MAX_ONLINE_AMOUNT}
+                      value={amountRaw}
+                      onChange={e => setAmountRaw(e.target.value)}
+                      onBlur={e => {
+                        const clamped = Math.min(MAX_ONLINE_AMOUNT, Math.max(100, Number(e.target.value) || 100));
+                        setAmount(clamped);
+                        setAmountRaw(String(clamped));
+                      }}
+                      style={{ flex: 1, padding: '1rem', border: '2px solid var(--color-border, #e5e7eb)', borderRadius: 8, fontSize: '1.5rem', fontWeight: 600, textAlign: 'center' }}
                     />
                   </div>
                   <div className="slider-labels" style={{ marginTop: '0.5rem' }}>

@@ -1,6 +1,8 @@
 // Demo mode — activated by localStorage.setItem('algolend_demo','1')
 
-export const isDemoMode = () => localStorage.getItem('algolend_demo') === '1';
+export const isDemoMode    = () => localStorage.getItem('algolend_demo') === '1';
+export const enableDemoMode  = () => localStorage.setItem('algolend_demo', '1');
+export const disableDemoMode = () => localStorage.removeItem('algolend_demo');
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 
@@ -40,7 +42,7 @@ export const DEMO_DASHBOARD = {
     { label: 'Apr', total: 4287.5 },
     { label: 'May', total: 4287.5 },
     { label: 'Jun', total: 4287.5 },
-    { label: 'Jul', total: 4287.5 },
+    { label: 'Jul', total: 0 },
   ],
   eligibility: {
     eligible: true,
@@ -110,6 +112,55 @@ export const DEMO_TRANSCRIPTS = {
   ],
   docMap: {} as Record<string, { id: string; file_name: string; file_type: string; file_path: string; uploaded_at: string }>,
   userId: 'demo-user-id',
+};
+
+// ── Apply for Loan ────────────────────────────────────────────────────────────
+
+export const DEMO_APPLY_DATA = {
+  userId: 'demo-user-id',
+  profile: {
+    id: 'demo-user-id',
+    email: 'thabo.mokoena@gmail.com',
+    first_name: 'Thabo',
+    last_name: 'Mokoena',
+    full_name: 'Thabo Mokoena',
+    contact_number: '071 234 5678',
+    identity_number: '9203154800085',
+    gender: 'Male',
+    date_of_birth: '1992-03-15',
+    address: '14 Soweto Highway, Meadowlands',
+    postal_code: '1852',
+    suburb_area: 'Meadowlands',
+    cell_tel_no: '071 234 5678',
+    avatar_url: null,
+    role: 'borrower',
+    created_at: '2026-01-10T08:00:00Z',
+  },
+  hasPayslip: true,
+  hasBankStatement: true,
+  existingCheck: {
+    credit_score: 742,
+    risk_category: 'low risk',
+    status: 'completed',
+    application_id: 'demo-app-1',
+    checked_at: '2026-01-15T10:30:00Z',
+  },
+  isFirstLoanOfYear: false,
+  bankAccounts: [
+    {
+      id: 1,
+      user_id: 'demo-user-id',
+      bank_name: 'Capitec Bank',
+      account_holder: 'Thabo Mokoena',
+      account_number: '****3421',
+      branch_code: '470010',
+      account_type: 'Savings',
+      is_primary: true,
+      last_used_at: '2026-01-15T10:30:00Z',
+    },
+  ],
+  hasFinancialProfile: true,
+  hasDeclarations: true,
 };
 
 // ── Profile ───────────────────────────────────────────────────────────────────

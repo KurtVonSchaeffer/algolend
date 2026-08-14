@@ -1,6 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { isDemoMode, DEMO_PAYMENTS } from '../demo/demoData';
 import { supabase } from '../api/supabaseClient';
 import { usePageCSS } from '../hooks/usePageCSS';
 import documentsCssUrl from '../legacy-css/14-documents.css?url';
@@ -373,7 +372,7 @@ export function TransactionsPage() {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['payments-dashboard'],
-    queryFn: isDemoMode() ? () => Promise.resolve(DEMO_PAYMENTS) : fetchPaymentsData,
+    queryFn: fetchPaymentsData,
     staleTime: 60_000,
     retry: 1,
   });

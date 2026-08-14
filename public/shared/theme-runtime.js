@@ -20,10 +20,10 @@ const DEFAULT_CAROUSEL_SLIDES = [
 const DEFAULT_SYSTEM_SETTINGS = {
   id: 'global',
   company_name: DEFAULT_COMPANY_NAME,
-  primary_color: '#B026FF',
-  secondary_color: '#4A0E8F',
+  primary_color: '#6D28D9',
+  secondary_color: '#4C1D95',
   tertiary_color: '#11022A',
-  theme_mode: 'dark',
+  theme_mode: 'light',
   company_logo_url: null,
   auth_background_url: null,
   auth_background_flip: false,

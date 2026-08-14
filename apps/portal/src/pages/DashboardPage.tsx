@@ -5,7 +5,6 @@ import { supabase } from '../api/supabaseClient';
 import { Loader } from '../components/ui/loader';
 import { usePageCSS } from '../hooks/usePageCSS';
 import dashboardCssUrl from '../legacy-css/10-dashboard.css?url';
-import { isDemoMode, DEMO_DASHBOARD } from '../demo/demoData';
 
 // ─── types ───────────────────────────────────────────────────────────────────
 
@@ -347,7 +346,11 @@ function DoughnutChart({ repaid, outstanding }: { repaid: number; outstanding: n
     ctx.fillText('Repaid', cx, cy + 20);
   }, [repaid, outstanding]);
 
-  return <canvas ref={ref} style={{ width: '100%', height: '100%' }} />;
+  return (
+    <div style={{ position: 'relative', width: '100%', height: 220, maxWidth: 260, margin: '0 auto' }}>
+      <canvas ref={ref} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+    </div>
+  );
 }
 
 // ─── ring progress (legacy buildRingProgress) ─────────────────────────────────
@@ -390,7 +393,7 @@ export function DashboardPage() {
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['dashboard'],
-    queryFn: isDemoMode() ? () => Promise.resolve(DEMO_DASHBOARD) : fetchDashboard,
+    queryFn: fetchDashboard,
     staleTime: 60_000,
     retry: 1,
   });
@@ -664,101 +667,116 @@ export function DashboardPage() {
             </div>
 
             {/* ── Desktop view ── */}
-            <div id="desktop-view">
-
-              <div className="dashboard-header">
-                <div className="header-left">
-                  <p className="greeting-line">{greeting()}{data.userName ? `, ${data.userName.split(' ')[0]}` : ''}</p>
-                  <h1>Portfolio Overview</h1>
-                  <p>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            <div id="desktop-view" className="animate-fade-in">
+              <div className="admin-z-dashboard-header">
+                <div>
+                  <p className="greeting-line">{greeting()}{data.userName ? `, ${data.userName.split(' ')[0]}` : ''} 👋</p>
+                  <h1 className="admin-z-page-title">Portfolio Overview</h1>
+                  <p className="admin-z-page-subtitle">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
                 </div>
               </div>
 
-              <div className="top-section">
-                <div className="metrics-grid">
-                  <div className="card ds-metric-card">
-                    <div className="ds-card-header">
-                      <span className="card-label">Outstanding Balance</span>
-                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#7C3AED', ['--badge-bg' as string]: 'rgba(124,58,237,0.10)' }}><i className="fas fa-wallet" /></div>
-                    </div>
-                    <div className="card-value">{fmt(data.currentBalance)}</div>
-                    <div className="card-subtitle">Total principal remaining</div>
-                  </div>
-                  <div className="card ds-metric-card">
-                    <div className="ds-card-header">
-                      <span className="card-label">Next Payment Due</span>
-                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#3b82f6', ['--badge-bg' as string]: 'rgba(59,130,246,0.10)' }}><i className="fas fa-calendar-alt" /></div>
-                    </div>
-                    <div className="card-value">{fmt(np.amount)}</div>
-                    <div className="card-subtitle" style={npDateColor ? { color: npDateColor } : undefined}>{npDateLabel}</div>
-                  </div>
-                  <div className="card ds-metric-card">
-                    <div className="ds-card-header">
-                      <span className="card-label">Total Borrowed</span>
-                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#10b981', ['--badge-bg' as string]: 'rgba(16,185,129,0.10)' }}><i className="fas fa-arrow-trend-up" /></div>
-                    </div>
-                    <div className="card-value">{fmt(data.totalBorrowed)}</div>
-                    <div className="card-subtitle">Lifetime capacity</div>
-                  </div>
-                  <div className="card ds-metric-card">
-                    <div className="ds-card-header">
-                      <span className="card-label">Total Repaid</span>
-                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#8b5cf6', ['--badge-bg' as string]: 'rgba(139,92,246,0.10)' }}><i className="fas fa-circle-check" /></div>
-                    </div>
-                    <div className="card-value">{fmt(data.totalRepaid)}</div>
-                    <div className="card-subtitle">Successfully settled</div>
-                  </div>
-                </div>
-
-                <div className="credit-score-card card ds-metric-card">
-                  <div className="ds-card-header">
-                    <span className="card-label">Credit Score</span>
-                    <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#7C3AED', ['--badge-bg' as string]: 'rgba(124,58,237,0.10)' }}><i className="fas fa-chart-line" /></div>
-                  </div>
-                  <div className="card-value">{data.creditScore || 0}</div>
-                  <div className="card-subtitle">Experian Financial Standing</div>
-                  <div className="score-meter">
-                    <div className="score-fill" style={{ width: `${scorePct}%` }} />
-                  </div>
-                </div>
-
-                {elig?.band && (
-                  <div className="card ds-metric-card" id="eligibilityCard">
-                    <div className="ds-card-header">
-                      <span className="card-label">My Eligibility</span>
-                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: elig.band.color || '#10b981', ['--badge-bg' as string]: `${elig.band.color || '#10b981'}1a` }}><i className="fas fa-shield-halved" /></div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: elig.band.color || '#10b981', flexShrink: 0 }} />
-                      <span className="card-value" style={{ fontSize: 22 }}>{elig.band.label}</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
-                      {[
-                        { label: 'Max Loan', value: `R ${Number(elig.band.max_loan_amount || 0).toLocaleString()}` },
-                        { label: 'Rate p.a.', value: `${elig.band.interest_rate_pa || 0}%` },
-                        { label: 'Max Term', value: `${elig.band.max_term_months || 0} mo` },
-                        { label: 'Score', value: String(elig.credit_score ?? '—') },
-                      ].map(i => (
-                        <div key={i.label} style={{ background: '#f8f8f8', borderRadius: 8, padding: '8px 10px' }}>
-                          <div style={{ fontSize: 10, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '.05em' }}>{i.label}</div>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>{i.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                    {elig.first_loan_restriction && (
-                      <div style={{ background: '#fff8ed', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: '#d97706', fontWeight: 600 }}>
-                        <i className="fas fa-star" /> {elig.first_loan_restriction}
+              <div className="portal-top-section">
+                {/* Left: 2×2 KPI cards */}
+                <div className="portal-kpi-grid">
+                  <div className="portal-kpi-card animate-fade-in-up delay-50">
+                    <div className="portal-kpi-card-header">
+                      <span className="portal-kpi-label">Outstanding Balance</span>
+                      <div className="portal-kpi-badge" style={{ background: 'rgba(249,115,22,0.12)', color: '#f97316' }}>
+                        <i className="fa-solid fa-wallet" />
                       </div>
-                    )}
-                    <button
-                      onClick={() => navigate('/user-portal/apply')}
-                      style={{ marginTop: 10, width: '100%', padding: 10, border: 'none', borderRadius: 12, background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-soft))', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
-                    >
-                      Apply Now <i className="fas fa-arrow-right" />
-                    </button>
+                    </div>
+                    <div className="portal-kpi-value">{fmt(data.currentBalance)}</div>
+                    <div className="portal-kpi-subtitle">Total principal remaining</div>
                   </div>
-                )}
+
+                  <div className="portal-kpi-card animate-fade-in-up delay-100">
+                    <div className="portal-kpi-card-header">
+                      <span className="portal-kpi-label">Next Payment Due</span>
+                      <div className="portal-kpi-badge" style={{ background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}>
+                        <i className="fa-solid fa-calendar-days" />
+                      </div>
+                    </div>
+                    <div className="portal-kpi-value">{fmt(np.amount)}</div>
+                    <div className="portal-kpi-subtitle" style={npDateColor ? { color: npDateColor } : undefined}>{npDateLabel}</div>
+                  </div>
+
+                  <div className="portal-kpi-card animate-fade-in-up delay-150">
+                    <div className="portal-kpi-card-header">
+                      <span className="portal-kpi-label">Total Borrowed</span>
+                      <div className="portal-kpi-badge" style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981' }}>
+                        <i className="fa-solid fa-arrow-trend-up" />
+                      </div>
+                    </div>
+                    <div className="portal-kpi-value">{fmt(data.totalBorrowed)}</div>
+                    <div className="portal-kpi-subtitle">Lifetime capacity</div>
+                  </div>
+
+                  <div className="portal-kpi-card animate-fade-in-up delay-200">
+                    <div className="portal-kpi-card-header">
+                      <span className="portal-kpi-label">Total Repaid</span>
+                      <div className="portal-kpi-badge" style={{ background: 'rgba(124,58,237,0.12)', color: '#7c3aed' }}>
+                        <i className="fa-solid fa-circle-check" />
+                      </div>
+                    </div>
+                    <div className="portal-kpi-value">{fmt(data.totalRepaid)}</div>
+                    <div className="portal-kpi-subtitle">Successfully settled</div>
+                  </div>
+                </div>
+
+                {/* Right: Credit score + eligibility */}
+                <div className="portal-right-col">
+                  <div className="credit-score-card card ds-metric-card">
+                    <div className="ds-card-header">
+                      <span className="card-label">Credit Score</span>
+                      <div className="card-icon-badge" style={{ ['--badge-color' as string]: '#7C3AED', ['--badge-bg' as string]: 'rgba(124,58,237,0.10)' }}><i className="fas fa-chart-line" /></div>
+                    </div>
+                    <div className="card-value">{data.creditScore || '—'}</div>
+                    <div className="card-subtitle">Experian Financial Standing</div>
+                    <div className="score-meter">
+                      <div className="score-fill" style={{ width: `${scorePct}%` }} />
+                    </div>
+                  </div>
+
+                  {elig?.band && (
+                    <div className="card ds-metric-card" id="eligibilityCard">
+                      <div className="ds-card-header">
+                        <span className="card-label">My Eligibility</span>
+                        <div className="card-icon-badge" style={{ ['--badge-color' as string]: elig.band.color || '#10b981', ['--badge-bg' as string]: `${elig.band.color || '#10b981'}1a` }}><i className="fas fa-shield-halved" /></div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: '50%', background: elig.band.color || '#10b981', flexShrink: 0 }} />
+                        <span className="card-value" style={{ fontSize: 22 }}>{elig.band.label}</span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+                        {[
+                          { label: 'Max Loan', value: `R ${Number(elig.band.max_loan_amount || 0).toLocaleString()}` },
+                          { label: 'Rate p.a.', value: `${elig.band.interest_rate_pa || 0}%` },
+                          { label: 'Max Term', value: `${elig.band.max_term_months || 0} mo` },
+                          { label: 'Score', value: String(elig.credit_score ?? '—') },
+                        ].map(i => (
+                          <div key={i.label} style={{ background: '#f8f8f8', borderRadius: 8, padding: '8px 10px' }}>
+                            <div style={{ fontSize: 10, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: '.05em' }}>{i.label}</div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>{i.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {elig.first_loan_restriction && (
+                        <div style={{ background: '#fff8ed', borderRadius: 10, padding: '8px 12px', fontSize: 12, color: '#d97706', fontWeight: 600 }}>
+                          <i className="fas fa-star" /> {elig.first_loan_restriction}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => navigate('/user-portal/apply')}
+                        style={{ marginTop: 10, width: '100%', padding: 10, border: 'none', borderRadius: 12, background: 'linear-gradient(135deg,var(--color-primary),var(--color-primary-soft))', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+                      >
+                        Apply Now <i className="fas fa-arrow-right" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
+            </div>
 
               <div className="quick-actions-section">
                 <div className="section-title-bar">
@@ -892,21 +910,21 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              <div className="charts-section">
-                <div className="chart-card">
-                  <div className="section-title-bar">
-                    <h2>Repayment Trends</h2>
+              <div className="admin-z-content-grid" style={{ marginTop: 24 }}>
+                <div className="admin-z-card animate-fade-in-up delay-250">
+                  <div className="admin-z-card-header">
+                    <h3 className="admin-z-card-title">Repayment Trends</h3>
                   </div>
-                  <div className="chart-container">
+                  <div style={{ height: 300, position: 'relative' }}>
                     <LineChart series={data.repaymentSeries} />
                   </div>
                 </div>
 
-                <div className="chart-card">
-                  <div className="section-title-bar">
-                    <h2>Loan Breakdown</h2>
+                <div className="admin-z-card animate-fade-in-up delay-300">
+                  <div className="admin-z-card-header">
+                    <h3 className="admin-z-card-title">Loan Breakdown</h3>
                   </div>
-                  <div className="chart-container">
+                  <div style={{ height: 300, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <DoughnutChart repaid={data.totalRepaid} outstanding={data.currentBalance} />
                   </div>
                 </div>
@@ -916,7 +934,6 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
-    </div>
 
   );
 }

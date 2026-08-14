@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { isDemoMode, DEMO_TRANSCRIPTS } from '../demo/demoData';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../api/supabaseClient';
 import { usePageCSS } from '../hooks/usePageCSS';
@@ -36,11 +35,14 @@ const SCORE_BANDS = [
 
 interface CreditCheck {
   id: string;
+  user_id?: string;
+  status?: string;
+  application_id?: string;
   credit_score: number | null;
   risk_category: string | null;
-  score_band: string | null;
-  recommendation_reason: string | null;
-  bureau_name: string | null;
+  score_band?: string | null;
+  recommendation_reason?: string | null;
+  bureau_name?: string | null;
   checked_at: string;
   total_accounts: number | null;
   open_accounts: number | null;
@@ -226,7 +228,7 @@ export function TranscriptsPage() {
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['transcripts'],
-    queryFn: isDemoMode() ? () => Promise.resolve(DEMO_TRANSCRIPTS) : fetchTranscripts,
+    queryFn: fetchTranscripts,
     staleTime: 60_000,
     retry: 1,
   });
