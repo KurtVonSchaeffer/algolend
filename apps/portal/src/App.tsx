@@ -24,7 +24,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <BrowserRouter>
           <Routes>
             <Route path="/" element={<Navigate to="/user-portal/dashboard" replace />} />
             <Route path="/auth/login" element={<AuthPage />} />

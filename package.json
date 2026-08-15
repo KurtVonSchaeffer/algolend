@@ -13,7 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@supabase/supabase-js": "^2.81.1",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.6.0",
     "axios": "^1.15.2",
     "crypto-js": "^4.2.0",
     "dotenv": "^16.6.1",
