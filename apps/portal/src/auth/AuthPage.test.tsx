@@ -82,7 +82,7 @@ describe('AuthPage', () => {
     await userEvent.type(screen.getByLabelText(/^password$/i), 'sup3rSecret');
     await userEvent.click(screen.getByRole('button', { name: 'Sign In' }));
 
-    await waitFor(() => expect(mockRedirectTo).toHaveBeenCalledWith('/admin/dashboard'));
+    await waitFor(() => expect(mockRedirectTo).toHaveBeenCalledWith('/admin-panel/dashboard'));
   });
 
   it('shows an error message when login fails', async () => {

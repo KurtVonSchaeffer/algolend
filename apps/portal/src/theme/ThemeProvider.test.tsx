@@ -3,6 +3,20 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider, useTheme } from './ThemeProvider';
 
+// ThemeProvider queries Supabase directly, not via fetch.
+// vi.hoisted ensures the fn is available when the factory runs (vi.mock is hoisted to top-of-file).
+const mockMaybeSingle = vi.hoisted(() => vi.fn());
+
+vi.mock('../api/supabaseClient', () => ({
+  supabase: {
+    from: () => ({
+      select: () => ({
+        eq: () => ({ maybeSingle: () => mockMaybeSingle() })
+      })
+    })
+  }
+}));
+
 function TestConsumer() {
   const { theme, isLoading } = useTheme();
   if (isLoading) return <span>loading</span>;
@@ -22,17 +36,14 @@ function renderWithProviders() {
 
 describe('ThemeProvider', () => {
   beforeEach(() => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ data: { company_name: 'AlgoLend', primary_color: '#123456' } })
-      })
-    );
+    mockMaybeSingle.mockResolvedValue({
+      data: { company_name: 'AlgoLend', primary_color: '#123456' },
+      error: null
+    });
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
+    vi.clearAllMocks();
     document.documentElement.removeAttribute('style');
     document.documentElement.removeAttribute('data-theme');
   });
@@ -50,7 +61,7 @@ describe('ThemeProvider', () => {
   });
 
   it('falls back to defaults when the request fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
+    mockMaybeSingle.mockResolvedValue({ data: null, error: new Error('DB error') });
     renderWithProviders();
     await waitFor(() => expect(screen.getByText('no-name')).toBeInTheDocument());
   });
