@@ -14,12 +14,10 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 const resend   = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || (() => {
-  if (process.env.NODE_ENV === 'production') {
-    console.error('[FATAL] RESEND_FROM_EMAIL is not set. Notification emails will be sent from the Resend sandbox address and will likely be rejected as spam. Set this env var to a verified sending domain.');
-  }
-  return 'onboarding@resend.dev';
-})();
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || null;
+if (!FROM_EMAIL && process.env.NODE_ENV === 'production') {
+  console.error('[FATAL] RESEND_FROM_EMAIL is not set — notification emails will be blocked in production.');
+}
 
 const EDIT_WINDOW_STATUSES = ['STARTED'];
 
@@ -27,6 +25,9 @@ async function sendEmail(to, subject, html) {
   if (!resend) {
     console.warn('[notifications] RESEND_API_KEY not set — email not sent:', subject);
     return;
+  }
+  if (!FROM_EMAIL) {
+    throw new Error('[FATAL] RESEND_FROM_EMAIL is not configured — email send blocked to prevent sandbox delivery of regulated notices. Set this env var to a verified sending domain.');
   }
   try {
     await resend.emails.send({ from: FROM_EMAIL, to, subject, html });

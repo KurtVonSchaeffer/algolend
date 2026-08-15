@@ -206,7 +206,7 @@ function normalizeError(error, fallback) {
     endpoint: error.endpoint || error.config?.url || null,
     method: error.config?.method?.toUpperCase?.() || 'POST',
     timeout: error.config?.timeout || null,
-    providerResponse: body || null,
+    // providerResponse omitted — SureSystems error bodies may echo request PII
     networkMessage: error.message || null
   };
   return normalized;

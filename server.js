@@ -131,15 +131,13 @@ const DOCUSEAL_API_URL = process.env.DOCUSEAL_API_URL || 'https://api.docuseal.c
 
 const isDocuSealReady = () => Boolean(DOCUSEAL_API_KEY && DOCUSEAL_TEMPLATE_ID);
 
-// Resolved sending address for all outbound email. Falls back to Resend's sandbox
-// address only in local dev — in production, RESEND_FROM_EMAIL must be set to a
-// verified domain address or NCA-regulated legal notices (s108, s129) will be rejected.
-const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || (() => {
-    if (process.env.NODE_ENV === 'production') {
-        console.error('[FATAL] RESEND_FROM_EMAIL is not set. Legal notices will be sent from the Resend sandbox address and will likely be rejected as spam. Set this env var to a verified sending domain.');
-    }
-    return 'onboarding@resend.dev';
-})();
+// Resolved sending address for all outbound email.
+// null when unset — legal-notice cron handlers check for null and abort rather than
+// falling back to a sandbox address that would be spam-filtered and never delivered.
+const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || null;
+if (!RESEND_FROM_EMAIL && process.env.NODE_ENV === 'production') {
+    console.error('[FATAL] RESEND_FROM_EMAIL is not set — all outbound email from this server is blocked.');
+}
 
 const docuSealHeaders = {
     'Content-Type': 'application/json',
@@ -3705,7 +3703,8 @@ app.get('/api/organizations', async (req, res) => {
         const { data, error } = await supabaseService
             .from('organizations')
             .select('*')
-            .order('name');
+            .order('name')
+            .limit(500);
         if (error) throw error;
         res.json({ data });
     } catch (err) {
@@ -3722,12 +3721,14 @@ app.get('/api/credit-rules/:orgId', async (req, res) => {
                 .from('credit_score_bands')
                 .select('*')
                 .eq('organization_id', orgId)
-                .order('sort_order'),
+                .order('sort_order')
+                .limit(200),
             supabaseService
                 .from('credit_eligibility_rules')
                 .select('*')
                 .eq('organization_id', orgId)
                 .order('sort_order')
+                .limit(200)
         ]);
         if (bandsResult.error) throw bandsResult.error;
         if (rulesResult.error) throw rulesResult.error;
@@ -5367,6 +5368,11 @@ app.get('/api/cron/monthly-statements', async (req, res) => {
 
         if (!activeLoans?.length) return res.json({ ok: true, sent: 0 });
 
+        if (!RESEND_FROM_EMAIL) {
+            console.error('[monthly-statements cron] FATAL: RESEND_FROM_EMAIL not configured — aborting to prevent undeliverable NCA s108 statements');
+            return res.status(500).json({ error: 'RESEND_FROM_EMAIL not configured — statement send blocked' });
+        }
+
         const settings  = await getSystemTheme();
         const company   = settings?.company_name || process.env.COMPANY_NAME || 'AlgoLend';
         const ncrNumber = requireNcrNumber(settings);
@@ -6490,6 +6496,11 @@ app.get('/api/cron/section129', async (req, res) => {
 
         if (!arrears?.length) return res.json({ ok: true, sent: 0 });
 
+        if (!RESEND_FROM_EMAIL) {
+            console.error('[section129 cron] FATAL: RESEND_FROM_EMAIL not configured — aborting to prevent undeliverable legal notices');
+            return res.status(500).json({ error: 'RESEND_FROM_EMAIL not configured — legal notice send blocked' });
+        }
+
         const settings     = await getSystemTheme();
         const company      = settings?.company_name      || process.env.COMPANY_NAME || 'AlgoLend';
         const companyAddr  = settings?.company_physical_address || '';
@@ -6571,9 +6582,21 @@ ${[profile.address, profile.suburb_area, profile.postal_code].filter(Boolean).jo
 </div>
 </body></html>`;
 
-            let notified = false;
+            // 1. Claim this record atomically BEFORE sending.
+            //    If two cron invocations overlap, the second will get 0 rows back here
+            //    (sent_at is already set) and skip — preventing duplicate legal notices.
+            const { data: locked } = await supabaseService
+                .from('loan_applications')
+                .update({ section129_sent_at: now, section129_reference: reference, updated_at: now })
+                .eq('id', app.id)
+                .is('section129_sent_at', null)
+                .select('id');
 
-            // Email
+            if (!locked?.length) continue; // another invocation already claimed this row
+
+            // 2. Send only because we own the claim.
+            let deliverySucceeded = false;
+
             if (email && process.env.RESEND_API_KEY) {
                 try {
                     const { Resend } = require('resend');
@@ -6584,33 +6607,30 @@ ${[profile.address, profile.suburb_area, profile.postal_code].filter(Boolean).jo
                         subject: `Section 129 Notice — ${reference} — ${company}`,
                         html: noticeHtml,
                     });
-                    notified = true;
+                    deliverySucceeded = true;
                 } catch (emailErr) {
                     console.warn(`[section129] email failed for app ${app.id}:`, emailErr.message);
                 }
             }
 
-            // SMS fallback / supplement
             if (phone) {
                 try {
                     const smsText = `${company}: SECTION 129 NOTICE — Your loan account (${reference}) is in arrears. Contact us immediately on ${companyPhone} to avoid legal action. This is a formal NCA s129 notice.`;
                     await messaging.sendSMS(phone, smsText);
-                    notified = true;
+                    deliverySucceeded = true;
                 } catch (smsErr) {
                     console.warn(`[section129] SMS failed for app ${app.id}:`, smsErr.message);
                 }
             }
 
-            if (notified) {
-                // Atomic update: the WHERE section129_sent_at IS NULL ensures that if two
-                // cron invocations overlap, only one can write this row — preventing duplicate legal notices.
-                const { data: locked } = await supabaseService
-                    .from('loan_applications')
-                    .update({ section129_sent_at: now, section129_reference: reference, updated_at: now })
-                    .eq('id', app.id)
-                    .is('section129_sent_at', null)
-                    .select('id');
-                if (locked?.length) sent++;
+            // 3. Recovery path: record is claimed but delivery failed — log for manual follow-up.
+            //    The claim stays so the cron won't retry automatically (preventing future duplicates),
+            //    but ops must re-send this notice manually using the reference logged below.
+            //    Long-term: add a section129_send_failed boolean column to track these in a query.
+            if (!deliverySucceeded) {
+                console.error(`[section129] CRITICAL: app ${app.id} (ref ${reference}) claimed but delivery failed — no email or SMS sent. Manual re-send required.`);
+            } else {
+                sent++;
             }
         }
 

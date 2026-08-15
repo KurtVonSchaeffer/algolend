@@ -502,12 +502,12 @@ async function performCreditCheck(userData, applicationId, authToken = null) {
         }
         
     } catch (error) {
-        console.error('❌ Credit check failed:', error);
-        console.error('Error details:', {
+        console.error('❌ Credit check failed:', {
             code: error.code,
             message: error.message,
-            response: error.response?.data,
-            stack: error.stack
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            // response body intentionally omitted — may contain borrower PII (ID, income)
         });
         
         return {
