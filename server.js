@@ -125,6 +125,19 @@ async function requireAdminAuth(req, res, next) {
 }
 const { logApiCall, tracked } = require('./services/apiUsageLogger');
 
+// ── Early auth guards ────────────────────────────────────────────────────────
+// These app.use() registrations run before route handlers, so they protect
+// all routes under these prefixes regardless of where in the file they appear.
+app.use('/api/compliance', requireAdminAuth);
+app.use('/api/billing',    requireAdminAuth);
+app.use('/api/audit-log',  requireAdminAuth);
+// DocuSeal: webhook is called by DocuSeal's servers (no admin token); all other routes require auth
+app.use('/api/docuseal', (req, res, next) => {
+    if (req.path === '/webhook') return next();
+    return requireAdminAuth(req, res, next);
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 const DOCUSEAL_API_KEY = process.env.DOCUSEAL_API_KEY;
 const DOCUSEAL_TEMPLATE_ID = process.env.DOCUSEAL_TEMPLATE_ID;
 const DOCUSEAL_API_URL = process.env.DOCUSEAL_API_URL || 'https://api.docuseal.com';
@@ -1198,7 +1211,7 @@ app.get('/api/kyc/session/:sessionId', async (req, res) => {
     }
 });
 
-app.get('/api/kyc/user/:userId/status', async (req, res) => {
+app.get('/api/kyc/user/:userId/status', requireAdminAuth, async (req, res) => {
     try {
         const result = await kyc.getUserKycStatus(req.params.userId);
         return res.json(result);
@@ -1250,7 +1263,7 @@ app.get('/api/truid/session/:sessionId', async (req, res) => {
     }
 });
 
-app.get('/api/truid/user/:userId/status', async (req, res) => {
+app.get('/api/truid/user/:userId/status', requireAdminAuth, async (req, res) => {
     try {
         const result = await truid.getUserStatus(req.params.userId);
         return res.json(result);
@@ -1307,7 +1320,7 @@ app.get('/api/banking/status', async (req, res) => {
     }
 });
 
-app.get('/api/banking/all', async (req, res) => {
+app.get('/api/banking/all', requireAdminAuth, async (req, res) => {
     try {
         const result = await truid.getAllSessions();
         return res.json(result);
@@ -1317,7 +1330,7 @@ app.get('/api/banking/all', async (req, res) => {
     }
 });
 
-app.post('/api/banking/capture', async (req, res) => {
+app.post('/api/banking/capture', requireAdminAuth, async (req, res) => {
     try {
         const result = await truid.captureCollectionData(req.body || {});
         return res.json(result);
@@ -1328,7 +1341,7 @@ app.post('/api/banking/capture', async (req, res) => {
 });
 
 // Credit Check API endpoint
-app.post('/api/credit-check', sensitiveLimiter, async (req, res) => {
+app.post('/api/credit-check', requireAdminAuth, sensitiveLimiter, async (req, res) => {
     try {
         const { applicationId, userData } = req.body;
 
@@ -3595,7 +3608,7 @@ app.get('/api/payouts/ready', async (req, res) => {
 });
 
 // GET /api/billing/usage — API usage summary for a client (used by mint-admin)
-app.get('/api/billing/usage', async (req, res) => {
+app.get('/api/billing/usage', requireAdminAuth, async (req, res) => {
     try {
         const { month, service } = req.query;
         const clientId = (process.env.CLIENT_ID || process.env.COMPANY_NAME || 'default')
@@ -3639,7 +3652,7 @@ app.get('/api/billing/usage', async (req, res) => {
 // POST /api/loans/default-interest
 // Body: { applicationId }
 // Returns: current outstanding balance + default interest amount
-app.post('/api/loans/default-interest', async (req, res) => {
+app.post('/api/loans/default-interest', requireAdminAuth, async (req, res) => {
     try {
         const { applicationId } = req.body || {};
         if (!applicationId) return res.status(400).json({ error: 'applicationId required' });
@@ -3698,7 +3711,7 @@ app.post('/api/loans/default-interest', async (req, res) => {
 
 
 // GET /api/organizations — list all lender organizations
-app.get('/api/organizations', async (req, res) => {
+app.get('/api/organizations', requireAdminAuth, async (req, res) => {
     try {
         const { data, error } = await supabaseService
             .from('organizations')
@@ -3713,7 +3726,7 @@ app.get('/api/organizations', async (req, res) => {
 });
 
 // GET /api/credit-rules/:orgId — get all rules + bands for an org
-app.get('/api/credit-rules/:orgId', async (req, res) => {
+app.get('/api/credit-rules/:orgId', requireAdminAuth, async (req, res) => {
     try {
         const { orgId } = req.params;
         const [bandsResult, rulesResult] = await Promise.all([
@@ -5130,7 +5143,7 @@ app.get('/api/contracts/:applicationId/preview', async (req, res) => {
 
 // POST /api/applications/:id/route-to-head-office
 // Flags online applications for head office review
-app.post('/api/applications/:id/route-to-head-office', async (req, res) => {
+app.post('/api/applications/:id/route-to-head-office', requireAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const headOfficeBranchId = process.env.HEAD_OFFICE_BRANCH_ID || null;
@@ -5648,7 +5661,7 @@ app.post('/api/push/test', async (req, res) => {
     }
 });
 
-app.post('/api/messaging/send', async (req, res) => {
+app.post('/api/messaging/send', requireAdminAuth, async (req, res) => {
     try {
         const { to, message, channel = 'both' } = req.body;
         if (!to || !message) return res.status(400).json({ error: 'to and message required' });
