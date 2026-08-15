@@ -1201,7 +1201,7 @@ app.post('/api/kyc/webhook', async (req, res) => {
     }
 });
 
-app.get('/api/kyc/session/:sessionId', async (req, res) => {
+app.get('/api/kyc/session/:sessionId', requireAdminAuth, async (req, res) => {
     try {
         const result = await kyc.getSessionStatus(req.params.sessionId);
         return res.json(result);
@@ -1222,7 +1222,7 @@ app.get('/api/kyc/user/:userId/status', requireAdminAuth, async (req, res) => {
 });
 
 // TruID API routes
-app.post('/api/truid/create-session', async (req, res) => {
+app.post('/api/truid/create-session', requireAdminAuth, async (req, res) => {
     try {
         const payload = req.body || {};
         const appId = payload.metadata?.applicationId || null;
@@ -1253,7 +1253,7 @@ app.post('/api/truid/create-session', async (req, res) => {
     }
 });
 
-app.get('/api/truid/session/:sessionId', async (req, res) => {
+app.get('/api/truid/session/:sessionId', requireAdminAuth, async (req, res) => {
     try {
         const result = await truid.getCollectionStatus(req.params.sessionId);
         return res.json(result);
@@ -1299,7 +1299,7 @@ app.post('/api/banking/initiate', sensitiveLimiter, async (req, res) => {
     }
 });
 
-app.get('/api/banking/status', async (req, res) => {
+app.get('/api/banking/status', requireAdminAuth, async (req, res) => {
     try {
         const { collectionId, userId } = req.query;
 
@@ -3890,7 +3890,7 @@ app.get('/api/payment/banking-details', async (req, res) => {
 
 // GET /api/payment/settlement-quote/:loanId
 // Returns the settlement amount for a given loan (outstanding balance).
-app.get('/api/payment/settlement-quote/:loanId', async (req, res) => {
+app.get('/api/payment/settlement-quote/:loanId', requireAdminAuth, async (req, res) => {
     try {
         const { loanId } = req.params;
 
@@ -4415,7 +4415,7 @@ app.post('/api/applications/:id/evaluate', sensitiveLimiter, async (req, res) =>
 
 // POST /api/evaluate-credit — run rules engine against a borrower profile
 // Body: { organization_id, credit_score, monthly_income, monthly_debt, age, is_employed, has_judgments, under_debt_review }
-app.post('/api/evaluate-credit', async (req, res) => {
+app.post('/api/evaluate-credit', requireAdminAuth, async (req, res) => {
     try {
         const { organization_id, credit_score, monthly_income, monthly_debt, age,
                 is_employed, has_judgments, under_debt_review } = req.body;
@@ -4511,7 +4511,7 @@ app.post('/api/evaluate-credit', async (req, res) => {
 });
 
 // GET /api/letters-of-demand/:applicationId — generate HTML letter ready for browser print-to-PDF
-app.get('/api/letters-of-demand/:applicationId', async (req, res) => {
+app.get('/api/letters-of-demand/:applicationId', requireAdminAuth, async (req, res) => {
     try {
         const { applicationId } = req.params;
 
@@ -4791,7 +4791,7 @@ app.get('/api/letters-of-demand/:applicationId', async (req, res) => {
 });
 
 // GET /api/loans/:id/default-interest — calculate 3% default interest on current balance
-app.get('/api/loans/:id/default-interest', async (req, res) => {
+app.get('/api/loans/:id/default-interest', requireAdminAuth, async (req, res) => {
     try {
         const { id } = req.params;
         const { data: loan, error } = await supabaseService
@@ -4821,7 +4821,7 @@ app.get('/api/loans/:id/default-interest', async (req, res) => {
 
 // GET /api/contracts/:applicationId/preview
 // Full NCA-compliant Pre-Agreement Quote — print-ready HTML with CPI breakdown + logo
-app.get('/api/contracts/:applicationId/preview', async (req, res) => {
+app.get('/api/contracts/:applicationId/preview', requireAdminAuth, async (req, res) => {
     try {
         const { applicationId } = req.params;
 
@@ -6762,7 +6762,7 @@ app.post('/api/admin/ledger/sync', async (req, res) => {
 });
 
 // POST /api/disbursements/payout-csv — single-application disbursement CSV (admin panel, no PIN required)
-app.post('/api/disbursements/payout-csv', async (req, res) => {
+app.post('/api/disbursements/payout-csv', requireAdminAuth, async (req, res) => {
     try {
         const { applicationIds = [] } = req.body || {};
         if (!applicationIds.length) {
@@ -6829,7 +6829,7 @@ app.post('/api/disbursements/payout-csv', async (req, res) => {
 });
 
 // POST /api/export/:type — generic data export for admin export manager
-app.post('/api/export/:type', async (req, res) => {
+app.post('/api/export/:type', requireAdminAuth, async (req, res) => {
     try {
         const { type } = req.params;
         const { start_date, end_date, format = 'csv' } = req.body || {};
@@ -7292,8 +7292,15 @@ app.post('/api/contracts/notify-to-sign', async (req, res) => {
 });
 
 // ─── In-house contract signing ───────────────────────────────────────────────
-// POST /api/contracts/sign  (user-portal, no admin auth required — OTP-gated at the portal level)
+// POST /api/contracts/sign  (user-portal — borrower must be authenticated and own the application)
 app.post('/api/contracts/sign', async (req, res) => {
+    // Verify caller is the authenticated borrower
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Unauthorised' });
+    const { data: { user }, error: callerErr } = await supabaseService.auth.getUser(token);
+    if (callerErr || !user) return res.status(401).json({ error: 'Unauthorised' });
+
     try {
         const { applicationId, signatureDataUrl } = req.body || {};
         if (!applicationId || !signatureDataUrl) {
@@ -7324,6 +7331,7 @@ app.post('/api/contracts/sign', async (req, res) => {
             .maybeSingle();
 
         if (appErr || !app) return res.status(404).json({ error: 'Application not found' });
+        if (app.user_id !== user.id) return res.status(403).json({ error: 'Forbidden' });
         if (app.contract_signed_at) return res.status(409).json({ error: 'Contract already signed' });
 
         const signable = ['OFFERED', 'CONTRACT_SIGN', 'OFFER_ACCEPTED'];

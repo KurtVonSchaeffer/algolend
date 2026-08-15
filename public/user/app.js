@@ -30,10 +30,7 @@ app.post('/api/kyc/create-session', async (req, res) => {
     const result = await kyc.createSession(req.body);
     res.json(result);
   } catch (error) {
-    console.error('KYC session error:', error);
-    console.error('DIDIT_API_KEY:', process.env.DIDIT_API_KEY);
-    console.error('DIDIT_WEBHOOK_SECRET_KEY:', process.env.DIDIT_WEBHOOK_SECRET_KEY);
-    console.error('DIDIT_WORKFLOW_ID:', process.env.DIDIT_WORKFLOW_ID);
+    console.error('KYC session error:', error.message || error);
     res.status(500).json({ error: error.message });
   }
 });
