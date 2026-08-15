@@ -33,8 +33,8 @@ export async function fetchDashboardData() {
   if (isDemo()) return demoDashboardData();
   try {
     const [{ data: payments }, { data: loans }] = await Promise.all([
-      supabase.from('manual_payments').select('amount').eq('status', 'confirmed'),
-      supabase.from('loans').select('principal_amount, status'),
+      supabase.from('manual_payments').select('amount').eq('status', 'confirmed').limit(ANALYTICS_LIMIT),
+      supabase.from('loans').select('principal_amount, status').limit(ANALYTICS_LIMIT),
     ]);
 
     const totalCollected = payments?.reduce((s, p) => s + (Number(p.amount) || 0), 0) ?? 0;

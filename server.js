@@ -3574,7 +3574,8 @@ app.get('/api/payouts/ready', async (req, res) => {
                 bank_accounts:bank_account_id ( bank_name, account_number, branch_code, account_type, account_holder )
             `)
             .in('status', ['READY_TO_DISBURSE'])
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .limit(200);
 
         if (error) throw error;
         return res.json({ applications: data || [] });
@@ -5346,8 +5347,8 @@ app.get('/api/cron/monthly-statements', async (req, res) => {
             .from('loan_applications')
             .select(`
                 id, loan_number, amount, offer_principal, offer_total_repayment,
-                offer_monthly_repayment, repayment_start_date, term_months, status,
-                profiles:user_id (full_name, identity_number, email, user_id:id)
+                offer_monthly_repayment, repayment_start_date, term_months, status, user_id,
+                profiles:user_id (full_name, identity_number, email)
             `)
             .in('status', ['DISBURSED', 'IN_ARREARS', 'IN_DEFAULT', 'DEBICHECK_AUTH'])
             .not('contract_signed_at', 'is', null);
@@ -5362,31 +5363,48 @@ app.get('/api/cron/monthly-statements', async (req, res) => {
         const period    = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long' });
         const today     = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
 
+        // Create Resend instance once outside the loop
+        const { Resend: ResendCls } = require('resend');
+        const resendClient = new ResendCls(process.env.RESEND_API_KEY);
+
+        // Filter to accounts with email; skip the rest immediately
+        const loansWithEmail = activeLoans.filter(app => app.profiles?.email);
+        if (!loansWithEmail.length) return res.json({ ok: true, sent: 0, total: activeLoans.length });
+
+        // Batch-fetch all payments for all users in 2 queries instead of 2N
+        const userIds = [...new Set(loansWithEmail.map(app => app.user_id))];
+        const [{ data: allPaymentsRaw }, { data: allManualPaymentsRaw }] = await Promise.all([
+            supabaseService.from('payments').select('user_id, payment_date, amount, id').in('user_id', userIds).order('payment_date'),
+            supabaseService.from('manual_payments').select('user_id, created_at, amount, reference, id').in('user_id', userIds).eq('status', 'confirmed').order('created_at'),
+        ]);
+
+        // Build per-user payment Maps for O(1) lookup
+        const paymentsByUser = new Map();
+        for (const p of (allPaymentsRaw || [])) {
+            if (!paymentsByUser.has(p.user_id)) paymentsByUser.set(p.user_id, []);
+            paymentsByUser.get(p.user_id).push({ date: p.payment_date, amount: p.amount, type: 'Debit Order', ref: p.id?.slice(0,8) });
+        }
+        for (const p of (allManualPaymentsRaw || [])) {
+            if (!paymentsByUser.has(p.user_id)) paymentsByUser.set(p.user_id, []);
+            paymentsByUser.get(p.user_id).push({ date: p.created_at?.slice(0,10), amount: p.amount, type: 'Manual EFT', ref: p.reference || p.id?.slice(0,8) });
+        }
+
+        // Send emails in parallel chunks of 50 to respect Resend rate limits
+        const CHUNK = 50;
         let sent = 0;
+        for (let i = 0; i < loansWithEmail.length; i += CHUNK) {
+            const chunk = loansWithEmail.slice(i, i + CHUNK);
+            const results = await Promise.allSettled(chunk.map(async app => {
+                const profile   = app.profiles || {};
+                const loanRef   = app.loan_number ? `L${String(app.loan_number).padStart(4,'0')}` : String(app.id).slice(0,8).toUpperCase();
+                const allPayments = (paymentsByUser.get(app.user_id) || [])
+                    .slice()
+                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+                const totalPaid   = allPayments.reduce((s, p) => s + Number(p.amount), 0);
+                const outstanding = Math.max(0, Number(app.offer_total_repayment || app.amount || 0) - totalPaid);
+                const isArrears   = app.status === 'IN_ARREARS' || app.status === 'IN_DEFAULT';
 
-        for (const app of activeLoans) {
-            const profile = app.profiles || {};
-            if (!profile.email) continue;
-
-            const userId = profile['user_id'] || app.user_id;
-            const loanRef = app.loan_number ? `L${String(app.loan_number).padStart(4,'0')}` : String(app.id).slice(0,8).toUpperCase();
-
-            // Fetch payments for this account
-            const [{ data: payments }, { data: manualPayments }] = await Promise.all([
-                supabaseService.from('payments').select('payment_date, amount, id').eq('user_id', userId).order('payment_date'),
-                supabaseService.from('manual_payments').select('created_at, amount, reference, id').eq('user_id', userId).eq('status', 'confirmed').order('created_at'),
-            ]);
-
-            const allPayments = [
-                ...(payments || []).map(p => ({ date: p.payment_date, amount: p.amount, type: 'Debit Order', ref: p.id?.slice(0,8) })),
-                ...(manualPayments || []).map(p => ({ date: p.created_at?.slice(0,10), amount: p.amount, type: 'Manual EFT', ref: p.reference || p.id?.slice(0,8) })),
-            ].sort((a, b) => new Date(a.date) - new Date(b.date));
-
-            const totalPaid   = allPayments.reduce((s, p) => s + Number(p.amount), 0);
-            const outstanding = Math.max(0, Number(app.offer_total_repayment || app.amount || 0) - totalPaid);
-            const isArrears   = app.status === 'IN_ARREARS' || app.status === 'IN_DEFAULT';
-
-            const statementHtml = `<!DOCTYPE html>
+                const statementHtml = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8">
 <style>
   body { font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; padding: 32px; color: #1a1a1a; font-size: 10pt; }
@@ -5438,19 +5456,20 @@ ${allPayments.length ? `
 </div>
 </body></html>`;
 
-            try {
-                const { Resend } = require('resend');
-                const resend = new Resend(process.env.RESEND_API_KEY);
-                await resend.emails.send({
+                await resendClient.emails.send({
                     from:    fromEmail,
                     to:      profile.email,
                     subject: `Your ${company} Statement — ${period} — Ref: ${loanRef}`,
                     html:    statementHtml,
                 });
-                sent++;
-            } catch (emailErr) {
-                console.warn(`[monthly-statements] failed for app ${app.id}:`, emailErr.message);
-            }
+            }));
+
+            sent += results.filter(r => r.status === 'fulfilled').length;
+            results.forEach((r, j) => {
+                if (r.status === 'rejected') {
+                    console.warn(`[monthly-statements] failed for app ${chunk[j].id}:`, r.reason?.message || r.reason);
+                }
+            });
         }
 
         console.log(`[monthly-statements cron] sent ${sent} / ${activeLoans.length}`);
