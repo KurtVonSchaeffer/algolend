@@ -8,9 +8,11 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 // Initialise Sentry as early as possible. No-ops gracefully if SENTRY_DSN is not set.
-if (process.env.SENTRY_DSN) {
+// NEXT_PUBLIC_SENTRY_DSN is injected automatically by the Vercel-Sentry integration.
+const _sentryDsn = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
+if (_sentryDsn) {
     Sentry.init({
-        dsn: process.env.SENTRY_DSN,
+        dsn: _sentryDsn,
         environment: process.env.NODE_ENV || 'production',
         tracesSampleRate: 0.05, // 5% of transactions — adjust once baseline is understood
     });
@@ -7604,7 +7606,7 @@ app.post('/api/contracts/sign', async (req, res) => {
 
 // Sentry error handler — must be registered after all routes and before any
 // other error-handling middleware. No-ops if Sentry was not initialised.
-if (process.env.SENTRY_DSN) {
+if (_sentryDsn) {
     Sentry.setupExpressErrorHandler(app);
 }
 
