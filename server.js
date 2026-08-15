@@ -1,3 +1,4 @@
+const Sentry = require('@sentry/node');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -5,6 +6,15 @@ const axios = require('axios');
 const crypto = require('crypto');
 // Load .env from root if present (Replit secrets take priority)
 require('dotenv').config();
+
+// Initialise Sentry as early as possible. No-ops gracefully if SENTRY_DSN is not set.
+if (process.env.SENTRY_DSN) {
+    Sentry.init({
+        dsn: process.env.SENTRY_DSN,
+        environment: process.env.NODE_ENV || 'production',
+        tracesSampleRate: 0.05, // 5% of transactions — adjust once baseline is understood
+    });
+}
 
 // Mirror VITE_SUPABASE_* onto SUPABASE_* so older modules stay consistent.
 const _resolvedUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -7591,6 +7601,12 @@ app.post('/api/contracts/sign', async (req, res) => {
     }
 });
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Sentry error handler — must be registered after all routes and before any
+// other error-handling middleware. No-ops if Sentry was not initialised.
+if (process.env.SENTRY_DSN) {
+    Sentry.setupExpressErrorHandler(app);
+}
 
 // On Vercel, the module is imported directly — no listen() needed.
 // Locally, listen() starts the server and the scheduler.
