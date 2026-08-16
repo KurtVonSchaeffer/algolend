@@ -252,7 +252,7 @@ export function SettingsPage({ section = 'general' }: { section?: string }) {
           email: user.email ?? '',
           contact_number: p?.contact_number ?? '',
           avatar_url: p?.avatar_url ?? '',
-          role: (user.app_metadata?.role ?? user.user_metadata?.role ?? 'borrower') as string,
+          role: (user.app_metadata?.role ?? 'borrower') as string,
         };
         setProfile(merged);
         setProfileForm({ full_name: merged.full_name, contact_number: merged.contact_number });

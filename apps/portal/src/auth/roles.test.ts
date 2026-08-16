@@ -33,13 +33,14 @@ describe('resolveAdminAccess', () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it('falls back to user_metadata role when app_metadata has none', async () => {
-    const rpc = vi.fn();
+  it('does NOT fall back to user_metadata role when app_metadata has none', async () => {
+    // user_metadata is user-writable; role elevation via user_metadata must not be honoured.
+    const rpc = vi.fn().mockResolvedValue({ data: false, error: null });
     const session = { user: { app_metadata: {}, user_metadata: { role: 'admin' } } } as MinimalSession;
 
     const result = await resolveAdminAccess(session, { rpc }, 'base_admin');
 
-    expect(result).toBe(true);
+    expect(result).toBe(false);
   });
 
   it('falls back to the RPC when the JWT role is insufficient', async () => {

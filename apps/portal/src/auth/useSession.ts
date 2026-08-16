@@ -13,7 +13,7 @@ interface SessionState {
 }
 
 function roleOf(session: Session | null): string {
-  return session?.user?.app_metadata?.role || session?.user?.user_metadata?.role || 'borrower';
+  return session?.user?.app_metadata?.role || 'borrower';
 }
 
 export function useSession(): SessionState {

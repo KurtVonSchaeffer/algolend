@@ -31,7 +31,7 @@ const SLIDE_PHOTOS = [
 ];
 
 async function resolveRedirectPath(session: MinimalSession): Promise<string> {
-  const role = session?.user?.app_metadata?.role || session?.user?.user_metadata?.role || '';
+  const role = session?.user?.app_metadata?.role || '';
   return hasMinimumRole(role, 'base_admin') ? '/admin-panel/dashboard' : '/user-portal/dashboard';
 }
 

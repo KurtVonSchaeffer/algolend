@@ -27,7 +27,7 @@ export function AdminLayout({ children, title }: { children: ReactNode; title?: 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       const name = (user.user_metadata?.full_name as string) ?? user.email ?? 'Admin';
-      const role = (user.app_metadata?.role ?? user.user_metadata?.role ?? 'base_admin') as string;
+      const role = (user.app_metadata?.role ?? 'base_admin') as string;
       setUserName(name);
       setUserRole(role.replace(/_/g, ' '));
       const parts = name.trim().split(/\s+/).filter(Boolean);

@@ -32,7 +32,7 @@ export async function resolveAdminAccess(
   client: RpcClient,
   minimumRole = 'base_admin'
 ): Promise<boolean> {
-  const jwtRole = session?.user?.app_metadata?.role || session?.user?.user_metadata?.role || '';
+  const jwtRole = session?.user?.app_metadata?.role || '';
   if (jwtRole && hasMinimumRole(jwtRole, minimumRole)) {
     return true;
   }

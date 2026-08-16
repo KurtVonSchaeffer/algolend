@@ -75,7 +75,7 @@ export function SetPasswordPage() {
     const {
       data: { user }
     } = await supabase.auth.getUser();
-    const role = user?.app_metadata?.role || user?.user_metadata?.role || 'borrower';
+    const role = user?.app_metadata?.role || 'borrower';
     const nextParam = searchParams.get('next');
     const isRelativeUrl = nextParam && (nextParam.startsWith('/') || nextParam.startsWith('?'));
     const destination = isRelativeUrl
