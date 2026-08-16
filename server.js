@@ -115,11 +115,16 @@ const { startNotificationScheduler } = require('./services/notificationScheduler
 // ── Shared admin auth middleware ──────────────────────────────────────
 // Validates Supabase JWT from Authorization: Bearer <token>.
 // Applied to all admin-only API route groups below.
+const ADMIN_ROLES = new Set(['admin', 'super_admin', 'owner', 'base_admin']);
+
 async function requireAdminAuth(req, res, next) {
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
     if (!token) return res.status(401).json({ error: 'Authentication required' });
     const { data: { user }, error } = await supabaseService.auth.getUser(token);
     if (error || !user) return res.status(401).json({ error: 'Invalid or expired session' });
+    // Role must come from app_metadata (server-set) — never user_metadata (user-writable).
+    const role = user.app_metadata?.role || '';
+    if (!ADMIN_ROLES.has(role)) return res.status(403).json({ error: 'Forbidden' });
     req.adminUser = user;
     next();
 }
@@ -1275,6 +1280,24 @@ app.get('/api/truid/user/:userId/status', requireAdminAuth, async (req, res) => 
 
 app.post('/api/truid/webhook', async (req, res) => {
     try {
+        // HMAC signature verification — TRUID_WEBHOOK_SECRET must be set.
+        const secret = process.env.TRUID_WEBHOOK_SECRET;
+        if (!secret) {
+            console.error('[truid/webhook] TRUID_WEBHOOK_SECRET is not configured — rejecting all webhook calls');
+            return res.status(500).json({ error: 'Webhook not configured' });
+        }
+        const sigHeader = (req.headers['x-truid-signature'] || req.headers['x-signature'] || '').toString();
+        if (!sigHeader) return res.status(401).json({ error: 'Missing signature header' });
+        const expected = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('hex');
+        const received = sigHeader.startsWith('sha256=') ? sigHeader.slice(7) : sigHeader;
+        let valid = false;
+        try {
+            const r = Buffer.from(received, 'hex');
+            const e = Buffer.from(expected, 'hex');
+            if (r.length === e.length) valid = crypto.timingSafeEqual(r, e);
+        } catch (_) {}
+        if (!valid) return res.status(401).json({ error: 'Invalid signature' });
+
         const payload = req.body || {};
         const result = await truid.captureCollectionData({
             collectionId: payload.collectionId || payload.collection_id || payload.id,
@@ -2324,32 +2347,34 @@ app.delete('/api/docuseal/submissions/:submissionId', async (req, res) => {
 app.post('/api/docuseal/webhook', async (req, res) => {
     try {
         const secret = process.env.DOCUSEAL_WEBHOOK_SECRET;
-        if (secret) {
-            const sigHeader = (req.headers['x-docuseal-signature'] || req.headers['x-signature'] || req.headers['x-hub-signature'] || '').toString();
-            if (!sigHeader) {
-                return res.status(401).json({ error: 'Missing signature header' });
-            }
+        if (!secret) {
+            console.error('[docuseal/webhook] DOCUSEAL_WEBHOOK_SECRET is not configured — rejecting all webhook calls');
+            return res.status(500).json({ error: 'Webhook not configured' });
+        }
+        const sigHeader = (req.headers['x-docuseal-signature'] || req.headers['x-signature'] || req.headers['x-hub-signature'] || '').toString();
+        if (!sigHeader) {
+            return res.status(401).json({ error: 'Missing signature header' });
+        }
 
-            let received = sigHeader.startsWith('sha256=') ? sigHeader.slice(7) : sigHeader;
-            const computedHex = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('hex');
-            const computedBase64 = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('base64');
+        let received = sigHeader.startsWith('sha256=') ? sigHeader.slice(7) : sigHeader;
+        const computedHex = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('hex');
+        const computedBase64 = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('base64');
 
-            let valid = false;
-            try {
-                const rec = Buffer.from(received, 'hex');
-                const comp = Buffer.from(computedHex, 'hex');
-                if (rec.length === comp.length && crypto.timingSafeEqual(rec, comp)) valid = true;
-            } catch (e) {}
-            try {
-                const recB = Buffer.from(received, 'base64');
-                const compB = Buffer.from(computedBase64, 'base64');
-                if (recB.length === compB.length && crypto.timingSafeEqual(recB, compB)) valid = true;
-            } catch (e) {}
-            if (received === computedHex || received === computedBase64) valid = true;
+        let valid = false;
+        try {
+            const rec = Buffer.from(received, 'hex');
+            const comp = Buffer.from(computedHex, 'hex');
+            if (rec.length === comp.length && crypto.timingSafeEqual(rec, comp)) valid = true;
+        } catch (e) {}
+        try {
+            const recB = Buffer.from(received, 'base64');
+            const compB = Buffer.from(computedBase64, 'base64');
+            if (recB.length === compB.length && crypto.timingSafeEqual(recB, compB)) valid = true;
+        } catch (e) {}
+        if (received === computedHex || received === computedBase64) valid = true;
 
-            if (!valid) {
-                return res.status(401).json({ error: 'Invalid signature' });
-            }
+        if (!valid) {
+            return res.status(401).json({ error: 'Invalid signature' });
         }
 
         const payload = req.body || {};
@@ -3477,7 +3502,11 @@ app.post('/api/payouts/capitec-csv', async (req, res) => {
         }
 
         // PIN lock — require a download PIN in the request header or body
-        const CSV_DOWNLOAD_PIN = process.env.CSV_DOWNLOAD_PIN || '1234';
+        const CSV_DOWNLOAD_PIN = process.env.CSV_DOWNLOAD_PIN;
+        if (!CSV_DOWNLOAD_PIN) {
+            console.error('[capitec-csv] CSV_DOWNLOAD_PIN is not configured');
+            return res.status(500).json({ error: 'CSV download is not configured' });
+        }
         const providedPin = req.headers['x-csv-pin'] || req.body?.pin || '';
         if (providedPin !== CSV_DOWNLOAD_PIN) {
             return res.status(403).json({
@@ -4024,7 +4053,7 @@ app.post('/api/payment/submit-proof', async (req, res) => {
             entry_date:      new Date().toISOString().slice(0,10),
             entry_type:      'cash_in',
             category:        paymentType === 'settlement' ? 'loan_disbursement' : 'repayment',
-            description:     `[PENDING CONFIRMATION] ${typeLabel} from ${profile?.full_name || 'Client'} — R${Number(amount).toLocaleString('en-ZA')} — Ref: ${reference || 'N/A'}`,
+            description:     `[PENDING CONFIRMATION] ${typeStr} from ${profile?.full_name || 'Client'} — R${Number(amount).toLocaleString('en-ZA')} — Ref: ${reference || 'N/A'}`,
             reference:       reference || record.id.slice(0,8).toUpperCase(),
             amount:          Number(amount),
             application_id:  String(applicationId || loanId || ''),
@@ -4360,7 +4389,7 @@ app.post('/api/applications/:id/evaluate', sensitiveLimiter, async (req, res) =>
 
         const hasDecline = failures.some(f => f.action === 'decline');
         const hasReview  = failures.some(f => f.action === 'review');
-        const band = (bandsRes.data || []).find(b => creditScore >= b.min_score && creditScore <= b.max_score);
+        let band = (bandsRes.data || []).find(b => creditScore >= b.min_score && creditScore <= b.max_score);
 
         let decision = 'review';
         if (hasDecline || !band || band.risk_level === 'declined') {
@@ -5763,7 +5792,7 @@ app.post('/api/admin/invite-staff', async (req, res) => {
         const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
         if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
 
-        const callerRole = user.app_metadata?.role || user.user_metadata?.role || 'borrower';
+        const callerRole = user.app_metadata?.role || 'borrower';
         if (!['super_admin', 'admin'].includes(callerRole)) {
             return res.status(403).json({ error: 'Only admins can invite staff' });
         }
@@ -5830,7 +5859,7 @@ app.delete('/api/admin/remove-staff/:userId', async (req, res) => {
         const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
         if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
 
-        const callerRole = user.app_metadata?.role || user.user_metadata?.role || 'borrower';
+        const callerRole = user.app_metadata?.role || 'borrower';
         if (!['super_admin', 'admin'].includes(callerRole)) {
             return res.status(403).json({ error: 'Only admins can remove staff' });
         }
@@ -5844,7 +5873,7 @@ app.delete('/api/admin/remove-staff/:userId', async (req, res) => {
 
         // Check target role — admins cannot remove other admins or super_admins
         const { data: target } = await supabaseService.auth.admin.getUserById(userId);
-        const targetRole = target?.user?.app_metadata?.role || target?.user?.user_metadata?.role || '';
+        const targetRole = target?.user?.app_metadata?.role || '';
         if (callerRole === 'admin' && ['admin', 'super_admin'].includes(targetRole)) {
             return res.status(403).json({ error: 'Branch managers cannot remove other managers or super admins.' });
         }
@@ -5877,7 +5906,7 @@ app.get('/api/admin/collections/notes/:appId', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (ae || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const { data, error } = await supabaseService
@@ -5895,7 +5924,7 @@ app.post('/api/admin/collections/notes/:appId', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (ae || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const { note_type = 'note', body, promise_date, promise_amount, outcome } = req.body;
@@ -5924,7 +5953,7 @@ app.post('/api/admin/collections/bulk-sms', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (ae || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const { applicationIds = [], message } = req.body;
@@ -5955,7 +5984,7 @@ app.get('/api/admin/portfolio/metrics', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (ae || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const [
@@ -6046,7 +6075,7 @@ app.get('/api/admin/ncr/agents', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const { data, error } = await supabaseService
@@ -6063,7 +6092,7 @@ app.post('/api/admin/ncr/agents', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const { full_name, id_number, ncr_number, role: agentRole, branch, appointment_date, notes } = req.body;
@@ -6084,7 +6113,7 @@ app.patch('/api/admin/ncr/agents/:id', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const allowed = ['full_name','id_number','ncr_number','role','branch','appointment_date','termination_date','status','notes'];
@@ -6107,7 +6136,7 @@ app.get('/api/admin/ncr/statutory-registers', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const { data, error } = await supabaseService
@@ -6124,7 +6153,7 @@ app.put('/api/admin/ncr/statutory-registers/:year', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const year = parseInt(req.params.year, 10);
@@ -6154,7 +6183,7 @@ app.patch('/api/admin/applications/:id/pep-sanctions', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const { cleared, provider = 'manual', ref, notes } = req.body;
@@ -6183,7 +6212,7 @@ app.patch('/api/admin/users/:id/cipc', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const { is_juristic_person, entity_name, cipc_reg_number, cipc_verified, cipc_notes } = req.body;
@@ -6209,7 +6238,7 @@ app.get('/api/admin/goaml', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const { data, error } = await supabaseService
@@ -6226,7 +6255,7 @@ app.post('/api/admin/goaml', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const { report_type, application_id, user_id, amount, description, goaml_ref, status, notes } = req.body;
@@ -6253,7 +6282,7 @@ app.patch('/api/admin/goaml/:id', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const now = new Date().toISOString();
@@ -6301,7 +6330,7 @@ app.get('/api/admin/compliance/checkpoints', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const year = parseInt(req.query.year || new Date().getFullYear(), 10);
@@ -6324,7 +6353,7 @@ app.patch('/api/admin/compliance/checkpoints/:year/:key', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const year = parseInt(req.params.year, 10);
@@ -6359,7 +6388,7 @@ app.get('/api/admin/compliance/report/:year', async (req, res) => {
         (req.headers.authorization || '').replace('Bearer ', '')
     );
     if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' });
-    const role = user.app_metadata?.role || user.user_metadata?.role || '';
+    const role = user.app_metadata?.role || '';
     if (!['admin','super_admin','owner','base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
     const year = parseInt(req.params.year, 10);
@@ -6458,7 +6487,7 @@ app.patch('/api/admin/applications/:id/affordability', async (req, res) => {
         const token = (req.headers.authorization || '').replace('Bearer ', '');
         const { data: { user } } = await supabaseService.auth.getUser(token);
         if (!user) return res.status(401).json({ error: 'Auth required' });
-        const role = user.app_metadata?.role || user.user_metadata?.role;
+        const role = user.app_metadata?.role;
         if (!['admin', 'super_admin', 'base_admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
 
         const { id } = req.params;
@@ -7231,7 +7260,7 @@ app.post('/api/contracts/notify-to-sign', async (req, res) => {
         if (!token) return res.status(401).json({ error: 'Auth required' });
         const { data: { user } } = await supabaseService.auth.getUser(token);
         if (!user) return res.status(401).json({ error: 'Auth required' });
-        const role = user.app_metadata?.role || user.user_metadata?.role;
+        const role = user.app_metadata?.role;
         if (!['admin', 'super_admin', 'base_admin'].includes(role)) {
             return res.status(403).json({ error: 'Admin access required' });
         }

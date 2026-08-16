@@ -62,6 +62,7 @@ const debugRequest = (req, res, next) => {
 };
 
 // POST /api/tillslip/upload
-router.post('/upload', upload.single('file'), debugRequest, handleMulterError, uploadTillSlip);
+const isDev = process.env.NODE_ENV !== 'production';
+router.post('/upload', upload.single('file'), ...(isDev ? [debugRequest] : []), handleMulterError, uploadTillSlip);
 
 module.exports = router;
