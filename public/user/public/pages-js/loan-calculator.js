@@ -1,1 +1,0 @@
-// Loan Calculator page JS

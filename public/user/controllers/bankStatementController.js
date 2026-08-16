@@ -33,40 +33,7 @@ exports.uploadBankStatement = async (req, res) => {
   try {
     console.log('📥 Bank statement upload endpoint hit');
 
-    // Check if file exists
-    if (!req.file) {
-      console.log('⚠ No file received in request');
-      return res.status(400).json({ 
-        error: 'No file uploaded.',
-        message: 'Please select a file and try again.' 
-      });
-    }
-
-    const { originalname, mimetype, size, buffer } = req.file;
-
-    // Validate file type
-    if (!validateFileType(mimetype, originalname)) {
-      console.log('⚠ Invalid file type:', mimetype, originalname);
-      return res.status(400).json({ 
-        error: 'Invalid file type.',
-        message: 'Only JPG, PNG, and PDF files are allowed.' 
-      });
-    }
-
-    // Validate file size
-    if (!validateFileSize(size)) {
-      console.log('⚠ File size exceeds limit:', size);
-      return res.status(400).json({ 
-        error: 'File too large.',
-        message: `File size must not exceed 5MB. Your file is ${(size / 1024 / 1024).toFixed(2)}MB.` 
-      });
-    }
-
-    // Sanitize filename
-    const sanitizedFilename = sanitizeFilename(originalname);
-    console.log('🏦 File validated:', sanitizedFilename, `(${(size / 1024).toFixed(2)}KB)`);
-
-    // Get auth token and verify user
+    // Auth first — before touching file data
     const authHeader = req.headers.authorization;
     let userId = null;
     let authToken = null;
@@ -98,7 +65,34 @@ exports.uploadBankStatement = async (req, res) => {
     const applicationId = req.body.applicationId || null; // Optional from FormData
     const storageClient = supabaseStorage;
 
+    // If an applicationId was supplied, verify the caller owns it
+    if (applicationId) {
+      const { data: appOwner, error: appErr } = await supabaseClient
+        .from('loan_applications')
+        .select('id')
+        .eq('id', applicationId)
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (appErr || !appOwner) {
+        return res.status(403).json({ error: 'Forbidden', message: 'Application not found or access denied.' });
+      }
+    }
+
     console.log('✅ Authenticated user:', userId, 'ApplicationId:', applicationId || 'none');
+
+    // File validation (after auth so unauthenticated requests always get 401)
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded.', message: 'Please select a file and try again.' });
+    }
+    const { originalname, mimetype, size, buffer } = req.file;
+    if (!validateFileType(mimetype, originalname)) {
+      return res.status(400).json({ error: 'Invalid file type.', message: 'Only JPG, PNG, and PDF files are allowed.' });
+    }
+    if (!validateFileSize(size)) {
+      return res.status(400).json({ error: 'File too large.', message: `File size must not exceed 5MB. Your file is ${(size / 1024 / 1024).toFixed(2)}MB.` });
+    }
+    const sanitizedFilename = sanitizeFilename(originalname);
+    console.log('🏦 File validated:', sanitizedFilename, `(${(size / 1024).toFixed(2)}KB)`);
 
     const timestamp = Date.now();
     const storagePath = `${userId}/bank-statements/${timestamp}_${sanitizedFilename}`;

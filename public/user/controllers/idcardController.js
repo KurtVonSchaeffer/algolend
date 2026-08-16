@@ -24,31 +24,8 @@ const sanitizeFilename = (originalName) =>
 exports.uploadIdCard = async (req, res) => {
 	try {
 		console.log('🪪 ID card upload endpoint hit');
-		if (!req.files || !req.files.filefront || !req.files.fileback) {
-			console.log('⚠️ Both front and back files are required');
-			return res.status(400).json({
-				error: 'Both front and back files are required.',
-				message: 'Please select both front and back images of your ID card.'
-			});
-		}
 
-		const front = req.files.filefront[0];
-		const back = req.files.fileback[0];
-
-		if (!validateFileType(front.mimetype, front.originalname) || !validateFileType(back.mimetype, back.originalname)) {
-			return res.status(400).json({
-				error: 'Invalid file type.',
-				message: 'Only JPG, PNG, and PDF files are allowed for both sides.'
-			});
-		}
-
-		if (!validateFileSize(front.size) || !validateFileSize(back.size)) {
-			return res.status(400).json({
-				error: 'File too large.',
-				message: 'Each file must not exceed 5MB.'
-			});
-		}
-
+		// Auth first — before touching file data
 		const authHeader = req.headers.authorization;
 		let userId = null;
 		let authToken = null;
@@ -79,6 +56,45 @@ exports.uploadIdCard = async (req, res) => {
 		supabaseClient = supabaseClient || createAuthedClient(authToken);
 		const applicationId = req.body.applicationId || null;
 		const storageClient = supabaseStorage;
+
+		// If an applicationId was supplied, verify the caller owns it
+		if (applicationId) {
+			const { data: appOwner, error: appErr } = await supabaseClient
+				.from('loan_applications')
+				.select('id')
+				.eq('id', applicationId)
+				.eq('user_id', userId)
+				.maybeSingle();
+			if (appErr || !appOwner) {
+				return res.status(403).json({ error: 'Forbidden', message: 'Application not found or access denied.' });
+			}
+		}
+
+		// File validation (after auth so unauthenticated requests always get 401)
+		if (!req.files || !req.files.filefront || !req.files.fileback) {
+			console.log('⚠️ Both front and back files are required');
+			return res.status(400).json({
+				error: 'Both front and back files are required.',
+				message: 'Please select both front and back images of your ID card.'
+			});
+		}
+
+		const front = req.files.filefront[0];
+		const back = req.files.fileback[0];
+
+		if (!validateFileType(front.mimetype, front.originalname) || !validateFileType(back.mimetype, back.originalname)) {
+			return res.status(400).json({
+				error: 'Invalid file type.',
+				message: 'Only JPG, PNG, and PDF files are allowed for both sides.'
+			});
+		}
+
+		if (!validateFileSize(front.size) || !validateFileSize(back.size)) {
+			return res.status(400).json({
+				error: 'File too large.',
+				message: 'Each file must not exceed 5MB.'
+			});
+		}
 
 		const timestamp = Date.now();
 		const sanitizedFront = sanitizeFilename(front.originalname);

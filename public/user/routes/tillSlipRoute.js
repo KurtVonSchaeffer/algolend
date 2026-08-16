@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { uploadTillSlip } = require('../controllers/tillSlipController_local');
+const { uploadTillSlip } = require('../controllers/tillSlipController');
 
 const router = express.Router();
 const storage = multer.memoryStorage();

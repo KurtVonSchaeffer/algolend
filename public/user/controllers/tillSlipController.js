@@ -1,5 +1,5 @@
 const path = require('path');
-const { supabase } = require('../../../config/supabaseServer');
+const { supabase, createAuthedClient } = require('../../../config/supabaseServer');
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -28,13 +28,43 @@ const sanitizeFilename = (originalName) => {
 const uploadTillSlip = async (req, res) => {
   try {
     console.log('📥 Till slip upload endpoint hit');
-    
+
+    // Auth first — before touching file data
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized', message: 'Please log in to upload documents.' });
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const supabaseClient = createAuthedClient(token);
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Unauthorized', message: 'Please log in to upload documents.' });
+    }
+    const userId = user.id;
+    console.log('✅ Authenticated via token:', userId);
+
+    const applicationId = req.query.applicationId || req.body.applicationId || null;
+    if (!applicationId) {
+      return res.status(400).json({ error: 'applicationId is required' });
+    }
+
+    // Verify the caller owns this application
+    const { data: appOwner, error: appErr } = await supabaseClient
+      .from('loan_applications')
+      .select('id')
+      .eq('id', applicationId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (appErr || !appOwner) {
+      return res.status(403).json({ error: 'Forbidden', message: 'Application not found or access denied.' });
+    }
+
     // Check if file exists
     if (!req.file) {
       console.log('⚠ No file received in request');
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'No file uploaded.',
-        message: 'Please select a file and try again.' 
+        message: 'Please select a file and try again.'
       });
     }
 
@@ -43,18 +73,18 @@ const uploadTillSlip = async (req, res) => {
     // Validate file type
     if (!validateFileType(mimetype, originalname)) {
       console.log('⚠ Invalid file type:', mimetype, originalname);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid file type.',
-        message: 'Only JPG, PNG, and PDF files are allowed.' 
+        message: 'Only JPG, PNG, and PDF files are allowed.'
       });
     }
 
     // Validate file size
     if (!validateFileSize(size)) {
       console.log('⚠ File size exceeds limit:', size);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'File too large.',
-        message: `File size must not exceed 5MB. Your file is ${(size / 1024 / 1024).toFixed(2)}MB.` 
+        message: `File size must not exceed 5MB. Your file is ${(size / 1024 / 1024).toFixed(2)}MB.`
       });
     }
 
@@ -62,79 +92,17 @@ const uploadTillSlip = async (req, res) => {
     const sanitizedFilename = sanitizeFilename(originalname);
     console.log('🧾 File validated:', sanitizedFilename, `(${(size / 1024).toFixed(2)}KB)`);
 
-    // TEMPORARY HARDCODE FOR TESTING
-    let userId = '997d61b7-bb60-4bf0-b81b-2f1251611208';
-    console.log('⚠️ USING HARDCODED userId FOR TESTING:', userId);
-    
-    // Get user ID - try token first, then query params, then FormData
-    // let userId = null;
-    // const authHeader = req.headers.authorization;
-    
-    // if (authHeader && authHeader.startsWith('Bearer ')) {
-    //   const token = authHeader.replace('Bearer ', '');
-    //   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    //   
-    //   if (user) {
-    //     userId = user.id;
-    //     console.log('✅ Authenticated via token:', userId);
-    //   } else {
-    //     console.warn('⚠️ Token verification failed:', authError?.message);
-    //   }
-    // }
-    // 
-    // // Fallback to query parameters
-    // if (!userId) {
-    //   userId = req.query.userId;
-    //   if (userId) {
-    //     console.log('✅ Using userId from query params:', userId);
-    //   }
-    // }
-    // 
-    // // Fallback to FormData
-    // if (!userId) {
-    //   userId = req.body.userId;
-    //   if (userId) {
-    //     console.log('✅ Using userId from FormData:', userId);
-    //   }
-    // }
-    //
-    // if (!userId) {
-    //   console.error('❌ No userId found in token, query, or FormData');
-    //   return res.status(401).json({
-    //     error: 'Unauthorized',
-    //     message: 'Please log in to upload documents.'
-    //   });
-    // }
-
-    const applicationId = req.query.applicationId || req.body.applicationId || null;
-    
-    // TEMPORARY: Create a placeholder application_id if none provided (schema requires NOT NULL)
-    // TODO: Fix schema to allow NULL application_id
-    const tempApplicationId = applicationId || 1; // Use ID 1 as placeholder
-    
-    console.log('📋 Upload info:', { userId, applicationId: applicationId || 'none (using placeholder)' });
+    console.log('📋 Upload info:', { userId, applicationId });
 
     // Create storage path: till-slips/{userId}/{timestamp}_{filename}
     const timestamp = Date.now();
     const storagePath = `${userId}/${timestamp}_${sanitizedFilename}`;
     
-    console.log('📋 Upload info:', { userId, applicationId: applicationId || 'none' });
 
     console.log('📤 Uploading to Supabase Storage:', storagePath);
 
-    // Create authenticated client if token available
-    let uploadClient = supabase;
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.replace('Bearer ', '');
-      const { createClient } = require('@supabase/supabase-js');
-      const supabaseUrl = process.env.SUPABASE_URL;
-      const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-      uploadClient = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: `Bearer ${token}` } }
-      });
-      console.log('✅ Using authenticated Supabase client for upload');
-    }
+    const uploadClient = supabaseClient;
+    console.log('✅ Using authenticated Supabase client for upload');
 
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await uploadClient.storage
@@ -163,10 +131,10 @@ const uploadTillSlip = async (req, res) => {
     const publicUrl = urlData.publicUrl;
 
     // Insert record into documents table (tracked by userId)
-    const { data: documentData, error: dbError } = await supabase
+    const { data: documentData, error: dbError } = await uploadClient
       .from('documents')
       .insert({
-        application_id: tempApplicationId, // Using placeholder because schema requires NOT NULL
+        application_id: applicationId,
         uploaded_by: userId,
         file_name: sanitizedFilename,
         storage_path: storagePath,

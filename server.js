@@ -1289,7 +1289,7 @@ app.post('/api/truid/webhook', async (req, res) => {
 });
 
 // Banking API endpoints
-app.post('/api/banking/initiate', sensitiveLimiter, async (req, res) => {
+app.post('/api/banking/initiate', requireAdminAuth, sensitiveLimiter, async (req, res) => {
     try {
         const result = await truid.initiateCollection(req.body || {});
         return res.json(result);
@@ -1493,31 +1493,45 @@ app.post('/api/notifications/check-edit-window', requireAdminAuth, async (req, r
 });
 
 // Loan affordability calculation endpoint
-app.post('/api/calculate-affordability', sensitiveLimiter, (req, res) => {
+// Policy constants (affordability_percent, annual_interest_rate) are sourced from the
+// organisation's active credit bands — callers may only supply monthly_income and loan_term_months.
+app.post('/api/calculate-affordability', sensitiveLimiter, async (req, res) => {
     try {
-        const {
-            monthly_income,
-            affordability_percent = 20, // Default 20%
-            annual_interest_rate = 20, // Default 20% APR
-            loan_term_months = 1 // Default 1 month
-        } = req.body;
+        const { monthly_income, loan_term_months = 1 } = req.body;
 
         if (!monthly_income || monthly_income <= 0) {
             return res.status(400).json({ error: 'Valid monthly_income is required' });
         }
 
-        // 1. Maximum monthly repayment (13% of income)
-        const max_monthly_payment = monthly_income * (affordability_percent / 100);
+        // Organisation's DTI policy cap (NCA s81) — 30% of net monthly income
+        const AFFORDABILITY_PERCENT = 30;
 
-        // 2. Monthly interest rate (APR / 12)
+        // Source interest rate from the org's active credit bands (minimum = best-case for borrower).
+        // Falls back to the NCA prescribed maximum (repo + 17.5 ≈ 21.5%) if no bands exist.
+        let annual_interest_rate = 21.5;
+        const { data: orgs } = await supabaseService
+            .from('organizations')
+            .select('id')
+            .eq('is_active', true)
+            .limit(1);
+        const orgId = orgs?.[0]?.id;
+        if (orgId) {
+            const { data: bands } = await supabaseService
+                .from('credit_score_bands')
+                .select('interest_rate_pa')
+                .eq('organization_id', orgId)
+                .eq('is_active', true)
+                .order('interest_rate_pa', { ascending: true })
+                .limit(1);
+            if (bands?.[0]?.interest_rate_pa) annual_interest_rate = bands[0].interest_rate_pa;
+        }
+
+        const max_monthly_payment = monthly_income * (AFFORDABILITY_PERCENT / 100);
         const monthly_rate = (annual_interest_rate / 100) / 12;
-
-        // 3. Amortized loan amount formula
-        // Formula: P = M * [(1 - (1 + r)^-n) / r]
-        // Where: P = Principal (loan amount), M = Monthly payment, r = monthly rate, n = number of months
+        // P = M * [(1 - (1 + r)^-n) / r]
         const loan_amount = monthly_rate > 0
             ? max_monthly_payment * (1 - Math.pow(1 + monthly_rate, -loan_term_months)) / monthly_rate
-            : max_monthly_payment * loan_term_months; // If rate is 0, simple calculation
+            : max_monthly_payment * loan_term_months;
 
         return res.json({
             max_monthly_payment: Number(max_monthly_payment.toFixed(2)),
@@ -1526,7 +1540,7 @@ app.post('/api/calculate-affordability', sensitiveLimiter, (req, res) => {
             monthly_rate: Number((monthly_rate * 100).toFixed(4)),
             annual_interest_rate,
             loan_term_months,
-            affordability_percent
+            affordability_percent: AFFORDABILITY_PERCENT
         });
     } catch (error) {
         console.error('Affordability calculation error:', error);
@@ -5627,11 +5641,28 @@ app.post('/api/push/subscribe', async (req, res) => {
     }
 });
 
-// POST /api/push/unsubscribe — remove a subscription
+// POST /api/push/unsubscribe — remove a subscription (borrower-authenticated)
 app.post('/api/push/unsubscribe', async (req, res) => {
     try {
+        const authHeader = req.headers.authorization || '';
+        const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!token) return res.status(401).json({ error: 'Authentication required' });
+
+        const { data: { user }, error: authErr } = await supabaseService.auth.getUser(token);
+        if (authErr || !user) return res.status(401).json({ error: 'Invalid session' });
+
         const { endpoint } = req.body;
         if (!endpoint) return res.status(400).json({ error: 'Endpoint required' });
+
+        // Verify the subscription belongs to this user before deleting
+        const { data: sub } = await supabaseService
+            .from('push_subscriptions')
+            .select('id')
+            .eq('endpoint', endpoint)
+            .eq('user_id', user.id)
+            .maybeSingle();
+        if (!sub) return res.status(403).json({ error: 'Subscription not found' });
+
         await pushNotifications.removeSubscription(endpoint);
         res.json({ success: true });
     } catch (err) {
@@ -5674,7 +5705,7 @@ app.post('/api/messaging/send', requireAdminAuth, async (req, res) => {
 });
 
 // POST /api/messaging/registration-link — send WhatsApp onboarding link
-app.post('/api/messaging/registration-link', async (req, res) => {
+app.post('/api/messaging/registration-link', requireAdminAuth, async (req, res) => {
     try {
         const { phone } = req.body;
         if (!phone) return res.status(400).json({ error: 'phone required' });
@@ -5687,7 +5718,7 @@ app.post('/api/messaging/registration-link', async (req, res) => {
 });
 
 // GET /api/messaging/status — check which channels are enabled
-app.get('/api/messaging/status', (req, res) => {
+app.get('/api/messaging/status', requireAdminAuth, (req, res) => {
     res.json({
         sms:       { enabled: process.env.SMS_ENABLED === 'true',       configured: !!(process.env.BULKSMS_USERNAME && process.env.BULKSMS_PASSWORD) },
         whatsapp:  { enabled: process.env.WHATSAPP_ENABLED === 'true',  configured: !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) }
@@ -6636,12 +6667,15 @@ ${[profile.address, profile.suburb_area, profile.postal_code].filter(Boolean).jo
                 }
             }
 
-            // 3. Recovery path: record is claimed but delivery failed — log for manual follow-up.
-            //    The claim stays so the cron won't retry automatically (preventing future duplicates),
-            //    but ops must re-send this notice manually using the reference logged below.
-            //    Long-term: add a section129_send_failed boolean column to track these in a query.
+            // 3. Recovery path: record is claimed but delivery failed — set DB flag for ops query
+            //    (WHERE section129_sent_at IS NOT NULL AND section129_send_failed = true)
+            //    and log for manual follow-up. The claim stays to prevent duplicate sends.
             if (!deliverySucceeded) {
                 console.error(`[section129] CRITICAL: app ${app.id} (ref ${reference}) claimed but delivery failed — no email or SMS sent. Manual re-send required.`);
+                await supabaseService
+                    .from('loan_applications')
+                    .update({ section129_send_failed: true, updated_at: new Date().toISOString() })
+                    .eq('id', app.id);
             } else {
                 sent++;
             }

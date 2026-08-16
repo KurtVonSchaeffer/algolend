@@ -1,1 +1,0 @@
-// Support page JS
