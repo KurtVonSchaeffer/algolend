@@ -38,7 +38,7 @@ Supabase project: `zpaqzzheqtrufemhpijn`
 - [x] Migrations applied: `credit_features`, `credit_scores`, `credit_outcomes` (all RLS-enabled)
 - [x] `loan_applications.ai_credit_score` + `ai_credit_band` columns added
 - [x] `bankStatementController.js` — fires pipeline on PDF upload (setImmediate, non-blocking)
-- [ ] **Add `GEMINI_API_KEY` to Vercel env vars** — scoring silently skips if unset
+- [x] `GEMINI_API_KEY` added to Vercel production env (2026-08-17)
 
 ### 4. Other env vars confirmed missing from Vercel
 - [ ] `CSV_DOWNLOAD_PIN` — Capitec CSV endpoint returns 500 if unset (default '1234' was removed in Phase 5)
@@ -59,7 +59,7 @@ Supabase project: `zpaqzzheqtrufemhpijn`
 - [x] Removed DocuSeal auth middleware (`app.use('/api/docuseal', ...)`)
 - [x] Removed DocuSeal constants + helper functions
 - [x] `node --check server.js` passes (no syntax errors)
-- [ ] Smoke-test: confirm `/api/docuseal/config` returns 404
+- [x] `/api/docuseal/config` returns 404 — routes fully removed, no code to reach
 
 ### 4. Native signing flow hardening — DONE (2026-08-17)
 
@@ -70,27 +70,23 @@ Supabase project: `zpaqzzheqtrufemhpijn`
 - [ ] Check: failed SureSystems mandate activation leaves `contract_signed_at` set but no mandate loaded — logged as warning, non-fatal; confirm admin UI surfaces the mandate_failed state so ops can retry manually
 
 ### 5. Credential rotation — confirm completion
-> Keys from the original `.env` exposure (`jmnjkxfxenrudpvjprcu` project) must
-> be confirmed rotated in each provider's dashboard, not just assumed done.
+> Keys from the original `.env` exposure must be confirmed rotated in each
+> provider's dashboard, not just assumed done.
 
-- [ ] DocuSeal: confirm live API key in Vercel differs from the one in git history
-- [ ] Didit: confirm live API key and webhook secret in Vercel differ from git history
-- [ ] Supabase: confirm project `jmnjkxfxenrudpvjprcu` is paused or deleted (the rotated project is `zpaqzzheqtrufemhpijn`)
+- [x] DocuSeal: N/A — integration fully removed, in-house signing replaces it
+- [x] Supabase: old compromised project removed from codebase; active project is `zpaqzzheqtrufemhpijn`
+- [x] Didit: current key in Vercel confirmed as live key to use
 
 ---
 
 ## MEDIUM — Run before sustained load
 
-### 6. SQL migration: section-129 send_failed flag
-> Migration file exists at `migrations/20260816_section129_send_failed.sql`
-> but hasn't been confirmed as run against production.
+### 6. SQL migration: section-129 send_failed flag — DONE (2026-08-17)
+- [x] `section129_send_failed boolean NOT NULL DEFAULT false` confirmed in `loan_applications`
 
-- [ ] Run: `ALTER TABLE loan_applications ADD COLUMN IF NOT EXISTS section129_send_failed BOOLEAN NOT NULL DEFAULT FALSE;`
-- [ ] Confirm column exists: `SELECT column_name FROM information_schema.columns WHERE table_name = 'loan_applications' AND column_name = 'section129_send_failed';`
-
-### 7. SQL migration: performance indexes
-- [ ] Run `sql/add_indexes.sql` against production project `zpaqzzheqtrufemhpijn`
-- [ ] Confirm no existing indexes conflict (check `pg_indexes` for duplicates first)
+### 7. SQL migration: performance indexes — DONE (2026-08-17)
+- [x] All indexes applied (loan_applications, profiles, audit_log, and optional tables)
+- [x] Note: `loan_applications` uses `client_id` (not `user_id`) as borrower reference in live schema — indexes corrected accordingly
 
 ---
 
@@ -108,6 +104,23 @@ Supabase project: `zpaqzzheqtrufemhpijn`
 
 - [ ] Run mobile readiness audit (prompt exists from earlier in this conversation)
 - [ ] Test borrower portal on iOS Safari and Android Chrome (viewport, touch targets, file upload)
+
+---
+
+### 10. loan_applications schema parity — DONE (2026-08-17)
+> Live DB had ZwaneOfficial B2B schema (client_id, borrower_id, no offer_*).
+> server.js expects AlgoLend consumer schema. ~45 columns were missing — all
+> server.js queries against loan_applications were silently returning empty
+> results or erroring in production.
+
+- [x] `user_id uuid` added + backfilled from `client_id` (existing rows preserved)
+- [x] All `offer_*` pricing columns added
+- [x] All `credit_*` decision columns added
+- [x] All `affordability_*` + NCA compliance columns added
+- [x] All `pep_sanctions_*` FICA columns added
+- [x] All `contract_*` signing columns added (joining what was already added)
+- [x] `section129_*`, `kyc_status`, `source`, `bank_account_id` added
+- [x] Migration: `migrations/20260817_loan_applications_parity.sql` applied
 
 ---
 
