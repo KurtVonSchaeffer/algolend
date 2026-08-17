@@ -75,7 +75,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
       <ToastProvider>
-        <BrowserRouter basename="/admin-panel" future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <BrowserRouter basename="/admin-panel">
           <Routes>
             <Route path="/demo" element={<DemoPage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
