@@ -377,7 +377,7 @@ async function loadNavbar() {
 // Load Sidebar
 async function loadSidebar() {
   try {
-    const response = await fetch('/user-portal/layouts/sidebar.html');
+    const response = await fetch('/user-portal/layouts/sidebar.html?v=2');
     const html = await response.text();
     document.getElementById('sidebar').innerHTML = html;
     hydrateBranding();
