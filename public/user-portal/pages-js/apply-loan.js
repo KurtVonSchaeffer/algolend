@@ -616,37 +616,12 @@ async function refreshDocumentStatuses(showSpinner = false) {
   if (showSpinner) setModuleStatusLoading();
 
   try {
-    const [tillSlipExists, bankStatementExists, truidResponse] = await Promise.all([
+    const [tillSlipExists, bankStatementExists] = await Promise.all([
       documentServices.checkDocumentExistsByUser(activeUserId, 'till_slip'),
       documentServices.checkDocumentExistsByUser(activeUserId, 'bank_statement'),
-      fetch(`/api/truid/user/${activeUserId}/status`).then(res => res.ok ? res.json() : null)
     ]);
 
-    // Ensure we have data before trying to save
-    if (truidResponse) {
-      try {
-        const supabase = await getSupabaseClient();
-        const { error: upsertError } = await supabase
-          .from('truid_collections')
-          .upsert({
-            user_id: activeUserId,
-            collection_id: truidResponse.collectionId || truidResponse.id,
-            status: truidResponse.status,
-            normalized_status: truidResponse.normalizedStatus || truidResponse.status,
-            verified: !!truidResponse.verified,
-            collection_payload: truidResponse,
-            summary_payload: truidResponse.summary || {},
-            updated_at: new Date().toISOString()
-          }, { onConflict: 'collection_id' });
-
-        // 400 likely means truid_collections table doesn't exist yet — non-blocking
-        if (upsertError && upsertError.code !== '42P01') {
-          console.warn('[TruID] Sync warning:', upsertError.message);
-        }
-      } catch (_) { /* table may not exist yet — non-blocking */ }
-    }
-
-    const bankStatementReady = bankStatementExists || !!truidResponse?.verified;
+    const bankStatementReady = bankStatementExists;
 
     updateDocumentButtonState('tillslip', tillSlipExists ? 'complete' : 'pending');
     updateDocumentButtonState('bankstatement', bankStatementReady ? 'complete' : 'pending');

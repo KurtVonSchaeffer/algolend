@@ -87,14 +87,7 @@ const sensitiveLimiter = rateLimit({
 });
 
 // Middleware
-app.use(express.json({
-    verify: (req, res, buf) => {
-        const url = req.originalUrl || '';
-        if (url.startsWith('/api/docuseal/webhook')) {
-            req.rawBody = Buffer.from(buf);
-        }
-    }
-}));
+app.use(express.json());
 
 app.use('/api', apiLimiter);
 
@@ -103,9 +96,9 @@ const tillSlipRoute = require('./public/user/routes/tillSlipRoute');
 const bankStatementRoute = require('./public/user/routes/bankStatementRoute');
 const idcardRoute = require('./public/user/routes/idcardRoute');
 const kyc = require(path.join(__dirname, 'public', 'user-portal', 'Services', 'kycService'));
-const truid = require('./services/truidService');
 const creditCheckService = require('./services/creditCheckService');
 const sureSystemsService = require('./services/sureSystemsService');
+const { runCreditScoringPipeline } = require('./services/creditScoringPipeline');
 const messaging          = require('./services/messagingService');
 const pushNotifications  = require('./services/pushNotificationService');
 const moveItService = require('./services/moveItService');
@@ -136,18 +129,7 @@ const { logApiCall, tracked } = require('./services/apiUsageLogger');
 app.use('/api/compliance', requireAdminAuth);
 app.use('/api/billing',    requireAdminAuth);
 app.use('/api/audit-log',  requireAdminAuth);
-// DocuSeal: webhook is called by DocuSeal's servers (no admin token); all other routes require auth
-app.use('/api/docuseal', (req, res, next) => {
-    if (req.path === '/webhook') return next();
-    return requireAdminAuth(req, res, next);
-});
 // ─────────────────────────────────────────────────────────────────────────────
-
-const DOCUSEAL_API_KEY = process.env.DOCUSEAL_API_KEY;
-const DOCUSEAL_TEMPLATE_ID = process.env.DOCUSEAL_TEMPLATE_ID;
-const DOCUSEAL_API_URL = process.env.DOCUSEAL_API_URL || 'https://api.docuseal.com';
-
-const isDocuSealReady = () => Boolean(DOCUSEAL_API_KEY && DOCUSEAL_TEMPLATE_ID);
 
 // Resolved sending address for all outbound email.
 // null when unset — legal-notice cron handlers check for null and abort rather than
@@ -156,11 +138,6 @@ const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || null;
 if (!RESEND_FROM_EMAIL && process.env.NODE_ENV === 'production') {
     console.error('[FATAL] RESEND_FROM_EMAIL is not set — all outbound email from this server is blocked.');
 }
-
-const docuSealHeaders = {
-    'Content-Type': 'application/json',
-    'X-Auth-Token': DOCUSEAL_API_KEY || ''
-};
 
 const sureSystemsActivationStore = {
     byApplication: new Map(),
@@ -442,132 +419,6 @@ function requireNcrNumber(settings) {
         );
     }
     return ncrNumber.trim();
-}
-
-async function docuSealRequest(method, endpoint, data) {
-    if (!isDocuSealReady()) {
-        throw new Error('DocuSeal configuration missing');               
-    }
-
-    return axios({
-        method,
-        url: `${DOCUSEAL_API_URL}${endpoint}`,
-        headers: docuSealHeaders,
-        data
-    });
-}
-
-/**
- * buildDocuSealSubmission
- * Maps dynamic data to the AlgoLend Small Credit Agreement.
- * * @param {Object} applicationData - Data from public.loan_applications
- * @param {Object} profileData - Data from public.profiles
- * @param {Object} branchData - Data from public.branches
- * @param {string} creditProviderEmail - Email of the credit provider representative
- */
-function buildDocuSealSubmission(applicationData = {}, profileData = {}, branchData = {}, creditProviderEmail, settings = {}) {
-    const formatCurrency = (val) => `R ${parseFloat(val || 0).toFixed(2)}`;
-    const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-ZA') : 'N/A';
-
-    // Financial Calculations [cite: 34, 37]
-    const principal = parseFloat(applicationData.offer_principal || 0);
-    const thirdParty = parseFloat(applicationData.offer_details?.third_party_payment || 0);
-    const totalLoanC = principal + thirdParty;
-    const interest = parseFloat(applicationData.offer_total_interest || 0);
-    const initiation = parseFloat(applicationData.offer_total_initiation_fees || 0);
-    const serviceFees = parseFloat(applicationData.offer_total_admin_fees || 0);
-    const creditLife = parseFloat(applicationData.offer_credit_life_monthly || 0);
-    const vatE5 = (initiation + serviceFees) * 0.15;
-    const tccD = interest + initiation + serviceFees + creditLife + vatE5;
-    const ncrTotalI = tccD;
-    const costMultipleJ = totalLoanC > 0 ? (ncrTotalI / totalLoanC).toFixed(2) : "0.00";
-
-    const borrowerMobile = profileData.cell_tel_no || profileData.contact_number || '';
-    
-    // Calculate Final Payback Date
-    let finalPaybackDate = 'N/A';
-    if (applicationData.repayment_start_date) {
-        const d = new Date(applicationData.repayment_start_date);
-        d.setMonth(d.getMonth() + (applicationData.term_months || 0));
-        finalPaybackDate = d.toLocaleDateString('en-ZA');
-    }
-
-    return {
-        template_id: parseInt(DOCUSEAL_TEMPLATE_ID, 10),
-        send_email: true,
-        submitters: [
-            {
-                role: 'Credit Provider',
-                email: creditProviderEmail,
-                values: {
-                    provider_name: settings.company_name || process.env.COMPANY_NAME || "AlgoLend",
-                    provider_ncr: requireNcrNumber(settings),
-                    provider_branch_code: settings.provider_branch_code || process.env.COMPANY_BRANCH_CODE || "ZFS",
-                    provider_reg_no: settings.company_reg_number || process.env.COMPANY_REG_NUMBER || "",
-                    provider_vat_no: settings.company_vat_number || process.env.COMPANY_VAT_NUMBER || "",
-                    provider_tel: branchData.phone || settings.company_phone || process.env.COMPANY_PHONE || "",
-                    provider_physical_address: branchData.address || settings.company_physical_address || "",
-                    provider_postal_address: branchData.address || settings.company_postal_address || "",
-                    provider_logo_url: settings.company_logo_url || process.env.COMPANY_LOGO_URL || ""
-                }
-            },
-            {
-                role: 'Borrower',
-                email: profileData.email,
-                name: profileData.full_name,
-                values: {
-                    // Borrower Personal Info 
-                    borrower_fullname: profileData.full_name,
-                    borrower_id: profileData.identity_number,
-                    borrower_address: profileData.address || '',
-                    borrower_email: profileData.email,
-                    borrower_mobile: borrowerMobile,
-                    borrower_sms_address: borrowerMobile,
-                    
-                    // Fields missing from your SQL but present in DocuSeal 
-                    borrower_employer: profileData.employer_name || 'N/A',
-                    borrower_work_address: profileData.work_address || 'N/A',
-
-                    // Financials [cite: 34, 37]
-                    loan_amount_a: formatCurrency(principal),
-                    payment_to_third_party: formatCurrency(thirdParty),
-                    total_loan_amount_c: formatCurrency(totalLoanC),
-                    total_cost_of_credit_d: formatCurrency(tccD),
-                    credit_life_e1: formatCurrency(creditLife),
-                    initiation_fee_e2: formatCurrency(initiation),
-                    service_fees_e3: formatCurrency(serviceFees),
-                    interest_charges_e4: formatCurrency(interest),
-                    vat_charges_e5: formatCurrency(vatE5),
-                    total_repayable: formatCurrency(applicationData.offer_total_repayment),
-                    ncr_total_cost_i: formatCurrency(ncrTotalI),
-                    credit_cost_multiple_j: costMultipleJ,
-
-                    // Schedule
-                    interest_rate_monthly: `${applicationData.offer_interest_rate || 0}%`,
-                    first_payment_date: formatDate(applicationData.repayment_start_date),
-                    final_payback_date: finalPaybackDate,
-                    num_installments: applicationData.term_months?.toString(),
-                    payment_method: "Debit Order",
-                    installment_amount: formatCurrency(applicationData.offer_monthly_repayment),
-
-                    // Sign-off [cite: 39]
-                    signed_at_city: branchData.region || "Soweto",
-                    signed_date: formatDate(new Date())
-                }
-            }
-        ]
-    };
-}
-
-function handleDocuSealError(error, res) {
-    const status = error.response?.status || 500;
-    const message = error.response?.data?.error
-        || error.response?.data?.message
-        || error.message
-        || 'DocuSeal request failed';
-
-    console.error('DocuSeal API error:', message, error.response?.data || '');
-    return res.status(status).json({ error: message, details: error.response?.data });
 }
 
 function toSureSystemsDate(value) {
@@ -1223,143 +1074,6 @@ app.get('/api/kyc/user/:userId/status', requireAdminAuth, async (req, res) => {
     } catch (error) {
         console.error('KYC status error:', error);
         return res.status(500).json({ error: 'Unable to fetch KYC status' });
-    }
-});
-
-// TruID API routes
-app.post('/api/truid/create-session', requireAdminAuth, async (req, res) => {
-    try {
-        const payload = req.body || {};
-        const appId = payload.metadata?.applicationId || null;
-        const result = await tracked(
-            { service: 'truid', operation: 'initiate_collection', applicationId: appId, userId: payload.userId },
-            () => truid.initiateCollection({
-                ...payload,
-                name: payload.name || payload.metadata?.full_name,
-                idNumber: payload.idNumber || payload.metadata?.id_number || payload.metadata?.idNumber,
-                email: payload.email,
-                mobile: payload.phone,
-                correlation: { userId: payload.userId, applicationId: appId }
-            })
-        );
-
-        return res.json({
-            success: true,
-            session_id: result.collectionId,
-            connect_url: result.consumerUrl,
-            status: result.status
-        });
-    } catch (error) {
-        console.error('TruID create-session error:', error.message || error);
-        if (error.code === 'TRUID_CONFIG_MISSING') {
-            return res.status(503).json({ error: error.message });
-        }
-        return res.status(error.status || 500).json({ error: error.message || 'Unable to start TruID session' });
-    }
-});
-
-app.get('/api/truid/session/:sessionId', requireAdminAuth, async (req, res) => {
-    try {
-        const result = await truid.getCollectionStatus(req.params.sessionId);
-        return res.json(result);
-    } catch (error) {
-        console.error('TruID session lookup error:', error.message || error);
-        return res.status(error.status || 500).json({ error: 'Unable to fetch session status' });
-    }
-});
-
-app.get('/api/truid/user/:userId/status', requireAdminAuth, async (req, res) => {
-    try {
-        const result = await truid.getUserStatus(req.params.userId);
-        return res.json(result);
-    } catch (error) {
-        console.error('TruID status error:', error.message || error);
-        return res.status(500).json({ error: error.message || 'Unable to fetch TruID status' });
-    }
-});
-
-app.post('/api/truid/webhook', async (req, res) => {
-    try {
-        // HMAC signature verification — TRUID_WEBHOOK_SECRET must be set.
-        const secret = process.env.TRUID_WEBHOOK_SECRET;
-        if (!secret) {
-            console.error('[truid/webhook] TRUID_WEBHOOK_SECRET is not configured — rejecting all webhook calls');
-            return res.status(500).json({ error: 'Webhook not configured' });
-        }
-        const sigHeader = (req.headers['x-truid-signature'] || req.headers['x-signature'] || '').toString();
-        if (!sigHeader) return res.status(401).json({ error: 'Missing signature header' });
-        const expected = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('hex');
-        const received = sigHeader.startsWith('sha256=') ? sigHeader.slice(7) : sigHeader;
-        let valid = false;
-        try {
-            const r = Buffer.from(received, 'hex');
-            const e = Buffer.from(expected, 'hex');
-            if (r.length === e.length) valid = crypto.timingSafeEqual(r, e);
-        } catch (_) {}
-        if (!valid) return res.status(401).json({ error: 'Invalid signature' });
-
-        const payload = req.body || {};
-        const result = await truid.captureCollectionData({
-            collectionId: payload.collectionId || payload.collection_id || payload.id,
-            userId: payload.userId || payload.user_id || payload.correlation?.userId,
-            applicationId: payload.applicationId || payload.correlation?.applicationId
-        });
-        return res.status(200).json(result);
-    } catch (error) {
-        console.error('TruID webhook error:', error.message || error);
-        return res.status(error.status || 500).json({ error: 'Webhook processing failed' });
-    }
-});
-
-// Banking API endpoints
-app.post('/api/banking/initiate', requireAdminAuth, sensitiveLimiter, async (req, res) => {
-    try {
-        const result = await truid.initiateCollection(req.body || {});
-        return res.json(result);
-    } catch (error) {
-        console.error('Banking initiate error:', error.message || error);
-        return res.status(error.status || 500).json({ success: false, error: error.message || 'Failed to initiate banking collection' });
-    }
-});
-
-app.get('/api/banking/status', requireAdminAuth, async (req, res) => {
-    try {
-        const { collectionId, userId } = req.query;
-
-        if (collectionId) {
-            const result = await truid.getCollectionStatus(collectionId);
-            return res.json(result);
-        }
-
-        if (userId) {
-            const result = await truid.getUserStatus(userId);
-            return res.json(result);
-        }
-
-        return res.status(400).json({ success: false, error: 'Provide collectionId or userId' });
-    } catch (error) {
-        console.error('Banking status error:', error.message || error);
-        return res.status(error.status || 500).json({ success: false, error: error.message || 'Failed to fetch banking status' });
-    }
-});
-
-app.get('/api/banking/all', requireAdminAuth, async (req, res) => {
-    try {
-        const result = await truid.getAllSessions();
-        return res.json(result);
-    } catch (error) {
-        console.error('Banking all error:', error.message || error);
-        return res.status(error.status || 500).json({ success: false, error: error.message || 'Failed to list banking sessions' });
-    }
-});
-
-app.post('/api/banking/capture', requireAdminAuth, async (req, res) => {
-    try {
-        const result = await truid.captureCollectionData(req.body || {});
-        return res.json(result);
-    } catch (error) {
-        console.error('Banking capture error:', error.message || error);
-        return res.status(error.status || 500).json({ success: false, error: error.message || 'Failed to capture banking data' });
     }
 });
 
@@ -2246,484 +1960,6 @@ app.get('/api/suresystems/mandates/history', async (req, res) => {
     } catch (error) {
         console.error('SureSystems history fetch error:', error?.message || error);
         return res.status(500).json({ success: false, error: 'Unable to load mandate history', detail: error?.message || String(error) });
-    }
-});
-
-// DocuSeal proxy endpoints
-app.get('/api/docuseal/config', (req, res) => {
-    return res.json({
-        configured: isDocuSealReady(),
-        templateId: isDocuSealReady() ? DOCUSEAL_TEMPLATE_ID : null
-    });
-});
-
-app.post('/api/docuseal/send-contract', async (req, res) => {
-    if (!isDocuSealReady()) {
-        return res.status(503).json({ error: 'DocuSeal integration is not configured' });
-    }
-
-    const { applicationData, profileData } = req.body || {};
-    if (!applicationData || !profileData) {
-        return res.status(400).json({ error: 'applicationData and profileData are required' });
-    }
-
-    try {
-        const branchId = applicationData.branch_id || profileData.branch_id || 1;
-
-        // Fetch branch AND system_settings in parallel
-        const [{ data: branchData }, settings] = await Promise.all([
-            supabaseService.from('branches').select('*').eq('id', branchId).maybeSingle(),
-            loadSystemSettings()
-        ]);
-
-        const creditProviderEmail = process.env.CREDIT_PROVIDER_EMAIL || settings.company_email || "info@algolend.co.za";
-
-        const payload = buildDocuSealSubmission(applicationData, profileData, branchData || {}, creditProviderEmail, settings);
-
-        const response = await tracked(
-            { service: 'docuseal', operation: 'send_contract', applicationId: String(applicationData.id || '') },
-            () => docuSealRequest('post', '/submissions', payload)
-        );
-        return res.json(response.data);
-    } catch (error) {
-        return handleDocuSealError(error, res);
-    }
-});
-
-app.get('/api/docuseal/submissions/:submissionId', async (req, res) => {
-    if (!isDocuSealReady()) {
-        return res.status(503).json({ error: 'DocuSeal integration is not configured' });
-    }
-
-    try {
-        const response = await docuSealRequest('get', `/submissions/${req.params.submissionId}`);
-        return res.json(response.data);
-    } catch (error) {
-        return handleDocuSealError(error, res);
-    }
-});
-
-app.get('/api/docuseal/submitters/:submitterId', async (req, res) => {
-    if (!isDocuSealReady()) {
-        return res.status(503).json({ error: 'DocuSeal integration is not configured' });
-    }
-
-    try {
-        const response = await docuSealRequest('get', `/submitters/${req.params.submitterId}`);
-        return res.json(response.data);
-    } catch (error) {
-        return handleDocuSealError(error, res);
-    }
-});
-
-app.put('/api/docuseal/submitters/:submitterId', async (req, res) => {
-    if (!isDocuSealReady()) {
-        return res.status(503).json({ error: 'DocuSeal integration is not configured' });
-    }
-
-    try {
-        const payload = { send_email: true, ...(req.body || {}) };
-        const response = await docuSealRequest('put', `/submitters/${req.params.submitterId}`, payload);
-        return res.json(response.data);
-    } catch (error) {
-        return handleDocuSealError(error, res);
-    }
-});
-
-app.delete('/api/docuseal/submissions/:submissionId', async (req, res) => {
-    if (!isDocuSealReady()) {
-        return res.status(503).json({ error: 'DocuSeal integration is not configured' });
-    }
-
-    try {
-        const response = await docuSealRequest('delete', `/submissions/${req.params.submissionId}`);
-        return res.json(response.data);
-    } catch (error) {
-        return handleDocuSealError(error, res);
-    }
-});
-
-// DocuSeal Webhook Receiver – updates docuseal_submissions when DocuSeal sends events
-app.post('/api/docuseal/webhook', async (req, res) => {
-    try {
-        const secret = process.env.DOCUSEAL_WEBHOOK_SECRET;
-        if (!secret) {
-            console.error('[docuseal/webhook] DOCUSEAL_WEBHOOK_SECRET is not configured — rejecting all webhook calls');
-            return res.status(500).json({ error: 'Webhook not configured' });
-        }
-        const sigHeader = (req.headers['x-docuseal-signature'] || req.headers['x-signature'] || req.headers['x-hub-signature'] || '').toString();
-        if (!sigHeader) {
-            return res.status(401).json({ error: 'Missing signature header' });
-        }
-
-        let received = sigHeader.startsWith('sha256=') ? sigHeader.slice(7) : sigHeader;
-        const computedHex = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('hex');
-        const computedBase64 = crypto.createHmac('sha256', secret).update(req.rawBody || Buffer.from('')).digest('base64');
-
-        let valid = false;
-        try {
-            const rec = Buffer.from(received, 'hex');
-            const comp = Buffer.from(computedHex, 'hex');
-            if (rec.length === comp.length && crypto.timingSafeEqual(rec, comp)) valid = true;
-        } catch (e) {}
-        try {
-            const recB = Buffer.from(received, 'base64');
-            const compB = Buffer.from(computedBase64, 'base64');
-            if (recB.length === compB.length && crypto.timingSafeEqual(recB, compB)) valid = true;
-        } catch (e) {}
-        if (received === computedHex || received === computedBase64) valid = true;
-
-        if (!valid) {
-            return res.status(401).json({ error: 'Invalid signature' });
-        }
-
-        const payload = req.body || {};
-        const eventType = payload.event_type || payload.type || '';
-        const data = payload.data || payload;
-
-        console.log('DocuSeal webhook received:', eventType, data?.id || data?.submission_id || 'no-id');
-
-        const now = new Date().toISOString();
-
-        const updateBySubmitter = async (fields) => {
-            if (!data?.id) return;
-            await supabase
-                .from('docuseal_submissions')
-                .update({ ...fields, updated_at: now })
-                .eq('submitter_id', data.id);
-        };
-
-        const updateBySubmission = async (fields) => {
-            const submissionId = data?.submission?.id || data?.submission_id || (eventType.startsWith('submission.') ? data?.id : null);
-            if (!submissionId) return;
-            await supabase
-                .from('docuseal_submissions')
-                .update({ ...fields, updated_at: now })
-                .eq('submission_id', submissionId);
-        };
-
-        const getSubmissionIdFromWebhook = () => {
-            return data?.submission?.id || data?.submission_id || (eventType.startsWith('submission.') ? data?.id : null);
-        };
-
-        const getSlugFromWebhook = (submissionId) => {
-            const slugCandidate = data?.slug
-                || data?.submission?.slug
-                || data?.submission_url
-                || data?.submission?.url
-                || '';
-
-            if (slugCandidate) {
-                try {
-                    const parsed = new URL(String(slugCandidate));
-                    const parts = parsed.pathname.split('/').filter(Boolean);
-                    const maybeSlug = parts[parts.length - 1] || '';
-                    if (maybeSlug) return maybeSlug;
-                } catch (e) {
-                    const asString = String(slugCandidate).trim();
-                    if (asString) return asString;
-                }
-            }
-
-            return submissionId ? `submission-${submissionId}` : `submission-${Date.now()}`;
-        };
-
-        const upsertDocuSealSubmissionRow = async (nextStatus, extraFields = {}) => {
-            const submissionId = getSubmissionIdFromWebhook();
-            if (!submissionId) return;
-
-            const firstSubmitter = Array.isArray(data?.submitters) && data.submitters.length > 0
-                ? data.submitters[0]
-                : null;
-
-            const resolvedApplicationId = normalizeApplicationId(
-                data?.metadata?.application_id
-                || data?.application_id
-                || data?.submission?.metadata?.application_id
-                || data?.submission?.application_id
-                || null
-            );
-
-            const row = {
-                application_id: resolvedApplicationId,
-                submission_id: String(submissionId),
-                slug: getSlugFromWebhook(submissionId),
-                status: nextStatus || data?.status || 'pending',
-                template_id: data?.template?.id ? String(data.template.id) : null,
-                submitters: Array.isArray(data?.submitters) ? data.submitters : (firstSubmitter ? [firstSubmitter] : null),
-                metadata: data?.metadata || {},
-                email: firstSubmitter?.email || data?.email || null,
-                embed_src: firstSubmitter?.embed_src || null,
-                name: firstSubmitter?.name || data?.name || null,
-                role: firstSubmitter?.role || data?.role || null,
-                submitter_id: firstSubmitter?.id ? String(firstSubmitter.id) : (data?.id ? String(data.id) : null),
-                sent_at: firstSubmitter?.sent_at || data?.sent_at || null,
-                opened_at: data?.opened_at || null,
-                completed_at: data?.completed_at || null,
-                declined_at: data?.declined_at || null,
-                archived_at: data?.archived_at || null,
-                updated_at: now,
-                ...extraFields
-            };
-
-            const { error } = await supabase
-                .from('docuseal_submissions')
-                .upsert(row, { onConflict: 'submission_id' });
-
-            if (error) {
-                console.error('DocuSeal submission upsert error:', error, {
-                    eventType,
-                    submissionId,
-                    row
-                });
-            }
-        };
-
-        const resolveApplicationIdFromWebhook = async () => {
-            const directCandidate =
-                data?.metadata?.application_id
-                || data?.application_id
-                || data?.submission?.metadata?.application_id
-                || data?.submission?.application_id
-                || null;
-
-            if (directCandidate) {
-                return directCandidate;
-            }
-
-            const submissionId = data?.submission?.id || data?.submission_id || null;
-            const submitterId = data?.id || null;
-
-            if (submitterId) {
-                const { data: bySubmitter, error: bySubmitterError } = await supabase
-                    .from('docuseal_submissions')
-                    .select('application_id')
-                    .eq('submitter_id', submitterId)
-                    .order('updated_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                if (!bySubmitterError && bySubmitter?.application_id) {
-                    return bySubmitter.application_id;
-                }
-            }
-
-            if (submissionId) {
-                const { data: bySubmission, error: bySubmissionError } = await supabase
-                    .from('docuseal_submissions')
-                    .select('application_id')
-                    .eq('submission_id', submissionId)
-                    .order('updated_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                if (!bySubmissionError && bySubmission?.application_id) {
-                    return bySubmission.application_id;
-                }
-            }
-
-            // Final weak fallback: look for a field in DocuSeal values that carries application id
-            const valueMatch = Array.isArray(data?.values)
-                ? data.values.find((entry) => {
-                    const fieldName = String(entry?.field || '').toLowerCase();
-                    return fieldName.includes('application') && fieldName.includes('id');
-                })
-                : null;
-
-            if (valueMatch?.value) {
-                return String(valueMatch.value).trim();
-            }
-
-            return null;
-        };
-
-        const updateApplicationStatusFromDocuSeal = async (applicationId, nextStatus, extraFields = {}) => {
-            if (!applicationId) return null;
-
-            const { data: beforeData, error: beforeError } = await supabase
-                .from('loan_applications')
-                .select('id, status, contract_signed_at, updated_at')
-                .eq('id', applicationId)
-                .maybeSingle();
-
-            if (beforeError) {
-                console.warn('DocuSeal: could not fetch current application status before update', {
-                    applicationId,
-                    error: beforeError.message || beforeError
-                });
-            }
-
-            const { data: afterData, error: updateError } = await supabase
-                .from('loan_applications')
-                .update({ status: nextStatus, ...extraFields })
-                .eq('id', applicationId)
-                .select('id, status, contract_signed_at, updated_at')
-                .maybeSingle();
-
-            if (updateError) {
-                throw updateError;
-            }
-
-            console.log('DocuSeal application status transition', {
-                applicationId,
-                eventType,
-                previousStatus: beforeData?.status || null,
-                newStatus: afterData?.status || nextStatus,
-                updatedAt: afterData?.updated_at || now
-            });
-
-            return afterData;
-        };
-
-        switch (eventType) {
-            case 'form.viewed':
-                await upsertDocuSealSubmissionRow('opened', { opened_at: data.opened_at || now });
-                await updateBySubmitter({ status: 'opened', opened_at: data.opened_at || now });
-                break;
-            case 'form.started':
-                await upsertDocuSealSubmissionRow('started');
-                await updateBySubmitter({ status: 'started' });
-                break;
-            case 'form.completed':
-                await upsertDocuSealSubmissionRow('completed', {
-                    completed_at: data.completed_at || now,
-                    metadata: data.metadata || {}
-                });
-                await updateBySubmitter({ status: 'completed', completed_at: data.completed_at || now, metadata: data.values || data.metadata || {} });
-                // After a submitter completes the form, mark the related application as Contract Signed (step 5)
-                try {
-                    const applicationId = await resolveApplicationIdFromWebhook();
-                    if (applicationId) {
-                        await updateApplicationStatusFromDocuSeal(applicationId, 'OFFER_ACCEPTED', {
-                            contract_signed_at: now
-                        });
-                        console.log('DocuSeal: set application', applicationId, 'to OFFER_ACCEPTED');
-
-                        try {
-                            const activation = await triggerSureSystemsMandateForApplication(applicationId);
-                            await recordSureSystemsActivation({
-                                applicationId,
-                                userId: activation?.userId || null,
-                                status: 'success',
-                                contractReference: activation?.contractReference || null,
-                                message: 'Mandate loaded after DocuSeal completion',
-                                requestPayload: activation?.requestPayload || null,
-                                responsePayload: activation?.responsePayload || null,
-                                at: now
-                            });
-                            if (activation?.contractReference) {
-                                console.log('SureSystems: mandate loaded for application', applicationId, 'contractReference:', activation.contractReference);
-                            }
-                        } catch (sureSystemsError) {
-                            await recordSureSystemsActivation({
-                                applicationId,
-                                status: 'failed',
-                                message: sureSystemsError?.message || 'SureSystems activation failed',
-                                errorPayload: sureSystemsError?.details || null,
-                                at: now
-                            });
-                            console.warn('SureSystems mandate activation failed for application', applicationId, sureSystemsError?.message || sureSystemsError);
-                        }
-
-                        try {
-                            const inviteResult = await inviteBorrowerToPortal(applicationId);
-                            if (inviteResult?.invited) {
-                                console.log('Portal invite sent for partner-API application', applicationId, inviteResult.email);
-                            }
-                        } catch (inviteError) {
-                            console.warn('Portal invite failed for application', applicationId, inviteError?.message || inviteError);
-                        }
-                    } else {
-                        console.warn('DocuSeal completed event received but no application_id could be resolved', {
-                            eventType,
-                            submitterId: data?.id || null,
-                            submissionId: data?.submission?.id || data?.submission_id || null,
-                            metadata: data?.metadata || null
-                        });
-                    }
-                } catch (err) {
-                    console.error('Error updating application status after DocuSeal completed:', err);
-                }
-                break;
-            case 'form.declined':
-                try {
-                    await upsertDocuSealSubmissionRow('declined', {
-                        declined_at: data.declined_at || now,
-                        metadata: data.metadata || {}
-                    });
-                    // Mark the submitter row as declined (use submitter id present in data.id)
-                    await updateBySubmitter({ status: 'declined', declined_at: data.declined_at || now, metadata: data.values || data.metadata || {} });
-
-                    // Also update any submission-level rows by submission.id if available
-                    const submissionId = data.submission?.id || data.submission_id;
-                    if (submissionId) {
-                        await supabase
-                            .from('docuseal_submissions')
-                            .update({ status: 'declined', declined_at: data.declined_at || now, updated_at: now })
-                            .eq('submission_id', submissionId);
-                    }
-
-                    // Update linked loan application status when offer signing is declined
-                    const applicationId = await resolveApplicationIdFromWebhook();
-                    if (applicationId) {
-                        await updateApplicationStatusFromDocuSeal(applicationId, 'OFFER_DECLINED', {
-                            updated_at: now
-                        });
-                        console.log('DocuSeal: set application', applicationId, 'to OFFER_DECLINED');
-                    } else {
-                        console.warn('DocuSeal declined event received but no application_id could be resolved', {
-                            eventType,
-                            submitterId: data?.id || null,
-                            submissionId: data?.submission?.id || data?.submission_id || null,
-                            metadata: data?.metadata || null
-                        });
-                    }
-                } catch (error) {
-                    console.error('DocuSeal form.declined handling error:', error);
-                }
-                break;
-            case 'submission.archived':
-                await upsertDocuSealSubmissionRow('archived', { archived_at: data.archived_at || now });
-                await updateBySubmission({ status: 'archived', archived_at: data.archived_at || now });
-                break;
-            case 'submission.created':
-                try {
-                    await upsertDocuSealSubmissionRow(data.status || 'pending', {
-                        created_at: data.created_at || now
-                    });
-                } catch (error) {
-                    console.error('DocuSeal webhook upsert error:', error);
-                }
-                break;
-            // Handle updates where submitter status changes (e.g. declined) or submission metadata updates
-            case 'submitter.updated':
-            case 'submitter.status_changed':
-            case 'submission.updated':
-            case 'submission.declined':
-            case 'submitter.declined':
-                try {
-                    await upsertDocuSealSubmissionRow(data.status || 'pending');
-
-                    // If submission-level status provided, update rows by submission_id
-                    const submissionId = getSubmissionIdFromWebhook();
-                    if (submissionId && data.status) {
-                        await supabase
-                            .from('docuseal_submissions')
-                            .update({ status: data.status, updated_at: now })
-                            .eq('submission_id', submissionId);
-                    }
-                } catch (error) {
-                    console.error('DocuSeal webhook update error:', error);
-                }
-                break;
-            default:
-                console.log('Unhandled DocuSeal webhook event:', eventType);
-        }
-
-        return res.status(200).json({ received: true });
-    } catch (error) {
-        console.error('DocuSeal webhook processing error:', error);
-        return res.status(500).json({ error: error.message || 'DocuSeal webhook failed' });
     }
 });
 
@@ -7354,6 +6590,126 @@ app.post('/api/contracts/notify-to-sign', async (req, res) => {
     }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Credit Scoring — Gemini extraction + deterministic scorecard
+// ─────────────────────────────────────────────────────────────────────────────
+
+// POST /api/credit-score/analyze
+// Re-scores an already-stored bank statement document on demand.
+// Caller: authenticated borrower (owns the document) or admin.
+// Body: { documentId }  — the document_uploads.id to re-score.
+app.post('/api/credit-score/analyze', async (req, res) => {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Unauthorised' });
+
+    const { data: { user }, error: callerErr } = await supabaseService.auth.getUser(token);
+    if (callerErr || !user) return res.status(401).json({ error: 'Unauthorised' });
+
+    try {
+        const { documentId } = req.body || {};
+        if (!documentId) return res.status(400).json({ error: 'documentId is required' });
+
+        // Fetch document record — enforces ownership unless admin
+        const isAdmin = user.app_metadata?.role && ADMIN_ROLES.has(user.app_metadata.role);
+        const docQuery = supabaseService
+            .from('document_uploads')
+            .select('id, user_id, application_id, file_path, file_type, mime_type')
+            .eq('id', documentId);
+        if (!isAdmin) docQuery.eq('user_id', user.id);
+
+        const { data: doc, error: docErr } = await docQuery.maybeSingle();
+        if (docErr || !doc) return res.status(404).json({ error: 'Document not found or access denied' });
+        if (doc.file_type !== 'bank_statement') {
+            return res.status(400).json({ error: 'Only bank_statement documents can be scored' });
+        }
+
+        const mimeType = doc.mime_type || 'application/pdf';
+        if (mimeType !== 'application/pdf') {
+            return res.status(400).json({ error: 'Only PDF bank statements are supported for AI scoring' });
+        }
+
+        // Download file buffer from Supabase Storage
+        const storagePath = new URL(doc.file_path).pathname.split('/documents/')[1];
+        const { data: fileData, error: dlErr } = await supabaseService.storage
+            .from('documents')
+            .download(storagePath);
+        if (dlErr || !fileData) {
+            return res.status(502).json({ error: 'Could not retrieve document from storage: ' + (dlErr?.message || 'unknown') });
+        }
+
+        const buffer = Buffer.from(await fileData.arrayBuffer());
+
+        const result = await runCreditScoringPipeline({
+            buffer,
+            mimeType,
+            userId: doc.user_id,
+            applicationId: doc.application_id || null,
+            documentId: doc.id
+        });
+
+        return res.json({
+            success: true,
+            score:              result.score,
+            band:               result.band,
+            recommendation:     result.recommendation,
+            adverseActionCodes: result.adverseActionCodes,
+            availableIncome:    result.availableIncome,
+            dtiRatio:           result.dtiRatio,
+            subScores:          result.subScores,
+            featureId:          result.featureId,
+            scoreId:            result.scoreId,
+            modelVersion:       result.modelVersion
+        });
+    } catch (err) {
+        console.error('[credit-score/analyze]', err.message);
+        return res.status(500).json({ error: err.message || 'Credit scoring failed' });
+    }
+});
+
+// GET /api/credit-score/:applicationId — latest score for an application
+app.get('/api/credit-score/:applicationId', async (req, res) => {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'Unauthorised' });
+
+    const { data: { user }, error: callerErr } = await supabaseService.auth.getUser(token);
+    if (callerErr || !user) return res.status(401).json({ error: 'Unauthorised' });
+
+    try {
+        const { applicationId } = req.params;
+        const isAdmin = user.app_metadata?.role && ADMIN_ROLES.has(user.app_metadata.role);
+
+        const { data: scoreRow, error: scoreErr } = await supabaseService
+            .from('credit_scores')
+            .select('score, band, recommendation, adverse_action_codes, dti_ratio, available_income, income_stability_score, debt_ratio_score, balance_behaviour_score, credit_behaviour_score, lender_load_score, model_version, scored_at')
+            .eq('application_id', applicationId)
+            .order('scored_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (scoreErr) throw scoreErr;
+        if (!scoreRow) return res.status(404).json({ error: 'No credit score on record for this application' });
+
+        // Borrowers may only see their own score
+        if (!isAdmin) {
+            const { data: app } = await supabaseService
+                .from('loan_applications')
+                .select('user_id')
+                .eq('id', applicationId)
+                .maybeSingle();
+            if (!app || app.user_id !== user.id) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+        }
+
+        return res.json({ success: true, ...scoreRow });
+    } catch (err) {
+        console.error('[credit-score/get]', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── In-house contract signing ───────────────────────────────────────────────
 // POST /api/contracts/sign  (user-portal — borrower must be authenticated and own the application)
 app.post('/api/contracts/sign', async (req, res) => {
@@ -7626,18 +6982,42 @@ app.post('/api/contracts/sign', async (req, res) => {
         }
 
         // 4. Update application
+        const contractContentHash = crypto
+            .createHash('sha256')
+            .update(signedContractHtml)
+            .digest('hex');
+
+        const signerIp = req.ip || req.socket?.remoteAddress || null;
+
         const { error: updateErr } = await supabaseService
             .from('loan_applications')
             .update({
                 contract_signed_at: now,
                 contract_signature_url: signatureUrl,
                 contract_pdf_url: finalContractUrl,
+                contract_content_hash: contractContentHash,
+                contract_signed_ip: signerIp,
                 status: 'OFFER_ACCEPTED',
                 updated_at: now
             })
             .eq('id', applicationId);
 
         if (updateErr) throw new Error('Failed to update application: ' + updateErr.message);
+
+        // Audit trail — contract signing is the highest-value lifecycle event
+        await writeAudit({
+            entityType: 'loan_application',
+            entityId: applicationId,
+            action: 'CONTRACT_SIGNED',
+            newValue: {
+                signedAt: now,
+                agreementNo,
+                contentHash: contractContentHash,
+                ip: signerIp
+            },
+            description: `Borrower signed loan agreement ${agreementNo}`,
+            req
+        });
 
         // 5. Trigger SureSystems debit-order mandate (same as DocuSeal webhook does)
         try {

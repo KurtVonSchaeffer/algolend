@@ -1,5 +1,6 @@
 const path = require('path');
 const { supabaseStorage, createAuthedClient } = require('../../../config/supabaseServer');
+const { runCreditScoringPipeline } = require('../../../services/creditScoringPipeline');
 
 const DOCUMENTS_BUCKET = 'documents';
 
@@ -147,6 +148,22 @@ exports.uploadBankStatement = async (req, res) => {
     }
     
     console.log('✅ Bank statement metadata stored:', documentData.id);
+
+    // Fire-and-forget AI credit scoring — never blocks the upload response.
+    // Only runs for PDF files (Gemini can read PDF inline; images are skipped for now).
+    if (mimetype === 'application/pdf') {
+        setImmediate(() => {
+            runCreditScoringPipeline({
+                buffer,
+                mimeType: mimetype,
+                userId,
+                applicationId: applicationId || null,
+                documentId: documentData.id
+            }).catch(err => {
+                console.warn('[credit-scoring] background pipeline failed (non-fatal):', err.message);
+            });
+        });
+    }
 
     res.status(200).json({
       message: 'Bank statement uploaded successfully!',
