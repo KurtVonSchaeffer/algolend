@@ -5004,18 +5004,146 @@ app.get('/api/messaging/webhook', (req, res) => {
 
 // POST /api/messaging/webhook — incoming WhatsApp messages
 app.post('/api/messaging/webhook', (req, res) => {
-    // Acknowledge receipt immediately (Meta requires 200 within 20s)
-    res.sendStatus(200);
+    res.sendStatus(200); // must respond within 20s
     const body = req.body;
-    if (body?.object === 'whatsapp_business_account') {
-        const messages = body.entry?.[0]?.changes?.[0]?.value?.messages || [];
-        messages.forEach(msg => {
-            const from = msg.from;
-            const text = msg.text?.body || '';
-            console.log(`[WhatsApp inbound] From: ${from} | ${text}`);
-            // Future: handle keyword routing (REGISTER, STATUS, BALANCE, etc.)
-        });
+    if (body?.object !== 'whatsapp_business_account') return;
+
+    const messages = body.entry?.[0]?.changes?.[0]?.value?.messages || [];
+    if (!messages.length) return;
+
+    setImmediate(async () => {
+        for (const msg of messages) {
+            try {
+                const from = msg.from;
+                const text = msg.text?.body || null;
+                const type = msg.type || 'text';
+                const waId = msg.id;
+
+                // Try to match to a borrower profile by phone
+                const { data: profile } = await supabaseService
+                    .from('profiles')
+                    .select('id')
+                    .or(`cell_tel_no.eq.${from},cell_tel_no.eq.+${from},contact_number.eq.${from},contact_number.eq.+${from}`)
+                    .maybeSingle();
+
+                await supabaseService.from('whatsapp_messages').insert({
+                    wa_message_id:       waId,
+                    from_phone:          from,
+                    message_type:        type,
+                    message_text:        text,
+                    matched_borrower_id: profile?.id || null,
+                    direction:           'inbound',
+                    status:              'unread',
+                    raw_payload:         body,
+                });
+
+                console.log(`[WhatsApp inbound] ${from} | ${text?.slice(0, 60) || type}`);
+            } catch (err) {
+                console.error('[whatsapp-webhook] store failed:', err.message);
+            }
+        }
+    });
+});
+
+// GET /api/admin/whatsapp/conversations — list conversations grouped by phone
+app.get('/api/admin/whatsapp/conversations', requireAdminAuth, async (req, res) => {
+    try {
+        const { data, error } = await supabaseService
+            .from('whatsapp_messages')
+            .select('*, profiles:matched_borrower_id(full_name, cell_tel_no)')
+            .order('received_at', { ascending: false })
+            .limit(500);
+
+        if (error) throw error;
+
+        // Group by from_phone — latest message first per conversation
+        const convMap = new Map();
+        for (const msg of data || []) {
+            const phone = msg.from_phone;
+            if (!convMap.has(phone)) {
+                convMap.set(phone, {
+                    phone,
+                    borrowerName: msg.profiles?.full_name || null,
+                    borrowerId:   msg.matched_borrower_id || null,
+                    messages:     [],
+                    unread:       0,
+                    lastMessage:  msg,
+                });
+            }
+            const conv = convMap.get(phone);
+            conv.messages.push(msg);
+            if (msg.status === 'unread' && msg.direction === 'inbound') conv.unread++;
+        }
+
+        // Sort conversations by most recent message
+        const conversations = [...convMap.values()].sort(
+            (a, b) => new Date(b.lastMessage.received_at) - new Date(a.lastMessage.received_at)
+        );
+
+        res.json({ conversations });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
+});
+
+// POST /api/admin/whatsapp/reply — send a reply from admin to a borrower
+app.post('/api/admin/whatsapp/reply', requireAdminAuth, async (req, res) => {
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const accessToken   = process.env.WHATSAPP_TOKEN;
+
+    if (!phoneNumberId || !accessToken) {
+        return res.status(503).json({ error: 'WhatsApp Cloud API not configured (WHATSAPP_PHONE_NUMBER_ID / WHATSAPP_TOKEN missing)' });
+    }
+
+    const { to, message } = req.body;
+    if (!to || !message?.trim()) {
+        return res.status(400).json({ error: 'to and message are required' });
+    }
+
+    try {
+        const waRes = await axios.post(
+            `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+            { messaging_product: 'whatsapp', to, type: 'text', text: { body: message.trim() } },
+            { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }
+        );
+
+        const waMessageId = waRes.data?.messages?.[0]?.id || null;
+
+        // Mark all inbound messages from this number as read
+        await supabaseService.from('whatsapp_messages')
+            .update({ status: 'read' })
+            .eq('from_phone', to)
+            .eq('direction', 'inbound')
+            .eq('status', 'unread');
+
+        // Log the outbound reply
+        await supabaseService.from('whatsapp_messages').insert({
+            wa_message_id: waMessageId,
+            from_phone:    to,
+            message_type:  'text',
+            message_text:  message.trim(),
+            direction:     'outbound',
+            status:        'sent',
+            raw_payload:   waRes.data,
+        });
+
+        res.json({ success: true, wa_message_id: waMessageId });
+    } catch (err) {
+        const detail = err.response?.data || err.message;
+        console.error('[whatsapp-reply]', detail);
+        res.status(500).json({ error: 'WhatsApp send failed', detail });
+    }
+});
+
+// PATCH /api/admin/whatsapp/read/:phone — mark conversation as read
+app.patch('/api/admin/whatsapp/read/:phone', requireAdminAuth, async (req, res) => {
+    const { error } = await supabaseService.from('whatsapp_messages')
+        .update({ status: 'read' })
+        .eq('from_phone', req.params.phone)
+        .eq('direction', 'inbound')
+        .eq('status', 'unread');
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
 });
 
 // POST /api/admin/invite-staff — send email invite to a new staff member

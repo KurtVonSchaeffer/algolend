@@ -1,11 +1,33 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { AdminPageShell } from '../components/ui/AdminPage';
 import { useToast } from '../components/ui/Toast';
+import { supabase } from '../api/supabaseClient';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type Channel = 'WhatsApp' | 'SMS' | 'Email';
 type Category = 'ALL' | 'Onboarding' | 'Payment' | 'Collections' | 'Compliance' | 'Statement';
+
+interface WaMessage {
+  id: string;
+  wa_message_id: string | null;
+  from_phone: string;
+  message_type: string;
+  message_text: string | null;
+  direction: 'inbound' | 'outbound';
+  status: 'unread' | 'read' | 'sent';
+  received_at: string;
+  profiles?: { full_name: string | null; cell_tel_no: string | null } | null;
+}
+
+interface WaConversation {
+  phone: string;
+  borrowerName: string | null;
+  borrowerId: string | null;
+  messages: WaMessage[];
+  unread: number;
+  lastMessage: WaMessage;
+}
 
 interface Template {
   id: string;
@@ -115,7 +137,7 @@ const fmtDateTime = (d: string) =>
 
 export function CommunicationsPage() {
   const { success: toastSuccess, error: toastError, warning: toastWarning, info: toastInfo } = useToast();
-  const [tab, setTab] = useState<'Templates' | 'Log' | 'Compose'>('Templates');
+  const [tab, setTab] = useState<'Templates' | 'Log' | 'Compose' | 'Inbox'>('Templates');
   const [category, setCategory] = useState<Category>('ALL');
   const [channelFilter, setChannelFilter] = useState<Channel | 'ALL'>('ALL');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
@@ -124,6 +146,94 @@ export function CommunicationsPage() {
   const [composePhone, setComposePhone] = useState('');
   const [sending, setSending] = useState(false);
   const [sendLog, setSendLog] = useState<SendLog[]>(SEND_LOG);
+
+  // ── Inbox state ──────────────────────────────────────────────────────────────
+  const [conversations, setConversations]   = useState<WaConversation[]>([]);
+  const [activePhone, setActivePhone]       = useState<string | null>(null);
+  const [inboxLoading, setInboxLoading]     = useState(false);
+  const [replyText, setReplyText]           = useState('');
+  const [replying, setReplying]             = useState(false);
+  const threadRef = useRef<HTMLDivElement>(null);
+
+  const authHeader = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return { Authorization: `Bearer ${session?.access_token ?? ''}` };
+  }, []);
+
+  const loadConversations = useCallback(async () => {
+    setInboxLoading(true);
+    try {
+      const headers = await authHeader();
+      const res = await fetch('/api/admin/whatsapp/conversations', { headers });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const { conversations: convs } = await res.json();
+      setConversations(convs || []);
+    } catch (err: any) {
+      toastError('Failed to load inbox', err.message);
+    } finally {
+      setInboxLoading(false);
+    }
+  }, [authHeader, toastError]);
+
+  useEffect(() => {
+    if (tab === 'Inbox') loadConversations();
+  }, [tab, loadConversations]);
+
+  useEffect(() => {
+    if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
+  }, [activePhone, conversations]);
+
+  const activeConv = conversations.find(c => c.phone === activePhone) ?? null;
+  const totalUnread = conversations.reduce((s, c) => s + c.unread, 0);
+
+  const handleMarkRead = useCallback(async (phone: string) => {
+    try {
+      const headers = await authHeader();
+      await fetch(`/api/admin/whatsapp/read/${encodeURIComponent(phone)}`, { method: 'PATCH', headers });
+      setConversations(prev => prev.map(c =>
+        c.phone === phone ? { ...c, unread: 0, messages: c.messages.map(m => ({ ...m, status: m.direction === 'inbound' ? 'read' : m.status })) } : c
+      ));
+    } catch (_) {}
+  }, [authHeader]);
+
+  const handleSelectConv = useCallback((phone: string, unread: number) => {
+    setActivePhone(phone);
+    if (unread > 0) handleMarkRead(phone);
+  }, [handleMarkRead]);
+
+  const handleReply = useCallback(async () => {
+    if (!activePhone || !replyText.trim()) return;
+    setReplying(true);
+    try {
+      const headers = await authHeader();
+      const res = await fetch('/api/admin/whatsapp/reply', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: activePhone, message: replyText.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Send failed (${res.status})`);
+      }
+      const optimistic: WaMessage = {
+        id: `opt-${Date.now()}`, wa_message_id: null,
+        from_phone: activePhone, message_type: 'text',
+        message_text: replyText.trim(), direction: 'outbound',
+        status: 'sent', received_at: new Date().toISOString(),
+      };
+      setConversations(prev => prev.map(c =>
+        c.phone === activePhone
+          ? { ...c, messages: [...c.messages, optimistic], lastMessage: optimistic }
+          : c
+      ));
+      setReplyText('');
+      toastSuccess('Reply sent', `Message delivered to ${activePhone}`);
+    } catch (err: any) {
+      toastError('Reply failed', err.message);
+    } finally {
+      setReplying(false);
+    }
+  }, [activePhone, replyText, authHeader, toastSuccess, toastError]);
 
   const filteredTemplates = useMemo(() => TEMPLATES.filter(t => {
     const catOk = category === 'ALL' || t.category === category;
@@ -195,6 +305,13 @@ export function CommunicationsPage() {
 
   const deliveredCount = sendLog.filter(l => l.status === 'DELIVERED').length;
   const failedCount = sendLog.filter(l => l.status === 'FAILED').length;
+  const fmtTime = (d: string) => new Date(d).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' });
+  const fmtDate = (d: string) => {
+    const dt = new Date(d);
+    const today = new Date();
+    if (dt.toDateString() === today.toDateString()) return fmtTime(d);
+    return dt.toLocaleDateString('en-ZA', { day: '2-digit', month: 'short' });
+  };
 
   return (
     <AdminPageShell>
@@ -212,7 +329,7 @@ export function CommunicationsPage() {
           { label: 'Templates', value: TEMPLATES.length, icon: 'description', color: '#7c3aed' },
           { label: 'Sent This Month', value: sendLog.length, icon: 'send', color: '#2563eb' },
           { label: 'Delivered', value: deliveredCount, icon: 'done_all', color: '#059669' },
-          { label: 'Failed', value: failedCount, icon: 'error_outline', color: '#dc2626' },
+          { label: 'Unread Messages', value: totalUnread, icon: 'mark_chat_unread', color: totalUnread > 0 ? '#dc2626' : '#6b7280' },
         ].map(k => (
           <div key={k.label} style={{ ...card, padding: '18px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -229,16 +346,19 @@ export function CommunicationsPage() {
       {/* Tab bar */}
       <div style={{ ...card, overflow: 'hidden', marginBottom: 20 }}>
         <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb' }}>
-          {(['Templates', 'Log', 'Compose'] as const).map(t => (
+          {(['Templates', 'Log', 'Compose', 'Inbox'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{
               padding: '14px 24px', border: 'none', background: 'none', cursor: 'pointer',
               fontWeight: tab === t ? 700 : 500, fontSize: 14,
               color: tab === t ? 'var(--color-primary, #7c3aed)' : '#6b7280',
               borderBottom: tab === t ? '2px solid var(--color-primary, #7c3aed)' : '2px solid transparent',
-              transition: 'all 0.15s',
+              transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6,
             }}>
               {t === 'Log' ? 'Send Log' : t}
-              {t === 'Log' && <span style={{ marginLeft: 6, fontSize: 10, background: '#f3f4f6', padding: '1px 6px', borderRadius: 20, color: '#6b7280', fontWeight: 700 }}>{sendLog.length}</span>}
+              {t === 'Log' && <span style={{ fontSize: 10, background: '#f3f4f6', padding: '1px 6px', borderRadius: 20, color: '#6b7280', fontWeight: 700 }}>{sendLog.length}</span>}
+              {t === 'Inbox' && totalUnread > 0 && (
+                <span style={{ fontSize: 10, background: '#dc2626', padding: '1px 6px', borderRadius: 20, color: '#fff', fontWeight: 800 }}>{totalUnread}</span>
+              )}
             </button>
           ))}
         </div>
@@ -493,6 +613,123 @@ export function CommunicationsPage() {
             </div>
           </div>
         )}
+        {/* ── Inbox tab ── */}
+        {tab === 'Inbox' && (
+          <div style={{ display: 'flex', height: 560 }}>
+            {/* Conversation list */}
+            <div style={{ width: 280, borderRight: '1px solid #f3f4f6', overflowY: 'auto', flexShrink: 0 }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#374151' }}>Conversations</span>
+                <button onClick={loadConversations} disabled={inboxLoading} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', display: 'flex', alignItems: 'center' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16, animation: inboxLoading ? 'spin 1s linear infinite' : 'none' }}>refresh</span>
+                </button>
+              </div>
+
+              {inboxLoading && conversations.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>Loading…</div>
+              ) : conversations.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center', color: '#9ca3af', fontSize: 12 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 32, display: 'block', marginBottom: 8 }}>chat_bubble_outline</span>
+                  No messages yet.<br />Inbound WhatsApp messages will appear here.
+                </div>
+              ) : (
+                conversations.map(conv => (
+                  <button key={conv.phone} onClick={() => handleSelectConv(conv.phone, conv.unread)} style={{
+                    width: '100%', padding: '12px 16px', border: 'none', background: activePhone === conv.phone ? '#f5f3ff' : 'transparent',
+                    cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid #f9fafb',
+                    borderLeft: activePhone === conv.phone ? '3px solid #7c3aed' : '3px solid transparent',
+                    transition: 'all 0.1s',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
+                        {conv.borrowerName || conv.phone}
+                      </span>
+                      <span style={{ fontSize: 10, color: '#9ca3af', flexShrink: 0 }}>{fmtDate(conv.lastMessage.received_at)}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <span style={{ fontSize: 11, color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                        {conv.lastMessage.direction === 'outbound' && <span style={{ color: '#9ca3af' }}>You: </span>}
+                        {conv.lastMessage.message_text || `[${conv.lastMessage.message_type}]`}
+                      </span>
+                      {conv.unread > 0 && (
+                        <span style={{ fontSize: 10, fontWeight: 800, background: '#25d366', color: '#fff', borderRadius: '50%', width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {conv.unread}
+                        </span>
+                      )}
+                    </div>
+                    {conv.borrowerName && (
+                      <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{conv.phone}</div>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Thread view */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              {!activeConv ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', flexDirection: 'column', gap: 8 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 40, color: '#25d366' }}>whatsapp</span>
+                  <span style={{ fontSize: 13 }}>Select a conversation</span>
+                </div>
+              ) : (
+                <>
+                  {/* Thread header */}
+                  <div style={{ padding: '12px 20px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#25d36618', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#25d366' }}>person</span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{activeConv.borrowerName || activeConv.phone}</div>
+                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{activeConv.borrowerName ? activeConv.phone : 'Unknown borrower'}</div>
+                    </div>
+                  </div>
+
+                  {/* Messages */}
+                  <div ref={threadRef} style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', background: '#f0f2f5', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {activeConv.messages.map(msg => (
+                      <div key={msg.id} style={{ display: 'flex', justifyContent: msg.direction === 'outbound' ? 'flex-end' : 'flex-start' }}>
+                        <div style={{
+                          maxWidth: '70%', padding: '8px 12px', borderRadius: msg.direction === 'outbound' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                          background: msg.direction === 'outbound' ? '#dcf8c6' : '#fff',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.1)', fontSize: 13, color: '#111827', lineHeight: 1.5,
+                        }}>
+                          {msg.message_text || <em style={{ color: '#9ca3af' }}>[{msg.message_type}]</em>}
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 3, textAlign: 'right' }}>
+                            {fmtTime(msg.received_at)}
+                            {msg.direction === 'outbound' && <span style={{ marginLeft: 4 }}>✓</span>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Reply input */}
+                  <div style={{ padding: '12px 16px', borderTop: '1px solid #e5e7eb', display: 'flex', gap: 10, alignItems: 'flex-end', background: '#fff' }}>
+                    <textarea
+                      value={replyText}
+                      onChange={e => setReplyText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply(); } }}
+                      placeholder="Type a message… (Enter to send)"
+                      rows={2}
+                      style={{ flex: 1, padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: 12, fontSize: 13, outline: 'none', resize: 'none', lineHeight: 1.5, fontFamily: 'inherit' }}
+                    />
+                    <button onClick={handleReply} disabled={replying || !replyText.trim()} style={{
+                      width: 40, height: 40, borderRadius: '50%', border: 'none', flexShrink: 0,
+                      background: replyText.trim() ? '#25d366' : '#e5e7eb', cursor: replyText.trim() ? 'pointer' : 'not-allowed',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s',
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 18, color: replyText.trim() ? '#fff' : '#9ca3af' }}>
+                        {replying ? 'hourglass_top' : 'send'}
+                      </span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
     </AdminPageShell>
   );
